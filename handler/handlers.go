@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/gilwo/5H0r7/shortener"
-	"github.com/gilwo/5H0r7/store"
+	"github.com/gilwo/Sh0r7/shortener"
+	"github.com/gilwo/Sh0r7/store"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 )

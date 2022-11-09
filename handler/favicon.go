@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gilwo/5H0r7/store"
+	"github.com/gilwo/Sh0r7/store"
 )
 
 /// favicon

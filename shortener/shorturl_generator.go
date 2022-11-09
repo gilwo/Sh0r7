@@ -7,7 +7,7 @@ import (
 	"math/big"
 	"math/rand"
 
-	"github.com/gilwo/5H0r7/store"
+	"github.com/gilwo/Sh0r7/store"
 	"github.com/google/uuid"
 	"github.com/itchyny/base58-go"
 )

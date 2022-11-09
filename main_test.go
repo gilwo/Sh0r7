@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gilwo/5H0r7/store"
+	"github.com/gilwo/Sh0r7/store"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 )

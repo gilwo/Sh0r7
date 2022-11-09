@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/gilwo/5H0r7/handler"
-	"github.com/gilwo/5H0r7/store"
+	"github.com/gilwo/Sh0r7/handler"
+	"github.com/gilwo/Sh0r7/store"
 	"github.com/gin-gonic/gin"
 )
 
