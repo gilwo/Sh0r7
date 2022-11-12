@@ -81,6 +81,10 @@ func GinInit() *gin.Engine {
 	})
 
 	r.GET("/:short", func(c *gin.Context) {
+		if c.Param("short") == "hc" {
+			c.String(200, "")
+			return
+		}
 		if c.Param("short") == "favicon.ico" {
 			c.FileFromFS(".", handler.HandleGetFavIcon())
 			return
