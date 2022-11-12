@@ -4,17 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gilwo/Sh0r7/shortener"
 	"github.com/gilwo/Sh0r7/store"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 )
-
-
-
-
-
 
 func _spawnErr(c *gin.Context, err error) {
 	fmt.Printf("err : %v\n", err)
@@ -203,13 +199,12 @@ func updateUrl(c *gin.Context, d []byte) bool {
 }
 func updateData(c *gin.Context, d []byte) bool {
 	short := c.Param("short")
-	dataKey, err := store.StoreCtx.LoadDataMapping(short + "m")
+	_, err := store.StoreCtx.LoadDataMapping(short + "m")
 	if err != nil {
 		fmt.Println(err)
 		return false
 	}
 
-	err = store.StoreCtx.UpdateDataMapping(d, string(dataKey))
 	if err != nil {
 		fmt.Println(err)
 		return false
@@ -224,7 +219,6 @@ func DeleteShortData(c *gin.Context) {
 		_spawnErr(c, err)
 		return
 	}
-	fmt.Println(store.StoreCtx.GenFunc("dump", string(dataKey)))
 	modifyKey, err := store.StoreCtx.GetMetaDataMapping(string(dataKey), "m")
 	if err != nil {
 		_spawnErr(c, err)
@@ -244,7 +238,6 @@ func DeleteShortData(c *gin.Context) {
 		return
 	}
 	store.StoreCtx.RemoveDataMapping(string(dataKey) + "url")
-	fmt.Println(store.StoreCtx.GenFunc("dumpkeys"))
 	c.Status(200)
 }
 func CreateShortData(c *gin.Context) {
