@@ -2,8 +2,6 @@ package store
 
 type Store interface {
 	InitializeStore() error
-	SaveUrlMapping(shortUrl string, originalUrl string, userId string)
-	RetrieveInitialUrl(shortUrl string) string
 	UpdateDataMapping(data []byte, short string) error
 	SaveDataMapping(data []byte, short string) error
 	CheckShortDataMapping(short string) error

@@ -85,11 +85,17 @@ func GinInit() *gin.Engine {
 			c.FileFromFS(".", handler.HandleGetFavIcon())
 			return
 		}
+		handler.HandleShort(c)
+	})
+
+	// create short for url
+	r.POST("/create-short-url", func(c *gin.Context) {
+		handler.HandleCreateShortUrl(c)
 	})
 
 	// create short for data
 	r.POST("/create-short-data", func(c *gin.Context) {
-		handler.HandleCreateShortDataImproved1(c)
+		handler.HandleCreateShortData(c)
 	})
 
 	// retrieve meta data on short
@@ -105,7 +111,7 @@ func GinInit() *gin.Engine {
 
 	// update data on short
 	r.PATCH("/:short", func(c *gin.Context) {
-		handler.UpdateShortData(c)
+		handler.HandleUpdateShort(c)
 	})
 	// update data on short
 	r.DELETE("/:short", func(c *gin.Context) {

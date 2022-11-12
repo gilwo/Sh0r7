@@ -24,20 +24,50 @@ import (
 // 	assert.Equal(t, 4, 4)
 // }
 
-const (
-	PAYLOAD = `
-{
-	"long_url2": "something something something",
-	"long_url": "https://www.guru3d.com/news-story/spotted-ryzen-threadripper-pro-3995wx-processor-with-8-channel-ddr4,2.html",
-	"user_id": "e0dba740-fc4b-4977-872c-d360239e6b10",
-	"sub": {
-		"a": 1,
-		"b": "2"
-	}
+type maybeJsonObj struct {
+	asObj    map[string]interface{}
+	asString string
 }
-`
-	MODPAYLOAD = "data changed"
-)
+
+func newFromString(m string) *maybeJsonObj {
+	// fmt.Printf("!!!!!!!!!!! %s\n", m)
+	r := &maybeJsonObj{asObj: map[string]interface{}{}}
+	err := json.Unmarshal([]byte(m), &r.asObj)
+	if err != nil {
+		r.asString = m
+		return r
+	}
+	data, err := json.Marshal(r.asObj)
+	if err != nil {
+		panic(fmt.Errorf("convert map to json string failed: %s", err))
+	}
+	r.asString = string(data)
+	return r
+}
+
+func newFromMap(m map[string]interface{}) *maybeJsonObj {
+	data, err := json.Marshal(m)
+	if err != nil {
+		panic(fmt.Errorf("convert map to json string failed: %s", err))
+	}
+	r := &maybeJsonObj{asObj: map[string]interface{}{}, asString: string(data)}
+	err = json.Unmarshal([]byte(r.asString), &r.asObj)
+	if err != nil {
+		panic(fmt.Errorf("convert json string to map failed: %s", err))
+	}
+	return r
+}
+func (jo *maybeJsonObj) String() string {
+	return jo.asString
+}
+func (jo *maybeJsonObj) Map() map[string]interface{} {
+	return jo.asObj
+}
+func (jo *maybeJsonObj) Comp(other *maybeJsonObj) bool {
+	fmt.Printf("we: %s\n", jo.asString)
+	fmt.Printf("other: %s\n", other.asString)
+	return jo.asString == other.asString
+}
 
 func test_init(t *testing.T) *gin.Engine {
 	store.StoreCtx = store.NewStoreLocal()
@@ -45,10 +75,11 @@ func test_init(t *testing.T) *gin.Engine {
 	return GinInit()
 }
 
-func TestCreateShortDataImproved1(t *testing.T) {
+func TestCreateShortData(t *testing.T) {
+	PAYLOAD := newFromString(`{"url": "yahoo.com"}`)
 	ge := test_init(t)
 	w := httptest.NewRecorder()
-	r := httptest.NewRequest("POST", "/create-short-data", bytes.NewBufferString(PAYLOAD))
+	r := httptest.NewRequest("POST", "/create-short-data", bytes.NewBufferString(PAYLOAD.String()))
 	c, _ := gin.CreateTestContext(w)
 	c.Request = r
 	ge.ServeHTTP(w, r)
@@ -57,8 +88,9 @@ func TestCreateShortDataImproved1(t *testing.T) {
 	fmt.Printf("%v\n", w.Body)
 	res := map[string]interface{}{}
 	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &res))
-	assert.Contains(t, res, "shortData")
-	assert.Contains(t, res, "token")
+	assert.Contains(t, res, "delete")
+	assert.Contains(t, res, "modify")
+	assert.Contains(t, res, "short")
 }
 
 func TestDummyFail(t *testing.T) {
@@ -90,12 +122,32 @@ func TestDummyFail(t *testing.T) {
 // 	assert.Equal(t, "pong", w.Body.String())
 // }
 
-func TestFullFlow(t *testing.T) {
+func TestFullFlowUrl(t *testing.T) {
+	var (
+		PAYLOAD        = newFromString(`{"url": "google.com"}`)
+		RESPPAYLOAD    = newFromString("google.com")
+		MODPAYLOAD     = newFromString(`{"url": "cnn.com"}`)
+		RESPMODPAYLOAD = newFromString("cnn.com")
+	)
+	testFullFlow(t, "/create-short-url", PAYLOAD, RESPPAYLOAD, MODPAYLOAD, RESPMODPAYLOAD)
+}
+
+func TestFullFlowData(t *testing.T) {
+	var (
+		PAYLOAD        = newFromString(`{"url": "google.com"}`)
+		RESPPAYLOAD    = newFromString(`{"url": "google.com"}`)
+		MODPAYLOAD     = newFromString(`{"url": "cnn.com"}`)
+		RESPMODPAYLOAD = newFromString(`{"url": "cnn.com"}`)
+	)
+	testFullFlow(t, "/create-short-data", PAYLOAD, RESPPAYLOAD, MODPAYLOAD, RESPMODPAYLOAD)
+}
+
+func testFullFlow(t *testing.T, api string, req1, resp1, req2, resp2 *maybeJsonObj) {
 	ge := test_init(t)
 
 	// create
 	w := httptest.NewRecorder()
-	r := httptest.NewRequest("POST", "/create-short-data", bytes.NewBufferString(PAYLOAD))
+	r := httptest.NewRequest("POST", api, bytes.NewBufferString(req1.String()))
 	c, _ := gin.CreateTestContext(w)
 	c.Request = r
 	ge.ServeHTTP(w, r)
@@ -104,10 +156,12 @@ func TestFullFlow(t *testing.T) {
 	fmt.Printf("%v\n", w.Body)
 	res := map[string]interface{}{}
 	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &res))
-	assert.Contains(t, res, "shortData")
-	assert.Contains(t, res, "token")
-	short := res["shortData"].(string)
-	token := res["token"].(string)
+	assert.Contains(t, res, "short")
+	assert.Contains(t, res, "modify")
+	assert.Contains(t, res, "delete")
+	short := res["short"].(string)
+	modify := res["modify"].(string)
+	delete := res["delete"].(string)
 
 	fmt.Printf("checking short %s info\n", short)
 
@@ -124,8 +178,6 @@ func TestFullFlow(t *testing.T) {
 	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &res))
 	assert.Contains(t, res, "created")
 	assert.Contains(t, res, "data")
-	assert.Contains(t, res, "token")
-	assert.Contains(t, res["token"], token)
 
 	// retrieve data
 	w = httptest.NewRecorder()
@@ -136,14 +188,15 @@ func TestFullFlow(t *testing.T) {
 	ge.ServeHTTP(w, r)
 	assert.Equal(t, 200, w.Code)
 	fmt.Printf("%v\n", w.Body)
-	res = map[string]interface{}{}
-	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &res))
-	assert.Contains(t, res, "data")
-	assert.Equal(t, res["data"], PAYLOAD)
+	// res = map[string]interface{}{}
+	// assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &res))
+	// assert.Contains(t, res, "data")
+	act := newFromString(w.Body.String())
+	assert.True(t, act.Comp(resp1))
 
 	// patch data
 	w = httptest.NewRecorder()
-	r = httptest.NewRequest("PATCH", fmt.Sprintf("/%s", short), bytes.NewBufferString(MODPAYLOAD))
+	r = httptest.NewRequest("PATCH", fmt.Sprintf("/%s", modify), bytes.NewBufferString(req2.String()))
 	fmt.Printf("****\n%#v\n****\n", r)
 	c, _ = gin.CreateTestContext(w)
 	c.Request = r
@@ -164,10 +217,11 @@ func TestFullFlow(t *testing.T) {
 	ge.ServeHTTP(w, r)
 	assert.Equal(t, 200, w.Code)
 	fmt.Printf("%v\n", w.Body)
-	res = map[string]interface{}{}
-	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &res))
-	assert.Contains(t, res, "data")
-	assert.Equal(t, res["data"], MODPAYLOAD)
+	// res = map[string]interface{}{}
+	// assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &res))
+	// assert.Contains(t, res, "data")
+	act = newFromString(w.Body.String())
+	assert.True(t, act.Comp(resp2))
 
 	// retrieve info - check old data exists
 	w = httptest.NewRecorder()
@@ -186,8 +240,8 @@ func TestFullFlow(t *testing.T) {
 
 	// delete
 	w = httptest.NewRecorder()
-	r = httptest.NewRequest("DELETE", fmt.Sprintf("/%s", short), nil)
-	r.Header.Add("token", token)
+	r = httptest.NewRequest("DELETE", fmt.Sprintf("/%s", delete), nil)
+	// r.Header.Add("token", token)
 	fmt.Printf("****\n%#v\n****\n", r)
 	c, _ = gin.CreateTestContext(w)
 	c.Request = r
@@ -203,7 +257,7 @@ func TestFullFlow(t *testing.T) {
 	// verify short not exits
 	w = httptest.NewRecorder()
 	r = httptest.NewRequest("GET", fmt.Sprintf("/%s/data", short), nil)
-	r.Header.Add("token", token)
+	// r.Header.Add("token", token)
 	fmt.Printf("****\n%#v\n****\n", r)
 	c, _ = gin.CreateTestContext(w)
 	c.Request = r
