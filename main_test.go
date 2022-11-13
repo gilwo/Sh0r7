@@ -89,7 +89,7 @@ func TestCreateShortData(t *testing.T) {
 	res := map[string]interface{}{}
 	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &res))
 	assert.Contains(t, res, "delete")
-	assert.Contains(t, res, "modify")
+	assert.Contains(t, res, "private")
 	assert.Contains(t, res, "short")
 }
 
@@ -157,17 +157,17 @@ func testFullFlow(t *testing.T, api string, req1, resp1, req2, resp2 *maybeJsonO
 	res := map[string]interface{}{}
 	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &res))
 	assert.Contains(t, res, "short")
-	assert.Contains(t, res, "modify")
+	assert.Contains(t, res, "private")
 	assert.Contains(t, res, "delete")
 	short := res["short"].(string)
-	modify := res["modify"].(string)
+	private := res["private"].(string)
 	delete := res["delete"].(string)
 
 	fmt.Printf("checking short %s info\n", short)
 
 	// retrieve info
 	w = httptest.NewRecorder()
-	r = httptest.NewRequest("GET", fmt.Sprintf("/%s/info", short), nil)
+	r = httptest.NewRequest("GET", fmt.Sprintf("/%s/info", private), nil)
 	fmt.Printf("****\n%#v\n****\n", r)
 	c, _ = gin.CreateTestContext(w)
 	c.Request = r
@@ -181,7 +181,7 @@ func testFullFlow(t *testing.T, api string, req1, resp1, req2, resp2 *maybeJsonO
 
 	// retrieve data
 	w = httptest.NewRecorder()
-	r = httptest.NewRequest("GET", fmt.Sprintf("/%s/data", short), nil)
+	r = httptest.NewRequest("GET", fmt.Sprintf("/%s/data", private), nil)
 	fmt.Printf("****\n%#v\n****\n", r)
 	c, _ = gin.CreateTestContext(w)
 	c.Request = r
@@ -196,7 +196,7 @@ func testFullFlow(t *testing.T, api string, req1, resp1, req2, resp2 *maybeJsonO
 
 	// patch data
 	w = httptest.NewRecorder()
-	r = httptest.NewRequest("PATCH", fmt.Sprintf("/%s", modify), bytes.NewBufferString(req2.String()))
+	r = httptest.NewRequest("PATCH", fmt.Sprintf("/%s", private), bytes.NewBufferString(req2.String()))
 	fmt.Printf("****\n%#v\n****\n", r)
 	c, _ = gin.CreateTestContext(w)
 	c.Request = r
@@ -210,7 +210,7 @@ func testFullFlow(t *testing.T, api string, req1, resp1, req2, resp2 *maybeJsonO
 
 	// retrieve data - check data is the mod payload
 	w = httptest.NewRecorder()
-	r = httptest.NewRequest("GET", fmt.Sprintf("/%s/data", short), nil)
+	r = httptest.NewRequest("GET", fmt.Sprintf("/%s/data", private), nil)
 	fmt.Printf("****\n%#v\n****\n", r)
 	c, _ = gin.CreateTestContext(w)
 	c.Request = r
@@ -225,7 +225,7 @@ func testFullFlow(t *testing.T, api string, req1, resp1, req2, resp2 *maybeJsonO
 
 	// retrieve info - check old data exists
 	w = httptest.NewRecorder()
-	r = httptest.NewRequest("GET", fmt.Sprintf("/%s/info", short), nil)
+	r = httptest.NewRequest("GET", fmt.Sprintf("/%s/info", private), nil)
 	fmt.Printf("****\n%#v\n****\n", r)
 	c, _ = gin.CreateTestContext(w)
 	c.Request = r
@@ -256,7 +256,7 @@ func testFullFlow(t *testing.T, api string, req1, resp1, req2, resp2 *maybeJsonO
 
 	// verify short not exits
 	w = httptest.NewRecorder()
-	r = httptest.NewRequest("GET", fmt.Sprintf("/%s/data", short), nil)
+	r = httptest.NewRequest("GET", fmt.Sprintf("/%s/data", private), nil)
 	// r.Header.Add("token", token)
 	fmt.Printf("****\n%#v\n****\n", r)
 	c, _ = gin.CreateTestContext(w)
@@ -267,6 +267,6 @@ func testFullFlow(t *testing.T, api string, req1, resp1, req2, resp2 *maybeJsonO
 	res = map[string]interface{}{}
 	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &res))
 	assert.Contains(t, res, "error")
-	assert.Contains(t, res["error"], fmt.Sprintf("entry not exist for %s", short))
+	assert.Contains(t, res["error"], fmt.Sprintf("entry not exist for %s", private))
 
 }

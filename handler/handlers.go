@@ -27,7 +27,7 @@ func handleCreateShortModDelete(data string, isUrl bool) (map[string]interface{}
 	shorts := map[string]string{
 		"":  shortener.GenerateShortData(data),
 		"d": shortener.GenerateShortData(data + "delete"),
-		"m": shortener.GenerateShortData(data + "modify"),
+		"p": shortener.GenerateShortData(data + "private"),
 	}
 	for _, e := range shorts {
 		if e == "" {
@@ -37,7 +37,7 @@ func handleCreateShortModDelete(data string, isUrl bool) (map[string]interface{}
 	mapping := map[string]string{
 		"":  data,
 		"d": shorts[""],
-		"m": shorts[""],
+		"p": shorts[""],
 	}
 	if isUrl {
 		shorts["url"] = shorts[""]
@@ -49,12 +49,13 @@ func handleCreateShortModDelete(data string, isUrl bool) (map[string]interface{}
 			break
 		}
 	}
+	shorts["s"] = shorts[""]
 	if err == nil {
 		for k, e := range shorts {
 			if k == "" {
 				continue
 			}
-			err = store.StoreCtx.SetMetaDataMapping(shorts[""], k, e+k)
+			err = store.StoreCtx.SetMetaDataMapping(shorts[""], k, e)
 			if err != nil {
 				break
 			}
@@ -69,7 +70,7 @@ func handleCreateShortModDelete(data string, isUrl bool) (map[string]interface{}
 	}
 
 	res["short"] = shorts[""]
-	res["modify"] = shorts["m"]
+	res["private"] = shorts["p"]
 	res["delete"] = shorts["d"]
 	return res, nil
 }
@@ -167,7 +168,7 @@ func HandleUpdateShort(c *gin.Context) {
 func updateUrl(c *gin.Context, d []byte) bool {
 	short := c.Param("short")
 
-	mod, err := store.StoreCtx.LoadDataMapping(short + "m")
+	mod, err := store.StoreCtx.LoadDataMapping(short + "p")
 	if err != nil {
 		fmt.Println(err)
 		return false
@@ -199,12 +200,13 @@ func updateUrl(c *gin.Context, d []byte) bool {
 }
 func updateData(c *gin.Context, d []byte) bool {
 	short := c.Param("short")
-	_, err := store.StoreCtx.LoadDataMapping(short + "m")
+	dataKey, err := store.StoreCtx.LoadDataMapping(short + "p")
 	if err != nil {
 		fmt.Println(err)
 		return false
 	}
 
+	err = store.StoreCtx.UpdateDataMapping(d, string(dataKey))
 	if err != nil {
 		fmt.Println(err)
 		return false
@@ -219,17 +221,17 @@ func DeleteShortData(c *gin.Context) {
 		_spawnErr(c, err)
 		return
 	}
-	modifyKey, err := store.StoreCtx.GetMetaDataMapping(string(dataKey), "m")
+	privateKey, err := store.StoreCtx.GetMetaDataMapping(string(dataKey), "p")
 	if err != nil {
 		_spawnErr(c, err)
 		return
 	}
-
+	privateKey += "p"
 	if err := store.StoreCtx.RemoveDataMapping(string(dataKey)); err != nil {
 		_spawnErr(c, err)
 		return
 	}
-	if err := store.StoreCtx.RemoveDataMapping(modifyKey); err != nil {
+	if err := store.StoreCtx.RemoveDataMapping(privateKey); err != nil {
 		_spawnErr(c, err)
 		return
 	}
@@ -274,7 +276,12 @@ func CreateShortData(c *gin.Context) {
 
 func HandleGetShortDataInfo(c *gin.Context) {
 	short := c.Param("short")
-	data, err := store.StoreCtx.LoadDataMappingInfo(short)
+	privateKey, err := store.StoreCtx.LoadDataMapping(short + "p")
+	if err != nil {
+		_spawnErr(c, err)
+		return
+	}
+	data, err := store.StoreCtx.LoadDataMappingInfo(string(privateKey))
 	if err != nil {
 		_spawnErr(c, err)
 		return
@@ -282,8 +289,13 @@ func HandleGetShortDataInfo(c *gin.Context) {
 	c.JSON(200, data)
 }
 func HandleGetOriginData(c *gin.Context) {
-	shortUrl := c.Param("short")
-	data, err := store.StoreCtx.LoadDataMapping(shortUrl)
+	short := c.Param("short")
+	privateKey, err := store.StoreCtx.LoadDataMapping(short + "p")
+	if err != nil {
+		_spawnErr(c, err)
+		return
+	}
+	data, err := store.StoreCtx.LoadDataMapping(string(privateKey))
 	if err != nil {
 		_spawnErr(c, err)
 		return
@@ -303,12 +315,31 @@ func HandleShort(c *gin.Context) {
 
 		return
 	}
+	if getDataPrivate(c) {
+
+		return
+	}
 
 	_spawnErr(c, fmt.Errorf("short %s not found", short))
 }
 func getData(c *gin.Context) bool {
 	short := c.Param("short")
 	data, err := store.StoreCtx.LoadDataMapping(short)
+	if err != nil {
+		fmt.Println(err)
+		return false
+	}
+	c.String(200, "%s", data)
+	return true
+}
+func getDataPrivate(c *gin.Context) bool {
+	short := c.Param("short")
+	privateKey, err := store.StoreCtx.LoadDataMapping(short + "p")
+	if err != nil {
+		fmt.Println(err)
+		return false
+	}
+	data, err := store.StoreCtx.LoadDataMapping(string(privateKey))
 	if err != nil {
 		fmt.Println(err)
 		return false
