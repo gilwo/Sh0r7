@@ -1,10 +1,15 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
+	"time"
 
 	"github.com/gilwo/Sh0r7/handler"
 	"github.com/gilwo/Sh0r7/store"
@@ -62,11 +67,30 @@ func main() {
 		addr = envAddr
 	}
 
-	err = GinInit().Run(addr)
-	if err != nil {
-		panic(fmt.Sprintf("Failed to start the web server - Error: %v", err))
-	}
+	ctx, cancel := ContextWithSignals(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+	defer exit()
 
+	srv := &http.Server{
+		Addr:    addr,
+		Handler: GinInit(),
+	}
+	go func() {
+		<-ctx.Done()
+		srv.Shutdown(context.Background())
+	}()
+	go func() {
+		fmt.Println("** server starting **")
+		if err := srv.ListenAndServe(); err != nil {
+			if err != http.ErrServerClosed {
+				fmt.Printf("failed serving with gin: %s\n", err)
+				os.Exit(1)
+			}
+		}
+	}()
+	<-ctx.Done()
+	time.Sleep(100 * time.Millisecond)
+	fmt.Println("** server down **")
 }
 
 func GinInit() *gin.Engine {
@@ -122,4 +146,25 @@ func GinInit() *gin.Engine {
 		handler.DeleteShortData(c)
 	})
 	return r
+}
+
+func ContextWithSignals(parent context.Context, sig ...os.Signal) (ctx context.Context, cancel func()) {
+	ctx, cancel = context.WithCancel(parent)
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, sig...)
+
+	go func() {
+		<-c
+		close(c)
+		cancel()
+	}()
+
+	return ctx, cancel
+}
+func exit() {
+	err := recover()
+	if err != nil {
+		fmt.Printf("command failed: %s", err)
+		os.Exit(-1)
+	}
 }
