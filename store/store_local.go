@@ -137,3 +137,7 @@ func (st *StorageLocal) RemoveDataMapping(short string) error {
 	st.cacheSync.Delete(short)
 	return nil
 }
+
+func (st *StorageLocal) GenFunc(v ...interface{}) interface{} {
+	return nil
+}

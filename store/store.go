@@ -10,6 +10,7 @@ type Store interface {
 	SetMetaDataMapping(short, key, value string) error
 	GetMetaDataMapping(short, key string) (string, error)
 	RemoveDataMapping(short string) error
+	GenFunc(v ...interface{}) interface{}
 }
 
 var (

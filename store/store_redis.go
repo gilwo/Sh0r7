@@ -262,3 +262,7 @@ func (st *StorageRedis) RemoveDataMapping(short string) error {
 	}
 	return nil
 }
+
+func (st *StorageRedis) GenFunc(v ...interface{}) interface{} {
+	return nil
+}
