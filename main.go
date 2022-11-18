@@ -14,6 +14,7 @@ import (
 	"github.com/gilwo/Sh0r7/handler"
 	"github.com/gilwo/Sh0r7/store"
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -22,7 +23,15 @@ var (
 
 func main() {
 	flag.Parse()
+	err := storageInit()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	startServer()
+}
 
+func storageInit() error {
 	// Note store initialization happens here
 	envLocal := os.Getenv("SH0R7_STORE_LOCAL")
 	envRedis := os.Getenv("SH0R7_STORE_REDIS")
@@ -30,14 +39,13 @@ func main() {
 	if redisUrl := envRedis; redisUrl != "" && !*useLocal {
 		// fmt.Printf("redisURL: %s\n", redisUrl)
 		if store.NewStoreRedis == nil {
-			fmt.Println("missing redis storage support")
-			os.Exit(1)
+			return errors.New("missing redis storage support")
 		}
 		store.StoreCtx = store.NewStoreRedis(redisUrl)
 	} else if envLocal != "" {
 		if store.NewStoreLocal == nil {
-			fmt.Println("missing local storage support")
-			os.Exit(1)
+			return errors.New("missing local storage support")
+
 		}
 		store.StoreCtx = store.NewStoreLocal()
 	}
@@ -46,17 +54,18 @@ func main() {
 			fmt.Println("no specific store defined - fallback to local storage")
 			store.StoreCtx = store.NewStoreLocal()
 		} else {
-			fmt.Println("missing storage support")
-			os.Exit(1)
+			return errors.New("missing storage support")
 		}
 	}
 	err := store.StoreCtx.InitializeStore()
 	if err != nil {
-		fmt.Printf("store init failed, exiting...: %s\n", err)
-		panic(err)
+		return errors.Wrap(err, "store init failed, exiting...\n")
 	}
 	handler.StoreFavicon()
+	return nil
+}
 
+func startServer() {
 	addr := ":9808"
 	envProd := os.Getenv("SH0R7_PRODUCTION")
 	if strings.ToLower(envProd) == "true" {
@@ -161,6 +170,7 @@ func ContextWithSignals(parent context.Context, sig ...os.Signal) (ctx context.C
 
 	return ctx, cancel
 }
+
 func exit() {
 	err := recover()
 	if err != nil {
