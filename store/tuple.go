@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"compress/zlib"
 	"encoding/base64"
-	"fmt"
 	"io"
 	"sort"
 
@@ -24,14 +23,14 @@ func NewTuple() *stringTuple {
 }
 func initStringTuple(size int, names ...string) (*stringTuple, error) {
 	if len(names) != size {
-		return nil, fmt.Errorf("mismatch in size and field names count")
+		return nil, errors.New("mismatch in size and field names count")
 	}
 	r := &stringTuple{
 		tuple: map[string]string{},
 	}
 	for _, e := range names {
 		if _, ok := r.tuple[e]; ok {
-			return nil, fmt.Errorf("field names have duplicates: %v", names)
+			return nil, errors.Errorf("field names have duplicates: %v", names)
 		}
 		r.tuple[e] = ""
 	}
@@ -59,21 +58,21 @@ func (t *stringTuple) AtCheck(field string) (string, error) {
 	if v, ok := t.tuple[field]; ok {
 		return v, nil
 	}
-	return "", fmt.Errorf("field %s not exists in tuple", field)
+	return "", errors.Errorf("field %s not exists in tuple", field)
 }
 func (t *stringTuple) Get(field string) string {
 	// fmt.Printf("content of tuple %#v\n", t)
 	if v, ok := t.tuple[field]; ok {
 		return v
 	}
-	panic(fmt.Errorf("field %s not exists in tuple", field))
+	panic(errors.Errorf("field %s not exists in tuple", field))
 }
 func (t *stringTuple) Set(field, value string) {
 	t.tuple[field] = value
 }
 func (t *stringTuple) SetCheck(field, value string) error {
 	if _, ok := t.tuple[field]; !ok {
-		return fmt.Errorf("field %s not exists in tuple", field)
+		return errors.Errorf("field %s not exists in tuple", field)
 	}
 	t.tuple[field] = value
 	return nil
@@ -121,7 +120,7 @@ func (t *stringTuple) unpackMsgPack(data []byte) error {
 func (t *stringTuple) Dump() string {
 	s := ""
 	for _, k := range t.Keys() {
-		s += fmt.Sprintf("\t[%s]:\n\t\t[%s]\n", k, t.tuple[k])
+		s += "\t[" + k + "]:\n\t\t[" + t.tuple[k] + "]\n"
 	}
 	return s
 }
@@ -162,7 +161,7 @@ func (t *stringTuple) Get2Bytes(field string) ([]byte, error) {
 func (t *stringTuple) Get2(field string) (string, error) {
 	d, ok := t.tuple[field]
 	if !ok {
-		return "", fmt.Errorf("field %s not exists in tuple", field)
+		return "", errors.Errorf("field %s not exists in tuple", field)
 	}
 	v := bytes.NewBufferString(d)
 	if _, ok := t.tuple[field+fCompress]; ok { // field value is compressed

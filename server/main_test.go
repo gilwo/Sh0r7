@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"bytes"
@@ -34,6 +34,7 @@ func newFromString(m string) *maybeJsonObj {
 	r := &maybeJsonObj{asObj: map[string]interface{}{}}
 	err := json.Unmarshal([]byte(m), &r.asObj)
 	if err != nil {
+		// panic(fmt.Errorf("convert json string to map failed: %s", err))
 		r.asString = m
 		return r
 	}
