@@ -26,8 +26,8 @@ func init() {
 
 var (
 	helloH *app.Handler = &app.Handler{
-		Name:        "Hello",
-		Description: "An Hello World! example",
+		Name:        "Sh0r7",
+		Description: "Sh0r7 url and data shortener",
 		// Resources:   app.CustomProvider(".", helloPath),
 		Icon: app.Icon{
 			Default: "/web/sh0r7-website-favicon-color.png",
@@ -36,9 +36,16 @@ var (
 		// Resources: app.LocalDir("/web"),
 		// Resources: app.LocalDir(""),H1
 		Styles: []string{
-			"/web/hello-main.css",
+			"/web/sh0r7-main.css",
+			"https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css",
 		},
-		Title: "hello exampler 2",
+		Title: "this is Sh0r7",
+		RawHeaders: []string{
+			`<head>
+			<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+			<link href="https://fonts.googleapis.com/css?family=Cairo&display=swap" rel="stylesheet" />
+			`,
+		},
 	}
 
 	webappServedPaths map[string]bool
@@ -52,13 +59,16 @@ func webappInit() {
 	webappCommon.WebappFront()
 
 	webappServedPaths = map[string]bool{
-		webappCommon.ShortPath:  true,
-		"/wasm_exec.js":         true,
-		"/app.js":               true,
-		"/manifest.webmanifest": true,
-		"/app-worker.js":        true,
-		"/app.css":              true,
-		"/web/app.wasm":         true,
+		webappCommon.ShortPath:                 true,
+		"/wasm_exec.js":                        true,
+		"/app.js":                              true,
+		"/manifest.webmanifest":                true,
+		"/app-worker.js":                       true,
+		"/app.css":                             true,
+		"/web/app.wasm":                        true,
+		"/web/sh0r7-main.css":                  true,
+		"/web/sh0r7-website-favicon-color.png": true,
+		"/web/sh0r7-logo-color-on-transparent-background.png": true,
 	}
 
 }
