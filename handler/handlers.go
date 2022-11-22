@@ -16,6 +16,11 @@ func _spawnErr(c *gin.Context, err error) {
 	fmt.Printf("err : %v\n", err)
 	c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 }
+func _spawnErrCond(c *gin.Context, err error, cond bool) {
+	if cond {
+		_spawnErrWithCode(c, http.StatusBadRequest, err)
+	}
+}
 
 var (
 	runningCount = 0
@@ -152,7 +157,9 @@ func HandleUpdateShort(c *gin.Context) {
 	short := c.Param("short")
 	d, err := c.GetRawData()
 	if err != nil {
-		_spawnErr(c, err)
+		msg := errors.Errorf("there was a problem with short: %s", short)
+		fmt.Printf("%s, err: %s", msg, err)
+		_spawnErr(c, msg)
 		return
 	}
 
@@ -214,33 +221,53 @@ func updateData(c *gin.Context, d []byte) bool {
 	return true
 }
 func DeleteShortData(c *gin.Context) {
+	handleRemove(c, true)
+}
+func tryDelete(c *gin.Context) bool {
+	return handleRemove(c, false)
+}
+func handleRemove(c *gin.Context, withResponse bool) bool {
+	fmt.Println(store.StoreCtx.GenFunc("dumpkeys"))
 	short := c.Param("short")
 	removeKey := short + "d"
 	dataKey, err := store.StoreCtx.LoadDataMapping(removeKey)
 	if err != nil {
-		_spawnErr(c, err)
-		return
+		msg := errors.Errorf("there was a problem with short: %s", short)
+		fmt.Printf("%s, err: %s", msg, err)
+		_spawnErrCond(c, msg, withResponse)
+		return false
 	}
 	privateKey, err := store.StoreCtx.GetMetaDataMapping(string(dataKey), "p")
 	if err != nil {
-		_spawnErr(c, err)
-		return
+		msg := errors.Errorf("there was a problem with short: %s", short)
+		fmt.Printf("%s, err: %s", msg, err)
+		_spawnErrCond(c, msg, withResponse)
+		return false
 	}
 	privateKey += "p"
 	if err := store.StoreCtx.RemoveDataMapping(string(dataKey)); err != nil {
-		_spawnErr(c, err)
-		return
+		msg := errors.Errorf("there was a problem with short: %s", short)
+		fmt.Printf("%s, err: %s", msg, err)
+		_spawnErrCond(c, msg, withResponse)
+		return false
 	}
 	if err := store.StoreCtx.RemoveDataMapping(privateKey); err != nil {
-		_spawnErr(c, err)
-		return
+		msg := errors.Errorf("there was a problem with short: %s", short)
+		fmt.Printf("%s, err: %s", msg, err)
+		_spawnErrCond(c, msg, withResponse)
+		return false
 	}
 	if err := store.StoreCtx.RemoveDataMapping(removeKey); err != nil {
-		_spawnErr(c, err)
-		return
+		msg := errors.Errorf("there was a problem with short: %s", short)
+		fmt.Printf("%s, err: %s", msg, err)
+		_spawnErrCond(c, msg, withResponse)
+		return false
 	}
 	store.StoreCtx.RemoveDataMapping(string(dataKey) + "url")
-	c.Status(200)
+	if withResponse {
+		c.Status(200)
+	}
+	return true
 }
 func CreateShortData(c *gin.Context) {
 	runningCount += 1
@@ -278,12 +305,16 @@ func HandleGetShortDataInfo(c *gin.Context) {
 	short := c.Param("short")
 	privateKey, err := store.StoreCtx.LoadDataMapping(short + "p")
 	if err != nil {
-		_spawnErr(c, err)
+		msg := errors.Errorf("there was a problem with short: %s", short)
+		fmt.Printf("%s, err: %s", msg, err)
+		_spawnErr(c, msg)
 		return
 	}
 	data, err := store.StoreCtx.LoadDataMappingInfo(string(privateKey))
 	if err != nil {
-		_spawnErr(c, err)
+		msg := errors.Errorf("there was a problem with short: %s", short)
+		fmt.Printf("%s, err: %s", msg, err)
+		_spawnErr(c, msg)
 		return
 	}
 	c.JSON(200, data)
@@ -292,12 +323,16 @@ func HandleGetOriginData(c *gin.Context) {
 	short := c.Param("short")
 	privateKey, err := store.StoreCtx.LoadDataMapping(short + "p")
 	if err != nil {
-		_spawnErr(c, err)
+		msg := errors.Errorf("there was a problem with short: %s", short)
+		fmt.Printf("%s, err: %s", msg, err)
+		_spawnErr(c, msg)
 		return
 	}
 	data, err := store.StoreCtx.LoadDataMapping(string(privateKey))
 	if err != nil {
-		_spawnErr(c, err)
+		msg := errors.Errorf("there was a problem with short: %s", short)
+		fmt.Printf("%s, err: %s", msg, err)
+		_spawnErr(c, msg)
 		return
 	}
 
@@ -315,8 +350,12 @@ func HandleShort(c *gin.Context) {
 
 		return
 	}
+	fmt.Println("trying data for ", short)
 	if getDataPrivate(c) {
-
+		return
+	}
+	fmt.Println("trying delete for ", short)
+	if tryDelete(c) {
 		return
 	}
 
@@ -326,7 +365,8 @@ func getData(c *gin.Context) bool {
 	short := c.Param("short")
 	data, err := store.StoreCtx.LoadDataMapping(short)
 	if err != nil {
-		fmt.Println(err)
+		msg := errors.Errorf("there was a problem with short: %s", short)
+		fmt.Printf("%s, err: %s", msg, err)
 		return false
 	}
 	c.String(200, "%s", data)
@@ -336,12 +376,14 @@ func getDataPrivate(c *gin.Context) bool {
 	short := c.Param("short")
 	privateKey, err := store.StoreCtx.LoadDataMapping(short + "p")
 	if err != nil {
-		fmt.Println(err)
+		msg := errors.Errorf("there was a problem with short: %s", short)
+		fmt.Printf("%s, err: %s", msg, err)
 		return false
 	}
 	data, err := store.StoreCtx.LoadDataMapping(string(privateKey))
 	if err != nil {
-		fmt.Println(err)
+		msg := errors.Errorf("there was a problem with short: %s", short)
+		fmt.Printf("%s, err: %s", msg, err)
 		return false
 	}
 	c.String(200, "%s", data)
@@ -352,12 +394,15 @@ func tryUrl(c *gin.Context) bool {
 	data, err := store.StoreCtx.LoadDataMapping(short + "url")
 	if err != nil {
 		fmt.Println(err)
+		msg := errors.Errorf("there was a problem with short: %s", short)
+		fmt.Printf("load url: %s, err: %s", msg, err)
 		return false
 	}
 
 	data, err = store.StoreCtx.LoadDataMapping(string(data))
 	if err != nil {
-		fmt.Println(err)
+		msg := errors.Errorf("there was a problem with short: %s", short)
+		fmt.Printf("load data: %s, err: %s", msg, err)
 		return false
 	}
 	url := string(data)

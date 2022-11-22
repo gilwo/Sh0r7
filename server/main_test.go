@@ -109,7 +109,7 @@ func TestDummyFail(t *testing.T) {
 	res := map[string]interface{}{}
 	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &res))
 	assert.Contains(t, res, "error")
-	assert.Contains(t, res["error"], "entry not exist for dummy")
+	assert.Contains(t, res["error"], "there was a problem with short: dummy")
 }
 
 // func TestCreateShortDataImproved1(t *testing.T) {
@@ -268,6 +268,6 @@ func testFullFlow(t *testing.T, api string, req1, resp1, req2, resp2 *maybeJsonO
 	res = map[string]interface{}{}
 	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &res))
 	assert.Contains(t, res, "error")
-	assert.Contains(t, res["error"], fmt.Sprintf("entry not exist for %s", private))
+	assert.Contains(t, res["error"], fmt.Sprintf("there was a problem with short: %s", private))
 
 }
