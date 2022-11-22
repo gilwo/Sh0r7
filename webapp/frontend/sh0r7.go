@@ -15,7 +15,9 @@ import (
 type short struct {
 	app.Compo
 
-	result string
+	result      string
+	resultMap   map[string]string
+	resultReady bool
 }
 
 func (h *short) Render2() app.UI {
@@ -59,7 +61,7 @@ func (h *short) Render() app.UI {
 				),
 			app.Div().
 				Class("v2_22").Body(
-				app.If(h.result == "",
+				app.If(!h.resultReady,
 					app.Textarea().
 						ID("in-out").
 						Class("form-control").
@@ -68,14 +70,95 @@ func (h *short) Render() app.UI {
 						Wrap("off").
 						Placeholder("long url or data..."),
 				).Else(
-					app.Textarea().
-						ID("out").
-						Class("form-control").
-						Rows(5).
-						Cols(20).
-						Wrap("off").
-						Text(h.result).
-						ReadOnly(true),
+					app.Div().
+						Class("row").
+						Body(
+							app.Div().
+								Class("col-lg-6").
+								Body(
+									app.Div().
+										Class("input-group").
+										Body(
+											app.Span().
+												Class("input-group-addon fld-title").
+												Body(
+													app.Text("sh0r7 public"),
+												),
+											app.Input().
+												Type("text").
+												Class("form-control").
+												ReadOnly(true).
+												Value(h.shortLink("short")),
+											app.Span().
+												Class("input-group-btn").
+												Body(
+													app.Button().
+														Class("btn btn-warning btn-copy").
+														Type("button").
+														Body(
+															app.Text("Copy"),
+														),
+												),
+										),
+								),
+							app.Div().
+								Class("col-lg-6").
+								Body(
+									app.Div().
+										Class("input-group").
+										Body(
+											app.Span().
+												Class("input-group-addon fld-title").
+												Body(
+													app.Text("sh0r7 private"),
+												),
+											app.Input().
+												Type("text").
+												Class("form-control").
+												ReadOnly(true).
+												Value(h.shortLink("private")),
+
+											app.Span().
+												Class("input-group-btn").
+												Body(
+													app.Button().
+														Class("btn btn-warning btn-copy").
+														Type("button").
+														Body(
+															app.Text("Copy"),
+														),
+												),
+										),
+								),
+							app.Div().
+								Class("col-lg-6").
+								Body(
+									app.Div().
+										Class("input-group").
+										Body(
+											app.Span().
+												Class("input-group-addon fld-title").
+												Body(
+													app.Text("sh0r7 delete"),
+												),
+											app.Input().
+												Type("text").
+												Class("form-control").
+												ReadOnly(true).
+												Value(h.shortLink("delete")),
+											app.Span().
+												Class("input-group-btn").
+												Body(
+													app.Button().
+														Class("btn btn-warning btn-copy").
+														Type("button").
+														Body(
+															app.Text("Copy"),
+														),
+												),
+										),
+								),
+						),
 				),
 			),
 			app.Div().
@@ -83,7 +166,7 @@ func (h *short) Render() app.UI {
 			app.Span().
 				Class("v2_24").
 				Body(
-					app.If(h.result == "",
+					app.If(!h.resultReady,
 						app.Button().
 							Class("btn btn-primary btn-lg btn-block").
 							Text("short it").
@@ -98,9 +181,8 @@ func (h *short) Render() app.UI {
 							Class("btn btn-success btn-lg btn-block").
 							Text("New").
 							OnClick(func(ctx app.Context, e app.Event) {
-								elem := app.Window().GetElementByID("out")
-								elem.Set("value", "")
 								h.result = ""
+								h.resultReady = false
 								h.Update()
 							}),
 					),
@@ -204,22 +286,32 @@ func (h *short) createShort() {
 	}
 
 	// elem := app.Window().GetElementByID("in-out")
-	result := map[string]string{}
-	err = json.Unmarshal(body, &result)
+	err = json.Unmarshal(body, &h.resultMap)
 	if err != nil {
 		elem.Set("value", fmt.Sprintf("response read: error occurred: %s", err))
 		return
 	}
 
-	r, err := json.MarshalIndent(result, "", "\t")
+	r, err := json.MarshalIndent(h.resultMap, "", "\t")
 	if err != nil {
 		elem.Set("value", fmt.Sprintf("response read: error occurred: %s", err))
 		return
 	}
 	h.result = string(r)
+	h.resultReady = true
 
 	fmt.Printf("******************************* create short result: %s\n", string(body))
 	elem.Set("value", string(body))
-	fmt.Printf("******************************* create shoty: %#v\n", result)
+	fmt.Printf("******************************* create shoty: %#v\n", r)
 	h.Update()
+}
+
+func (h *short) shortLink(which string) string {
+	host := app.Window().URL().String()
+	switch which {
+	case "private", "short", "delete":
+	default:
+		// error
+	}
+	return host + h.resultMap[which]
 }

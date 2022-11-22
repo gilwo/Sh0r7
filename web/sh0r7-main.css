@@ -207,3 +207,13 @@ textarea.form-control::placeholder {
   opacity: .4;
   color: darkcyan;
 }
+
+.input-group-addon.fld-title {
+  background-color: powderblue;
+  width: 120px;
+  font-weight: bold;
+}
+
+.btn.btn-warning.btn-copy {
+  color: black;
+}
