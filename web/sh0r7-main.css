@@ -110,15 +110,16 @@ body {
   top: 405px;
   left: 173px;
   overflow: hidden;
+  border-radius: 10px;
 }
 .v2_23 {
-  width: 110px;
-  height: 41px;
+  width: 98px;
+  height: 39px;
   background: rgba(217,217,217,1);
   opacity: 1;
   position: absolute;
-  top: 488px;
-  left: 683px;
+  top: 490px;
+  left: 689px;
   overflow: hidden;
 }
 .v2_24 {
@@ -176,15 +177,28 @@ body {
   overflow: hidden;
 }
 
-textarea.form-control {
+#in-out {
   /* font-family: Arial, "Helvetica Neue", Helvetica, sans-serif; */
   font-family: monospace;
   font-size: 2em;
-  background-color: rgb(226, 210, 169);
+  background-color: rgb(241, 209, 125);
   color: black;
   /* height: inherit; */
   /* width: inherit; */
   resize: none;
+  border-radius: 10px;
+}
+
+#out {
+  /* font-family: Arial, "Helvetica Neue", Helvetica, sans-serif; */
+  font-family: monospace;
+  font-size: 2em;
+  background-color: rgb(166, 145, 245);
+  color: black;
+  /* height: inherit; */
+  /* width: inherit; */
+  resize: none;
+  border-radius: 10px;
 }
 
 textarea.form-control::placeholder {

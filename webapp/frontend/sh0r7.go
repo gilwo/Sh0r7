@@ -1,13 +1,21 @@
 package frontend
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"time"
 
 	"github.com/maxence-charriere/go-app/v9/pkg/app"
 )
 
 type short struct {
 	app.Compo
+
+	result string
 }
 
 func (h *short) Render2() app.UI {
@@ -51,24 +59,51 @@ func (h *short) Render() app.UI {
 				),
 			app.Div().
 				Class("v2_22").Body(
-
-				app.Textarea().
-					Class("form-control").
-					Rows(5).
-					Cols(20).
-					Wrap("off").
-					Placeholder("long url or data..."),
+				app.If(h.result == "",
+					app.Textarea().
+						ID("in-out").
+						Class("form-control").
+						Rows(5).
+						Cols(20).
+						Wrap("off").
+						Placeholder("long url or data..."),
+				).Else(
+					app.Textarea().
+						ID("out").
+						Class("form-control").
+						Rows(5).
+						Cols(20).
+						Wrap("off").
+						Text(h.result).
+						ReadOnly(true),
+				),
 			),
 			app.Div().
 				Class("v2_23"),
 			app.Span().
 				Class("v2_24").
 				Body(
-					app.Button().
-						Class("btn btn-primary").
-						Body(
-							app.Text("short it"),
-						),
+					app.If(h.result == "",
+						app.Button().
+							Class("btn btn-primary btn-lg btn-block").
+							Text("short it").
+							OnClick(func(ctx app.Context, e app.Event) {
+								elem := app.Window().GetElementByID("in-out")
+								v := elem.Get("value")
+								fmt.Printf("in-out value: %v\n", v)
+								ctx.Async(h.createShort)
+							}),
+					).Else(
+						app.Button().
+							Class("btn btn-success btn-lg btn-block").
+							Text("New").
+							OnClick(func(ctx app.Context, e app.Event) {
+								elem := app.Window().GetElementByID("out")
+								elem.Set("value", "")
+								h.result = ""
+								h.Update()
+							}),
+					),
 				),
 			app.Div().
 				Class("v6_26"),
@@ -108,4 +143,83 @@ func (h *short) OnUpdate() {
 }
 func (h *short) OnAppUpdate() {
 	fmt.Println("******************************* app update")
+}
+
+func urlCheck(s string) (string, bool) {
+	u, err := url.Parse(s)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		s = "https://" + s
+		u, err = url.Parse(s)
+		if err != nil || u.Scheme == "" || u.Host == "" {
+			return "", false
+		}
+	}
+	return u.String(), true
+}
+func (h *short) createShort() {
+	var err error
+	host := app.Window().URL().Host
+	elem := app.Window().GetElementByID("in-out")
+	data := elem.Get("value").String()
+	destCreate := "http://" + host
+	payload := []byte{}
+
+	if url, ok := urlCheck(data); ok {
+		destCreate += "/create-short-url"
+		payload, err = json.Marshal(map[string]string{
+			"url": url,
+		})
+		if err != nil {
+			elem.Set("value", fmt.Sprintf("url problem: error occurred: %s", err))
+			return
+		}
+	} else {
+		destCreate += "/create-short-data"
+	}
+
+	client := http.Client{
+		Timeout: time.Duration(1 * time.Second),
+	}
+	// fmt.Printf("app %#v\n", app.)
+	req, err := http.NewRequest(http.MethodPost, destCreate, bytes.NewBuffer(payload))
+	if err != nil {
+		elem.Set("value", fmt.Sprintf("new request: error occurred: %s", err))
+		return
+	}
+	req.Header.Set("Content-Type", "text/plain")
+	resp, err := client.Do(req)
+	if err != nil {
+		elem.Set("value", fmt.Sprintf("request invoke: error occurred: %s", err))
+		return
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		elem.Set("value", fmt.Sprintf("response read: error occurred: %s", err))
+		return
+	}
+	if resp.StatusCode != http.StatusOK {
+		elem.Set("value", fmt.Sprintf("response status: : %v", resp.StatusCode))
+		return
+	}
+
+	// elem := app.Window().GetElementByID("in-out")
+	result := map[string]string{}
+	err = json.Unmarshal(body, &result)
+	if err != nil {
+		elem.Set("value", fmt.Sprintf("response read: error occurred: %s", err))
+		return
+	}
+
+	r, err := json.MarshalIndent(result, "", "\t")
+	if err != nil {
+		elem.Set("value", fmt.Sprintf("response read: error occurred: %s", err))
+		return
+	}
+	h.result = string(r)
+
+	fmt.Printf("******************************* create short result: %s\n", string(body))
+	elem.Set("value", string(body))
+	fmt.Printf("******************************* create shoty: %#v\n", result)
+	h.Update()
 }
