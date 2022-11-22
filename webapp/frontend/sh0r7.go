@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/maxence-charriere/go-app/v9/pkg/app"
@@ -239,6 +240,7 @@ func (h *short) OnAppUpdate() {
 }
 
 func urlCheck(s string) (string, bool) {
+	s = strings.TrimRight(s, "\n")
 	u, err := url.Parse(s)
 	if err != nil || u.Scheme == "" || u.Host == "" {
 		s = "https://" + s
@@ -255,7 +257,7 @@ func (h *short) createShort() {
 	elem := app.Window().GetElementByID("in-out")
 	data := elem.Get("value").String()
 	destCreate := "http://" + host
-	payload := []byte{}
+	payload := []byte(data)
 
 	if url, ok := urlCheck(data); ok {
 		destCreate += "/create-short-url"
