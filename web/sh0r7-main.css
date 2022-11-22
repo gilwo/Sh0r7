@@ -216,4 +216,5 @@ textarea.form-control::placeholder {
 
 .btn.btn-warning.btn-copy {
   color: black;
+  width: 85px;
 }

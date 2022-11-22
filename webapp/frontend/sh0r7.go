@@ -95,12 +95,19 @@ func (h *short) Render() app.UI {
 												Class("input-group-btn").
 												Body(
 													app.Button().
+														ID("copy-public").
 														Class("btn btn-warning btn-copy").
 														Type("button").
 														Body(
 															app.Text("Copy"),
 														).OnClick(func(ctx app.Context, e app.Event) {
 														h.copyToClipboard("short-public")
+														elem := app.Window().GetElementByID("copy-public")
+														fmt.Printf("current value: %v\n", elem.Get("body"))
+														elem.Set("textContent", "Copied")
+														ctx.After(400*time.Millisecond, func(ctx app.Context) {
+															elem.Set("textContent", "Copy")
+														})
 													}),
 												),
 										),
@@ -127,12 +134,19 @@ func (h *short) Render() app.UI {
 												Class("input-group-btn").
 												Body(
 													app.Button().
+														ID("copy-private").
 														Class("btn btn-warning btn-copy").
 														Type("button").
 														Body(
 															app.Text("Copy"),
 														).OnClick(func(ctx app.Context, e app.Event) {
 														h.copyToClipboard("short-private")
+														elem := app.Window().GetElementByID("copy-private")
+														fmt.Printf("current value: %v\n", elem.Get("body"))
+														elem.Set("textContent", "Copied")
+														ctx.After(400*time.Millisecond, func(ctx app.Context) {
+															elem.Set("textContent", "Copy")
+														})
 													}),
 												),
 										),
@@ -158,12 +172,19 @@ func (h *short) Render() app.UI {
 												Class("input-group-btn").
 												Body(
 													app.Button().
+														ID("copy-delete").
 														Class("btn btn-warning btn-copy").
 														Type("button").
 														Body(
 															app.Text("Copy"),
 														).OnClick(func(ctx app.Context, e app.Event) {
 														h.copyToClipboard("short-delete")
+														elem := app.Window().GetElementByID("copy-delete")
+														fmt.Printf("current value: %v\n", elem.Get("body"))
+														elem.Set("textContent", "Copied")
+														ctx.After(400*time.Millisecond, func(ctx app.Context) {
+															elem.Set("textContent", "Copy")
+														})
 													}),
 												),
 										),
