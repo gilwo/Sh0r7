@@ -85,6 +85,7 @@ func (h *short) Render() app.UI {
 													app.Text("sh0r7 public"),
 												),
 											app.Input().
+												ID("short-public").
 												Type("text").
 												Class("form-control").
 												ReadOnly(true).
@@ -97,7 +98,9 @@ func (h *short) Render() app.UI {
 														Type("button").
 														Body(
 															app.Text("Copy"),
-														),
+														).OnClick(func(ctx app.Context, e app.Event) {
+														h.copyToClipboard("short-public")
+													}),
 												),
 										),
 								),
@@ -113,6 +116,7 @@ func (h *short) Render() app.UI {
 													app.Text("sh0r7 private"),
 												),
 											app.Input().
+												ID("short-private").
 												Type("text").
 												Class("form-control").
 												ReadOnly(true).
@@ -126,7 +130,9 @@ func (h *short) Render() app.UI {
 														Type("button").
 														Body(
 															app.Text("Copy"),
-														),
+														).OnClick(func(ctx app.Context, e app.Event) {
+														h.copyToClipboard("short-private")
+													}),
 												),
 										),
 								),
@@ -142,6 +148,7 @@ func (h *short) Render() app.UI {
 													app.Text("sh0r7 delete"),
 												),
 											app.Input().
+												ID("short-delete").
 												Type("text").
 												Class("form-control").
 												ReadOnly(true).
@@ -154,7 +161,9 @@ func (h *short) Render() app.UI {
 														Type("button").
 														Body(
 															app.Text("Copy"),
-														),
+														).OnClick(func(ctx app.Context, e app.Event) {
+														h.copyToClipboard("short-delete")
+													}),
 												),
 										),
 								),
@@ -174,7 +183,9 @@ func (h *short) Render() app.UI {
 								elem := app.Window().GetElementByID("in-out")
 								v := elem.Get("value")
 								fmt.Printf("in-out value: %v\n", v)
-								ctx.Async(h.createShort)
+								if v.String() != "" {
+									ctx.Async(h.createShort)
+								}
 							}),
 					).Else(
 						app.Button().
@@ -314,4 +325,10 @@ func (h *short) shortLink(which string) string {
 		// error
 	}
 	return host + h.resultMap[which]
+}
+
+func (h *short) copyToClipboard(from string) {
+	elem := app.Window().GetElementByID(from)
+	clipboard := app.Window().Get("navigator").Get("clipboard")
+	clipboard.Call("writeText", elem.Get("value"))
 }
