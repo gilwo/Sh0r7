@@ -1,6 +1,4 @@
-/*
-// // //go:build webapp
-*/
+//go:build webapp
 
 package webapp
 
