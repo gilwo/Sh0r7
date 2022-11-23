@@ -13,18 +13,16 @@ type Store interface {
 	GenFunc(v ...interface{}) interface{}
 }
 
+const (
+	STORE_FUNC_DUMP       = "dump"
+	STORE_FUNC_DUMPKEYS   = "dumpKeys"
+	STORE_FUNC_GETKEYS    = "getKeys"
+	STORE_FUNC_REMOVEKEYS = "removeKeys"
+)
+
 var (
 	StoreCtx Store
 
 	NewStoreLocal func() Store
 	NewStoreRedis func(redisURL string) Store
 )
-
-/*
-NewStringTuple(values ...*fieldValue) (*stringTuple, error) {
-(t *stringTuple) AtCheck(field string) (string, error) {
-(t *stringTuple) Get(field string) string {
-(t *stringTuple) Set(field, value string) {
-(t *stringTuple) SetCheck(field, value string) error {
-(t *stringTuple) Keys() []string {
-*/

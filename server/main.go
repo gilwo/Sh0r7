@@ -4,6 +4,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"log"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/signal"
@@ -27,6 +29,8 @@ func init() {
 var (
 	useLocal  = flag.Bool("local", false, "force use local storage")
 	useWebapp = flag.Bool("webapp", false, "include webapp")
+
+	mainCtx context.Context
 )
 
 func mainServer() {
@@ -158,6 +162,7 @@ func GinInit() *gin.Engine {
 		}
 
 		if paramShort == "hc" {
+			triggerMaintainence()
 			c.String(200, "")
 		} else if paramShort == "favicon.ico" {
 			c.FileFromFS(".", handler.HandleGetFavIcon())
@@ -226,3 +231,34 @@ func exit() {
 		os.Exit(-1)
 	}
 }
+
+func triggerMaintainence() {
+	var when time.Duration
+	if gin.Mode() == gin.DebugMode {
+		// when = time.Duration(rand.Intn(5)) * time.Minute
+		when = time.Duration(rand.Intn(5)) * time.Second
+	} else {
+		when = time.Duration(rand.Intn(5))*time.Hour + time.Duration(rand.Intn(60))*time.Minute
+	}
+	go func() {
+	again:
+		log.Printf("maintainence scheduled in %s\n", when)
+		select {
+		case <-mainCtx.Done():
+			log.Println("maintainence aborted")
+		case <-time.After(when):
+			log.Printf("maintainence triggered after %s\n", when)
+			if maintainenceOngoing {
+				log.Printf("maintainence ongoing - rescheduling in %s\n", when)
+				goto again
+			}
+			maintainenceOngoing = true
+			store.Maintainence()
+			maintainenceOngoing = false
+		}
+	}()
+}
+
+var (
+	maintainenceOngoing bool
+)

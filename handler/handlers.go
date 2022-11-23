@@ -227,7 +227,6 @@ func tryDelete(c *gin.Context) bool {
 	return handleRemove(c, false)
 }
 func handleRemove(c *gin.Context, withResponse bool) bool {
-	fmt.Println(store.StoreCtx.GenFunc("dumpkeys"))
 	short := c.Param("short")
 	removeKey := short + "d"
 	dataKey, err := store.StoreCtx.LoadDataMapping(removeKey)

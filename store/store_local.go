@@ -10,8 +10,6 @@ import (
 	"time"
 )
 
-// const CacheDuration = 6 * time.Hour
-
 type StorageLocal struct {
 	cacheSync *sync.Map
 }
@@ -60,7 +58,7 @@ func (st *StorageLocal) UpdateDataMapping(data []byte, short string) error {
 	entry.(*stringTuple).Set(fmt.Sprintf("data_%d", countNumber), entry.(*stringTuple).Get("data"))
 	countNumber += 1
 	entry.(*stringTuple).Set("changed", fmt.Sprintf("%d", countNumber))
-	entry.(*stringTuple).Set(fmt.Sprintf("changed_time_%d", countNumber), time.Now().String())
+	entry.(*stringTuple).Set(fmt.Sprintf("changed_time_%d", countNumber), time.Now().Format(time.RFC3339))
 	entry.(*stringTuple).Set("data", k)
 	// tup, err := NewStringTuple([]*fieldValue{{"data", k}}...)
 	// if err != nil {
@@ -79,7 +77,8 @@ func (st *StorageLocal) SaveDataMapping(data []byte, short string) error {
 	if err != nil {
 		return err
 	}
-	t.Set("created", time.Now().String())
+	t.Set("created", time.Now().Format(time.RFC3339))
+	t.Set("ttl", DefaultCacheDuration.String())
 
 	return func() error { st.cacheSync.Store(short, t); return nil }()
 }
@@ -139,5 +138,47 @@ func (st *StorageLocal) RemoveDataMapping(short string) error {
 }
 
 func (st *StorageLocal) GenFunc(v ...interface{}) interface{} {
+	fmt.Printf("!!!!!!!!!! genfunc ... args: <%#v>\n", v)
+	if len(v) < 1 {
+		return nil
+	}
+	switch v[0].(string) {
+	case STORE_FUNC_GETKEYS:
+		fmt.Println("!!!!!!!!!! getkeys ... ")
+		return st.getKeys()
+	case STORE_FUNC_REMOVEKEYS:
+		fmt.Println("!!!!!!!!!! getkeys ... ")
+		if len(v) < 2 {
+			return nil
+		}
+		ks := v[1].([]string)
+		return st.removeKeys(ks)
+	}
 	return nil
+}
+
+func (st *StorageLocal) getKeys() []string {
+	r := []string{}
+	st.cacheSync.Range(func(key, value any) bool {
+		r = append(r, key.(string))
+		return true
+	})
+	return r
+}
+
+func (st *StorageLocal) removeKeys(ks []string) []error {
+	fmt.Printf("** removing keys: %#v\n", ks)
+	errors := []error{}
+	for _, k := range ks {
+		if err := st.RemoveDataMapping(k); err != nil {
+			errors = append(errors, err)
+		}
+	}
+
+	errs := []string{}
+	for _, e := range errors {
+		errs = append(errs, e.Error())
+	}
+	fmt.Printf("** errors gathered: %#+v\n", strings.Join(errs, "; "))
+	return errors
 }
