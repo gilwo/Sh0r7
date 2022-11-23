@@ -406,7 +406,7 @@ func tryUrl(c *gin.Context) bool {
 		return false
 	}
 	url := string(data)
-	if !strings.HasPrefix(url, "http://") || !strings.HasPrefix(url, "https://") {
+	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
 		url = "http://" + url
 	}
 	c.Redirect(302, url)
