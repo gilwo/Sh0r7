@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -78,7 +79,7 @@ func (st *StorageLocal) SaveDataMapping(data []byte, short string) error {
 		return err
 	}
 	t.Set("created", time.Now().Format(time.RFC3339))
-	t.Set("ttl", DefaultCacheDuration.String())
+	t.Set("ttl", DefaultExpireDuration.String())
 
 	return func() error { st.cacheSync.Store(short, t); return nil }()
 }

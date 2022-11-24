@@ -12,9 +12,12 @@ import (
 	"github.com/pkg/errors"
 )
 
-func _spawnErr(c *gin.Context, err error) {
+func _spawnErrWithCode(c *gin.Context, code int, err error) {
 	fmt.Printf("err : %v\n", err)
-	c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	c.JSON(code, gin.H{"error": err.Error()})
+}
+func _spawnErr(c *gin.Context, err error) {
+	_spawnErrWithCode(c, http.StatusBadRequest, err)
 }
 func _spawnErrCond(c *gin.Context, err error, cond bool) {
 	if cond {

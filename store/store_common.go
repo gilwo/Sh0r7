@@ -3,13 +3,25 @@ package store
 import (
 	"fmt"
 	"log"
+	"os"
 	"strings"
 	"time"
 )
 
 var (
-	DefaultCacheDuration = 12 * time.Hour
+	DefaultExpireDuration = 12 * time.Hour
 )
+
+func init() {
+	if expireEnv, ok := os.LookupEnv("SH0R7_EXPIRATION"); ok {
+		if expire, err := time.ParseDuration(expireEnv); err != nil {
+			log.Printf("failed to parse duration from env")
+		} else {
+			DefaultExpireDuration = expire
+		}
+		log.Printf("expire duration loaded from env and set to %s\n", DefaultExpireDuration)
+	}
+}
 
 func Maintainence() {
 	keysToDelete := []string{}
