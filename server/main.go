@@ -107,6 +107,7 @@ func startServer() {
 	ctx, cancel := ContextWithSignals(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 	defer exit()
+	mainCtx = ctx
 
 	srv := &http.Server{
 		Addr:    addr,
