@@ -10,8 +10,40 @@ import (
 	"github.com/gilwo/Sh0r7/store"
 	"github.com/google/uuid"
 	"github.com/itchyny/base58-go"
+	"golang.org/x/crypto/sha3"
 )
 
+func GenerateToken2(data string, size, start int) string {
+	finalString := base64.StdEncoding.EncodeToString(sha3Of(data))
+	N := len(finalString)
+	c := 0
+	startPos := func() int {
+		if start > -1 {
+			return start
+		}
+		return rand.Intn(N)
+	}
+	ofsCalc := func(r int) int {
+		if size < 1 {
+			return rand.Intn(r)
+		}
+		return size
+	}
+	for {
+		lPos := startPos()
+		ofs := ofsCalc(N - lPos)
+		if N > lPos+ofs {
+			return finalString[lPos : lPos+ofs]
+		}
+		c += 1
+		if c > 100 {
+			fmt.Printf("attmpets [%d], data [%s], N[%d], lpos[%d], ofs[%d], short <%s>, final<%s>\n",
+				c, data, N, lPos, ofs, "no token", finalString)
+			fmt.Printf("not found proper short after %d attempts\n", c)
+			return ""
+		}
+	}
+}
 func GenerateToken(data string, size int) string {
 	urlHashBytes := sha256Of(data)
 	generatedNumber := new(big.Int).SetBytes(urlHashBytes).Uint64()
@@ -26,9 +58,6 @@ func GenerateToken(data string, size int) string {
 		lPos := rand.Intn(N)
 		ofs := size
 		if N > lPos+ofs {
-			fmt.Printf("attmpets [%d], data [%s], N[%d], lpos[%d], ofs[%d], short <%s>, final<%s>\n",
-				c, data, N, lPos, ofs, "no token", finalString)
-			fmt.Printf("not found proper short after %d attempts\n", c)
 			return finalString[lPos : lPos+ofs]
 		}
 		c += 1
@@ -79,6 +108,11 @@ func sha256Of(input string) []byte {
 	algorithm := sha256.New()
 	algorithm.Write([]byte(input))
 	return algorithm.Sum(nil)
+}
+func sha3Of(input string) []byte {
+	h := make([]byte, 64)
+	sha3.ShakeSum256(h, []byte(input))
+	return h
 }
 
 func base58Encoded(bytes []byte) string {
