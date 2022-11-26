@@ -7,18 +7,21 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/gilwo/Sh0r7/shortener"
+	"github.com/google/uuid"
 	"github.com/maxence-charriere/go-app/v9/pkg/app"
 )
 
 type short struct {
 	app.Compo
-
 	result      string
 	resultMap   map[string]string
 	resultReady bool
+	token       string
 }
 
 func (h *short) Render2() app.UI {
@@ -239,6 +242,7 @@ func newShort() *short {
 }
 
 func (h *short) OnInit() {
+	h.getStID()
 	fmt.Println("******************************* init")
 }
 func (h *short) OnPreRender() {
@@ -354,4 +358,54 @@ func (h *short) copyToClipboard(from string) {
 	elem := app.Window().GetElementByID(from)
 	clipboard := app.Window().Get("navigator").Get("clipboard")
 	clipboard.Call("writeText", elem.Get("value"))
+
+func (h *short) getStID() {
+
+	var err error
+	urlApp := app.Window().URL().String()
+
+	client := http.Client{
+		Timeout: time.Duration(1 * time.Second),
+	}
+	req, err := http.NewRequest(http.MethodGet, urlApp, nil)
+	if err != nil {
+		app.Logf("failed to create new request: %s\n", err)
+		return
+	}
+	req.Header.Set("Content-Type", "text/plain")
+	req.Header.Set("RTS", shortener.GenerateToken2(uuid.NewString(), 0, -1))
+	resp, err := client.Do(req)
+	if err != nil {
+		app.Logf("failed to invoke request: %s\n", err)
+		return
+	}
+	if resp.StatusCode != http.StatusOK {
+		app.Logf("response not ok: %s\n", resp.StatusCode)
+		return
+	}
+	_stid := resp.Header.Get("stid")
+	stid := strings.Split(_stid, ", ")
+	if len(stid) != 3 {
+		app.Logf("problem with stid: %#v\n", stid)
+		return
+	}
+	seed := stid[0]
+	tokenLen, err := strconv.Atoi(stid[1])
+	if err != nil {
+		app.Logf("problem with number convertion: %s\n", err)
+		return
+	}
+	tokenStartPos, err := strconv.Atoi(stid[2])
+	if err != nil {
+		app.Logf("problem with number convertion: %s\n", err)
+		return
+	}
+	ua := app.Window().Get("navigator").Get("userAgent").String()
+
+	token := shortener.GenerateToken2(ua+seed, tokenLen, tokenStartPos)
+	if token == "" {
+		app.Logf("problem with token generation\n")
+		return
+	}
+	h.token = token
 }
