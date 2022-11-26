@@ -69,7 +69,7 @@ func (st *StorageLocal) UpdateDataMapping(data []byte, short string) error {
 	return nil
 }
 
-func (st *StorageLocal) SaveDataMapping(data []byte, short string) error {
+func (st *StorageLocal) SaveDataMapping(data []byte, short string, ttl time.Duration) error {
 	if _, ok := st.cacheSync.Load(short); ok {
 		return fmt.Errorf("entry exist for %s", short)
 	}
@@ -79,7 +79,11 @@ func (st *StorageLocal) SaveDataMapping(data []byte, short string) error {
 		return err
 	}
 	t.Set("created", time.Now().Format(time.RFC3339))
-	t.Set("ttl", DefaultExpireDuration.String())
+	if ttl == 0 {
+		t.Set("ttl", DefaultExpireDuration.String())
+	} else if ttl > 0 {
+		t.Set("ttl", ttl.String())
+	} // ttl < 0 - dont use ttl at all
 
 	return func() error { st.cacheSync.Store(short, t); return nil }()
 }

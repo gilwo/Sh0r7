@@ -93,7 +93,7 @@ func HandleGetFavIcon() http.FileSystem {
 
 func StoreFavicon() {
 	store.StoreCtx.RemoveDataMapping(resourceFaviconIco.name)
-	store.StoreCtx.SaveDataMapping(resourceFaviconIco.data, resourceFaviconIco.name)
+	store.StoreCtx.SaveDataMapping(resourceFaviconIco.data, resourceFaviconIco.name, -1)
 }
 
 var resourceFaviconIco struct {

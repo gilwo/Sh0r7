@@ -52,7 +52,7 @@ func handleCreateShortModDelete(data string, isUrl bool) (map[string]interface{}
 		mapping["url"] = shorts[""]
 	}
 	for k, e := range shorts {
-		err = store.StoreCtx.SaveDataMapping([]byte(mapping[k]), e+k)
+		err = store.StoreCtx.SaveDataMapping([]byte(mapping[k]), e+k, 0)
 		if err != nil {
 			break
 		}
@@ -133,7 +133,7 @@ func HandleCreateShortDataImproved1(c *gin.Context) {
 		_spawnErr(c, fmt.Errorf("there was a problem creating a short url, try again shortly"))
 		return
 	}
-	err = store.StoreCtx.SaveDataMapping(d, shortValue)
+	err = store.StoreCtx.SaveDataMapping(d, shortValue, 0)
 	if err != nil {
 		_spawnErr(c, err)
 		return
@@ -292,7 +292,7 @@ func CreateShortData(c *gin.Context) {
 	// }
 	fmt.Printf("from: %v\n", c.Request.RemoteAddr)
 	// store.StoreCtx.SaveUrlMapping(shortUrl, creationRequest.LongUrl, creationRequest.UserId)
-	err = store.StoreCtx.SaveDataMapping(d, fmt.Sprintf("%d", runningCount))
+	err = store.StoreCtx.SaveDataMapping(d, fmt.Sprintf("%d", runningCount), 0)
 	if err != nil {
 		_spawnErr(c, err)
 		return

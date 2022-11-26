@@ -1,9 +1,11 @@
 package store
 
+import "time"
+
 type Store interface {
 	InitializeStore() error
 	UpdateDataMapping(data []byte, short string) error
-	SaveDataMapping(data []byte, short string) error
+	SaveDataMapping(data []byte, short string, ttl time.Duration) error
 	CheckShortDataMapping(short string) error
 	LoadDataMapping(short string) ([]byte, error)
 	LoadDataMappingInfo(short string) (map[string]interface{}, error)

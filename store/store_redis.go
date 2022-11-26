@@ -19,8 +19,6 @@ var (
 	ctx = context.Background()
 )
 
-const CacheDuration = 6 * time.Hour
-
 type StorageRedis struct {
 	redisClient *redis.Client
 	redisUrl    string
@@ -128,7 +126,7 @@ func (st *StorageRedis) UpdateDataMapping(data []byte, short string) error {
 	return nil
 }
 
-func (st *StorageRedis) SaveDataMapping(data []byte, short string) error {
+func (st *StorageRedis) SaveDataMapping(data []byte, short string, ttl time.Duration) error {
 	_, err := st.redisClient.Get(ctx, short).Result()
 	if err != redis.Nil {
 		return errors.Errorf("entry exist for %s", short)
@@ -139,6 +137,11 @@ func (st *StorageRedis) SaveDataMapping(data []byte, short string) error {
 		return err
 	}
 	tup.Set("created", time.Now().String())
+	if ttl == 0 {
+		tup.Set("ttl", DefaultExpireDuration.String())
+	} else if ttl > 0 {
+		tup.Set("ttl", ttl.String())
+	} // ttl < 0 - dont use ttl at all
 
 	buf, err := tup.packMsgPack()
 	if err != nil {
