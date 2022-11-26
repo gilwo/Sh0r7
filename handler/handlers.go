@@ -3,8 +3,10 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gilwo/Sh0r7/shortener"
 	"github.com/gilwo/Sh0r7/store"
@@ -83,6 +85,9 @@ func handleCreateShortModDelete(data string, isUrl bool) (map[string]interface{}
 	return res, nil
 }
 func HandleCreateShortData(c *gin.Context) {
+	if !checkToken(c) {
+		return
+	}
 	d, err := c.GetRawData()
 	if err != nil {
 		_spawnErr(c, err)
@@ -97,6 +102,9 @@ func HandleCreateShortData(c *gin.Context) {
 	c.JSON(200, res)
 }
 func HandleCreateShortUrl(c *gin.Context) {
+	if !checkToken(c) {
+		return
+	}
 	d, err := c.GetRawData()
 	if err != nil {
 		_spawnErr(c, err)
@@ -412,5 +420,51 @@ func tryUrl(c *gin.Context) bool {
 		url = "http://" + url
 	}
 	c.Redirect(302, url)
+	return true
+}
+
+func checkToken(c *gin.Context) bool {
+	token := c.Request.Header.Get("TID")
+	log.Printf("token: <%s> (%d)\n", token, len(token))
+	info, err := store.StoreCtx.LoadDataMappingInfo(token)
+	if err != nil {
+		log.Printf("failed to get info for token: <%s>\n", token)
+		_spawnErrWithCode(c, http.StatusPreconditionFailed, errors.Errorf("invalid token"))
+		return false
+	}
+
+	v, ok := info["created"]
+	if !ok {
+		log.Printf("failed to get created time value for on token: <%s>\n", token)
+		_spawnErrWithCode(c, http.StatusPreconditionFailed, errors.Errorf("invalid token"))
+		return false
+	}
+	when := v.(string)
+	// if time.Parse(when)
+	t, err := time.Parse(time.RFC3339, when)
+	if err != nil {
+		log.Printf("failed to get parsed created time (%s) value for on token: <%s>\n", when, token)
+		_spawnErrWithCode(c, http.StatusPreconditionFailed, errors.Errorf("invalid token"))
+		return false
+	}
+	fmt.Printf("created time for key: <%s> : before parse [%s], after parse [%s]\n", token, when, t)
+	v, ok = info["ttl"]
+	if !ok {
+		log.Printf("failed to get ttl value for on token: <%s>\n", token)
+		_spawnErrWithCode(c, http.StatusPreconditionFailed, errors.Errorf("invalid token"))
+		return false
+	}
+	ttl, err := time.ParseDuration(v.(string))
+	if err != nil {
+		log.Printf("failed to get parsed duration time (%s) value for on token: <%s>\n", v, token)
+		_spawnErrWithCode(c, http.StatusPreconditionFailed, errors.Errorf("invalid token"))
+		return false
+	}
+
+	if time.Since(t) > ttl {
+		log.Printf("token (%s) expired : created <%s> ttl <%s>\n", token, t, ttl)
+		_spawnErrWithCode(c, http.StatusUnauthorized, errors.New("invalid token"))
+		return false
+	}
 	return true
 }

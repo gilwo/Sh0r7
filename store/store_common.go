@@ -37,11 +37,11 @@ func Maintainence() {
 	}
 	for _, k := range keys {
 		info, err := StoreCtx.LoadDataMappingInfo(k)
-		short, ok := info["s"]
-		if err != nil || !ok || short != k {
-			log.Printf("skipping key: <%s>\n", k)
-			continue
-		}
+		// short, ok := info["s"]
+		// if err != nil || !ok || short != k {
+		// 	log.Printf("skipping key: <%s>\n", k)
+		// 	continue
+		// }
 
 		v, ok := info["created"]
 		if !ok {
@@ -68,14 +68,17 @@ func Maintainence() {
 		}
 
 		if time.Since(t) > ttl {
-			log.Printf("all entries related to <%s> are to be deleted\n", k)
-			public := info["s"].(string)
-			private := info["p"].(string) + "p"
-			delete := info["d"].(string) + "d"
-			keysToDelete = append(keysToDelete, private, public, delete)
-			if _, ok := info["url"]; ok {
-				keysToDelete = append(keysToDelete, public+"url")
-
+			if _, ok := info["s"]; ok {
+				log.Printf("all entries related to <%s> are to be deleted\n", k)
+				public := info["s"].(string)
+				private := info["p"].(string) + "p"
+				delete := info["d"].(string) + "d"
+				keysToDelete = append(keysToDelete, private, public, delete)
+				if _, ok := info["url"]; ok {
+					keysToDelete = append(keysToDelete, public+"url")
+				}
+			} else {
+				keysToDelete = append(keysToDelete, k)
 			}
 		} else {
 			log.Printf("skipping entries related to <%s> - ttl : %v, since creation %v\n", k, ttl, time.Since(t))

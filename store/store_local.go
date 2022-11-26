@@ -5,6 +5,7 @@ import (
 	"compress/zlib"
 	"encoding/base64"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -148,6 +149,14 @@ func (st *StorageLocal) GenFunc(v ...interface{}) interface{} {
 		return nil
 	}
 	switch v[0].(string) {
+	case STORE_FUNC_DUMP:
+		if len(v) < 2 {
+			return nil
+		}
+		k := v[1].(string)
+		return st.dumpKey(k)
+	case STORE_FUNC_DUMPKEYS:
+		return st.dumpKeys()
 	case STORE_FUNC_GETKEYS:
 		fmt.Println("!!!!!!!!!! getkeys ... ")
 		return st.getKeys()
@@ -169,6 +178,18 @@ func (st *StorageLocal) getKeys() []string {
 		return true
 	})
 	return r
+}
+func (st *StorageLocal) dumpKeys() string {
+	r := st.getKeys()
+	sort.Strings(r)
+	return strings.Join(r, "\n")
+}
+func (st *StorageLocal) dumpKey(k string) string {
+	if v, ok := st.cacheSync.Load(k); ok {
+		tup := v.(*stringTuple)
+		return tup.Dump()
+	}
+	return "empty"
 }
 
 func (st *StorageLocal) removeKeys(ks []string) []error {

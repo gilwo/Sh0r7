@@ -307,6 +307,7 @@ func (h *short) createShort() {
 		return
 	}
 	req.Header.Set("Content-Type", "text/plain")
+	req.Header.Set("TID", h.token)
 	resp, err := client.Do(req)
 	if err != nil {
 		elem.Set("value", fmt.Sprintf("request invoke: error occurred: %s", err))
