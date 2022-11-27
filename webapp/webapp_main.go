@@ -14,17 +14,14 @@ import (
 	_ "github.com/gilwo/Sh0r7/webapp/backend"
 	webappCommon "github.com/gilwo/Sh0r7/webapp/common"
 	_ "github.com/gilwo/Sh0r7/webapp/frontend"
-	"github.com/google/uuid"
-
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/maxence-charriere/go-app/v9/pkg/app"
 	"github.com/maxence-charriere/go-app/v9/pkg/errors"
-	// "github.com/maxence-charriere/go-app/v9/pkg/cli"
-	// "github.com/maxence-charriere/go-app/v9/pkg/errors"
 )
 
 var (
-	ShortLiveTokenExpiration = time.Hour
+	ShortLiveTokenExpiration = 20 * time.Minute
 )
 
 func init() {
@@ -45,13 +42,10 @@ var (
 	helloH *app.Handler = &app.Handler{
 		Name:        "Sh0r7",
 		Description: "Sh0r7 url and data shortener",
-		// Resources:   app.CustomProvider(".", helloPath),
 		Icon: app.Icon{
 			Default: "/web/sh0r7-website-favicon-color.png",
 			Large:   "/web/sh0r7-logo-color-on-transparent-background.png",
 		},
-		// Resources: app.LocalDir("/web"),
-		// Resources: app.LocalDir(""),H1
 		Styles: []string{
 			"/web/sh0r7-main.css",
 			"https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css",
