@@ -298,7 +298,7 @@ func (h *short) createShort() {
 	}
 
 	client := http.Client{
-		Timeout: time.Duration(1 * time.Second),
+		Timeout: time.Duration(5 * time.Second),
 	}
 	// fmt.Printf("app %#v\n", app.)
 	req, err := http.NewRequest(http.MethodPost, destCreate, bytes.NewBuffer(payload))
@@ -366,7 +366,7 @@ func (h *short) getStID() {
 	urlApp := app.Window().URL().String()
 
 	client := http.Client{
-		Timeout: time.Duration(1 * time.Second),
+		Timeout: time.Duration(2 * time.Second),
 	}
 	req, err := http.NewRequest(http.MethodGet, urlApp, nil)
 	if err != nil {

@@ -44,7 +44,6 @@ func (st *StorageLocal) UpdateDataMapping(data []byte, short string) error {
 	w.Close()
 
 	k := base64.StdEncoding.EncodeToString(in.Bytes())
-	entry.(*stringTuple).Set("data", k)
 
 	countNumber := 0
 	count, err := entry.(*stringTuple).AtCheck("changed")
@@ -62,11 +61,6 @@ func (st *StorageLocal) UpdateDataMapping(data []byte, short string) error {
 	entry.(*stringTuple).Set("changed", fmt.Sprintf("%d", countNumber))
 	entry.(*stringTuple).Set(fmt.Sprintf("changed_time_%d", countNumber), time.Now().Format(time.RFC3339))
 	entry.(*stringTuple).Set("data", k)
-	// tup, err := NewStringTuple([]*fieldValue{{"data", k}}...)
-	// if err != nil {
-	// 	return err
-	// }
-	// storeService.cache[short] = tup
 	return nil
 }
 

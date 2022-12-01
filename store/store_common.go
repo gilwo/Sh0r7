@@ -38,10 +38,10 @@ func Maintainence() {
 	for _, k := range keys {
 		info, err := StoreCtx.LoadDataMappingInfo(k)
 		// short, ok := info["s"]
-		// if err != nil || !ok || short != k {
-		// 	log.Printf("skipping key: <%s>\n", k)
-		// 	continue
-		// }
+		if err != nil {
+			log.Printf("skipping key: <%s>, err: %s\n", k, err)
+			continue
+		}
 
 		v, ok := info["created"]
 		if !ok {

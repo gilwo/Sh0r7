@@ -8,7 +8,9 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -51,12 +53,12 @@ func (st *StorageRedis) InitializeStore() error {
 }
 
 func (st *StorageRedis) UpdateDataMapping(data []byte, short string) error {
-	prevData, err := st.redisClient.Get(ctx, short).Result()
+	entry, err := st.redisClient.Get(ctx, short).Result()
 	if err != nil {
 		return errors.Wrapf(err, "redis get failed for key <%s>", short)
 	}
-	prevDataTup := stringTuple{}
-	err = prevDataTup.unpackMsgPack([]byte(prevData))
+	tup := stringTuple{}
+	err = tup.unpackMsgPack([]byte(entry))
 	if err != nil {
 		return errors.Wrapf(err, "tuple msgunpack failed")
 	}
@@ -72,56 +74,34 @@ func (st *StorageRedis) UpdateDataMapping(data []byte, short string) error {
 	w.Close()
 
 	k := base64.StdEncoding.EncodeToString(in.Bytes())
-	tup, err := NewStringTuple([]*fieldValue{{"data", k}, {"changed", time.Now().String()}, {"created", prevDataTup.Get("created")}}...)
-	if err != nil {
-		return errors.Wrapf(err, "new string tuple failed")
-	}
 
-	buf, err := tup.packMsgPack()
-	if err != nil {
-		return errors.Wrapf(err, "tuple msgpack failed")
-	}
 
-	err = st.redisClient.Set(ctx, short, buf, 0).Err()
-	if err != nil {
-		return errors.Wrapf(err, "redis set failed for <%s>", short)
-	}
 
-	metaTup := NewTuple()
-	meta, err := st.redisClient.Get(ctx, short+".meta").Result()
-	if err != nil {
-		if err != redis.Nil {
-			return errors.Wrapf(err, "redis meta get failed for <%s>", short)
-		}
-		return errors.Wrapf(err, "redis meta get not exists for <%s>", short)
-	}
-	err = metaTup.unpackMsgPack([]byte(meta))
-	if err != nil {
-		return errors.Wrapf(err, "meta tuple msg unpack failed for <%s>", short)
-	}
-	fmt.Printf("meta tuple:\n%s\n", metaTup.Dump())
 
 	countNumber := 0
-	sn, err := metaTup.AtCheck("changes")
-	if err == nil {
+	sn, err := tup.AtCheck("changes")
+	if err != nil {
+		// never been changed
+	} else {
 		countNumber, err = strconv.Atoi(sn)
 		if err != nil {
 			return errors.New("invalid number of changes")
 		}
 	}
 	// // keep old data
-	metaTup.Set(fmt.Sprintf("data_%d", countNumber), prevDataTup.Get("data"))
+	tup.Set(fmt.Sprintf("data_%d", countNumber), tup.Get("data"))
 	countNumber += 1
-	metaTup.Set("changes", fmt.Sprintf("%d", countNumber))
-	metaTup.Set(fmt.Sprintf("changed_time_%d", countNumber), time.Now().String())
+	tup.Set("changes", fmt.Sprintf("%d", countNumber))
+	tup.Set(fmt.Sprintf("changed_time_%d", countNumber), time.Now().Format(time.RFC3339))
+	tup.Set("data", k)
 
-	buf2, err := metaTup.packMsgPack()
+	buf, err := tup.packMsgPack()
 	if err != nil {
-		return errors.Wrapf(err, "meta tuple msgpack failed")
+		return errors.Wrapf(err, "tuple msgpack failed")
 	}
-	err = st.redisClient.Set(ctx, short+".meta", buf2, 0).Err()
+	err = st.redisClient.Set(ctx, short, buf, 0).Err()
 	if err != nil {
-		return errors.Wrapf(err, "redis meta set failed for <%s>", short)
+		return errors.Wrapf(err, "redis set failed for <%s>", short)
 	}
 	return nil
 }
@@ -131,19 +111,19 @@ func (st *StorageRedis) SaveDataMapping(data []byte, short string, ttl time.Dura
 	if err != redis.Nil {
 		return errors.Errorf("entry exist for %s", short)
 	}
-	tup := NewTuple()
-	err = tup.Set2Bytes("data", data, true)
+	t := NewTuple()
+	err = t.Set2Bytes("data", data, true)
 	if err != nil {
 		return err
 	}
-	tup.Set("created", time.Now().String())
+	t.Set("created", time.Now().Format(time.RFC3339))
 	if ttl == 0 {
-		tup.Set("ttl", DefaultExpireDuration.String())
+		t.Set("ttl", DefaultExpireDuration.String())
 	} else if ttl > 0 {
-		tup.Set("ttl", ttl.String())
+		t.Set("ttl", ttl.String())
 	} // ttl < 0 - dont use ttl at all
 
-	buf, err := tup.packMsgPack()
+	buf, err := t.packMsgPack()
 	if err != nil {
 		return errors.Wrapf(err, "tuple msgpack failed")
 	}
@@ -188,60 +168,38 @@ func (st *StorageRedis) LoadDataMappingInfo(short string) (map[string]interface{
 	for k, v := range tup.tuple {
 		ret[k] = v
 	}
-	meta, err := st.redisClient.Get(ctx, short+".meta").Result()
-	if err != nil {
-		return nil, errors.Wrapf(err, "redis meta get failed for <%s>", short)
-	}
-	metaTup := NewTuple()
-	err = metaTup.unpackMsgPack([]byte(meta))
-	if err != nil {
-		return nil, errors.Wrapf(err, "meta tuple msg unpack failed")
-	}
-	for _, k := range metaTup.Keys() {
-		ret[k] = metaTup.Get(k)
-	}
 	return ret, nil
 }
 
 func (st *StorageRedis) SetMetaDataMapping(short, key, value string) error {
-	_, err := st.redisClient.Keys(ctx, short).Result()
+	res, err := st.redisClient.Get(ctx, short).Result()
 	if err == redis.Nil {
 		return errors.Errorf("entry not exist for %s", short)
 	}
-	metaTup := NewTuple()
-	meta, err := st.redisClient.Get(ctx, short+".meta").Result()
+	tup := stringTuple{}
+	err = tup.unpackMsgPack([]byte(res))
 	if err != nil {
-		if err != redis.Nil {
-			return errors.Wrapf(err, "redis meta get failed for <%s>", short)
-		}
-	} else {
-		err = metaTup.unpackMsgPack([]byte(meta))
-		if err != nil {
-			return errors.Wrapf(err, "meta tuple msg unpack failed for <%s>", short)
-		}
+		return errors.Wrapf(err, "data tuple msgpack failed")
 	}
-	metaTup.Set(key, value)
-	buf, err := metaTup.packMsgPack()
+	tup.Set(key, value)
+
+	buf, err := tup.packMsgPack()
 	if err != nil {
-		return errors.Wrapf(err, "meta tuple msg pack failed for <%s>", short)
+		return errors.Wrapf(err, "tuple msg pack failed for <%s>", short)
 	}
-	err = st.redisClient.Set(ctx, short+".meta", buf, 0).Err()
+	err = st.redisClient.Set(ctx, short, buf, 0).Err()
 	if err != nil {
-		return errors.Wrapf(err, "redis meta set failed for <%s>", short)
+		return errors.Wrapf(err, "redis set failed for <%s>", short)
 	}
 	return nil
 }
 func (st *StorageRedis) GetMetaDataMapping(short, key string) (string, error) {
-	_, err := st.redisClient.Get(ctx, short).Result()
+	res, err := st.redisClient.Get(ctx, short).Result()
 	if err == redis.Nil {
 		return "", errors.Errorf("entry not exist for %s", short)
 	}
-	v, err := st.redisClient.Get(ctx, short+".meta").Result()
-	if err != nil {
-		return "", errors.Wrapf(err, "redis get meta failed for key <%s>", short)
-	}
 	tup := NewTuple()
-	err = tup.unpackMsgPack([]byte(v))
+	err = tup.unpackMsgPack([]byte(res))
 	if err != nil {
 		return "", errors.Wrapf(err, "meta tuple msg unpack failed")
 	}
@@ -252,12 +210,12 @@ func (st *StorageRedis) GetMetaDataMapping(short, key string) (string, error) {
 	return r, nil
 }
 func (st *StorageRedis) RemoveDataMapping(short string) error {
-	_, err := st.redisClient.Get(ctx, short).Result()
-	if err == redis.Nil {
-		return errors.Errorf("entry not exist for %s", short)
-	}
-	v, err := st.redisClient.Del(ctx, short, short+".meta").Result()
+	v, err := st.redisClient.Del(ctx, short).Result()
 	if err != nil {
+		if err == redis.Nil {
+			return errors.Wrapf(err, "redis key <%s> not found", short)
+
+		}
 		return errors.Wrapf(err, "redis del failed for key <%s>", short)
 	}
 	if v == 0 {
@@ -267,5 +225,86 @@ func (st *StorageRedis) RemoveDataMapping(short string) error {
 }
 
 func (st *StorageRedis) GenFunc(v ...interface{}) interface{} {
+	fmt.Printf("!!!!!!!!!! genfunc ... args: <%#v>\n", v)
+	if len(v) < 1 {
+		return nil
+	}
+	switch v[0].(string) {
+	case STORE_FUNC_DUMP:
+		if len(v) < 2 {
+			return nil
+		}
+		k := v[1].(string)
+		return st.dumpKey(k)
+	case STORE_FUNC_DUMPKEYS:
+		return st.dumpKeys()
+	case STORE_FUNC_GETKEYS:
+		fmt.Println("!!!!!!!!!! getkeys ... ")
+		return st.getKeys()
+	case STORE_FUNC_REMOVEKEYS:
+		fmt.Println("!!!!!!!!!! getkeys ... ")
+		if len(v) < 2 {
+			return nil
+		}
+		ks := v[1].([]string)
+		return st.removeKeys(ks)
+	}
 	return nil
+}
+
+func (st *StorageRedis) getKeys() []string {
+	r, err := st.redisClient.Keys(ctx, "*").Result()
+	if err != nil {
+		return nil
+	}
+	return r
+}
+func (st *StorageRedis) dumpKeys() string {
+	r := st.getKeys()
+	sort.Strings(r)
+	return strings.Join(r, "\n")
+}
+func (st *StorageRedis) dumpKey(k string) string {
+	res, err := st.redisClient.Get(ctx, k).Result()
+	if err == redis.Nil {
+		return "invalid"
+	}
+	tup := NewTuple()
+	err = tup.unpackMsgPack([]byte(res))
+	if err != nil {
+		return tup.Dump()
+	}
+	return "empty"
+}
+
+// need to test ...
+func (st *StorageRedis) _removeKeys(ks []string) []error {
+	fmt.Printf("** removing keys: %#v\n", ks)
+	v, err := st.redisClient.Del(ctx, ks...).Result()
+	if err != nil {
+		if err == redis.Nil {
+			return []error{errors.Wrapf(err, "redis key not found")}
+		}
+		return []error{errors.Wrapf(err, "redis del failed")}
+	}
+	if v == 0 {
+		return []error{errors.Errorf("there was a problem to delete")}
+	}
+	return []error{}
+}
+
+func (st *StorageRedis) removeKeys(ks []string) []error {
+	fmt.Printf("** removing keys: %#v\n", ks)
+	errors := []error{}
+	for _, k := range ks {
+		if err := st.RemoveDataMapping(k); err != nil {
+			errors = append(errors, err)
+		}
+	}
+	errs := []string{}
+	for _, e := range errors {
+		errs = append(errs, e.Error())
+	}
+	fmt.Printf("** errors gathered: %#+v\n", strings.Join(errs, "; "))
+	return errors
 }
