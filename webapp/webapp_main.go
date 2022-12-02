@@ -43,12 +43,13 @@ var (
 		Name:        "Sh0r7",
 		Description: "Sh0r7 url and data shortener",
 		Icon: app.Icon{
-			Default: "/web/sh0r7-website-favicon-color.png",
+			// Default: "/web/sh0r7-website-favicon-color.png",
+			Default: "/web/short-giraffe-0.jpg",
 			Large:   "/web/sh0r7-logo-color-on-transparent-background.png",
 		},
 		Styles: []string{
-			"/web/sh0r7-main.css",
-			"https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css",
+			// "/web/sh0r7-main.css",
+			// "https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css",
 		},
 		Title: "this is Sh0r7",
 		RawHeaders: []string{
@@ -79,6 +80,7 @@ func webappInit() {
 		"/web/app.wasm":                        true,
 		"/web/sh0r7-main.css":                  true,
 		"/web/sh0r7-website-favicon-color.png": true,
+		"/web/short-giraffe-0.jpg":             true,
 		"/web/sh0r7-logo-color-on-transparent-background.png": true,
 	}
 
@@ -120,11 +122,25 @@ func headerUpdate(c *gin.Context) {
 	if c.Request.Header.Get("RTS") == "" {
 		return
 	}
+	fmt.Println("===========================================")
+	fmt.Printf("request : %s\n", c.Request.Header)
+	fmt.Printf("request UA: %s\n", c.Request.Header.Get("User-Agent"))
+	fmt.Printf("clientIP : %s\n", c.ClientIP())
+	fmt.Printf("client request uri : %s\n", c.Request.RequestURI)
+	fmt.Printf("client request url : %s\n", c.Request.URL)
+	// seed := generateSeedAndStoreToken(fmt.Sprintf("%s", c.Request.Header))
 	seedLen, tokenLen := 32, 40
 	seed, token := generateSeedAndToken(c.Request.Header.Get("User-Agent"), seedLen, tokenLen)
+	fmt.Println("/*/*/*/*/*/*/*/*/*/*/*/*/")
+	fmt.Printf("seed: <%s> (%d)\n", seed, seedLen)
+	fmt.Printf("token: <%s> (%d)\n", token, tokenLen)
+	fmt.Println("/*/*/*/*/*/*/*/*/*/*/*/*/")
+
+	fmt.Printf("generated seed : <%s>\n", seed)
 	c.Writer.Header().Add("stid", seed)                        // seed
 	c.Writer.Header().Add("stid", fmt.Sprintf("%d", tokenLen)) // tokenLen
 	c.Writer.Header().Add("stid", "0")                         // token start pos
+	fmt.Println("===========================================")
 }
 func generateSeedAndToken(input string, seedLen, tokenLen int) (string, string) {
 	var seed, token string

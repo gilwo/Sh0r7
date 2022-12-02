@@ -39,6 +39,269 @@ func (h *short) Render2() app.UI {
 
 func (h *short) Render() app.UI {
 	return app.Div().
+		Body(
+			app.Div().
+				Class("marker").
+				ID("headerNote"),
+			app.Div().
+				Class("note").
+				// Style("", "").
+				Body(
+					app.H4().
+						// Style("text-align", "center").
+						Body(
+							app.Text("under construction - not yet ready for live ...."),
+							// app.Text("Resize the browser window to see the responsive effect."),
+						),
+				),
+			app.Div().
+				Class("marker").
+				ID("headerTitle"),
+			app.Div().
+				Class("header", "row").
+				Body(
+					app.Div().
+						Class("logo").
+						Body(
+							app.Img().
+								Class("logo-img").
+								Src("web/short-giraffe-0.jpg").
+								Width(200),
+						),
+					app.Div().
+						Class("text").
+						Body(
+							app.H1().
+								Body(
+									app.Text("Sh0r7"),
+								),
+							app.H2().
+								// Style("text-align", "center").
+								Body(
+									app.B().
+										Body(
+											app.Text("Not"),
+										),
+									app.Text(" only URLs!"),
+								),
+						),
+				),
+			// app.Div().
+			// 	Class("marker").
+			// 	ID("navBarWide"),
+			// app.Div().
+			// 	Class("navbar", "show-in-wide").
+			// 	// Style("", "").
+			// 	Body(
+			// 		app.A().
+			// 			Href("#").
+			// 			Body(
+			// 				app.Text("Link"),
+			// 			),
+			// 		app.A().
+			// 			Href("#").
+			// 			Body(
+			// 				app.Text("Link"),
+			// 			),
+			// 		app.A().
+			// 			Href("#").
+			// 			Body(
+			// 				app.Text("Link"),
+			// 			),
+			// 		app.A().
+			// 			Href("#").
+			// 			Body(
+			// 				app.Text("Link"),
+			// 			),
+			// 	),
+
+			// app.Div().
+			// 	Class("marker").
+			// 	ID("navBarNarrow"),
+			// app.Div().
+			// 	Class("navbar", "show-in-narrow").
+			// 	// Style("", "").
+			// 	Body(
+			// 		app.A().
+			// 			Href("#").
+			// 			Body(
+			// 				app.Text("link narrow"),
+			// 			),
+			// 	),
+
+			app.Div().
+				Class("marker").
+				ID("mainDo"),
+			app.Div().
+				Class("row", "shortDo").
+				Body(
+					app.Div().
+						Class("shortInputWrapper").
+						Body(
+							app.Div().
+								Class("shortInput").
+								Body(
+									app.Textarea().
+										ID("shortInputText").
+										Class("form-control").
+										Rows(5).
+										Cols(20).
+										Wrap("off").
+										Placeholder("long url or data to shorten..."),
+								),
+						),
+					app.Div().
+						Class("shortButtonWrapper").
+						Body(
+							app.Div().
+								Class("shortButtonPre"),
+							app.Div().
+								Class("shortButton").
+								Body(
+									app.Button().
+										ID("shortInputButton").
+										Class("btn", "btn-primary", "btn-lg", "btn-block").
+										Body(
+											app.Text("short it"),
+										),
+								),
+							app.Div().
+								Class("shortButtonPost"),
+						),
+				),
+			app.Div().
+				Class("marker").
+				ID("mainOptions"),
+			app.Div().
+				Class("shortOptionsWrapper").
+				Body(
+					app.Div().
+						Class("shortOptions").
+						Body(
+							app.H3().
+								Body(
+									app.Text("Options"),
+								),
+							app.Div().
+								ID("shortOption2").
+								// Style("", "").
+								Body(
+									app.Div().
+										Class("form-group").
+										Body(
+											app.Div().
+												Class("input-group").
+												Body(
+													app.Label().
+														Class("input-group-addon").
+														ID("expireCheckBox").
+														// Style("", "").
+														Body(
+															app.Input().
+																Type("checkbox").
+																Value(true),
+															app.Text("Expiration"),
+														),
+													app.Select().
+														Class("form-control", "shortSelect").
+														ID("expireSelect").
+														Body(
+															app.Option().
+																Value("10m").
+																Body(
+																	app.Text("10 minutes"),
+																),
+															app.Option().
+																Value("12h").
+																Selected(true).
+																Body(
+																	app.Text("12 hours"),
+																),
+															app.Option().
+																Value("2d").
+																Body(
+																	app.Text("2 days"),
+																),
+															app.Option().
+																Value("2w").
+																Body(
+																	app.Text("2 weeks"),
+																),
+															app.Option().
+																Value("2mo").
+																Body(
+																	app.Text("2 months"),
+																),
+															app.Option().
+																Value("2y").
+																Body(
+																	app.Text("year"),
+																),
+															app.Option().
+																Value("n").
+																Body(
+																	app.Text("never"),
+																),
+														),
+												),
+										),
+								),
+							app.Div().
+								ID("shortOption1").
+								// Style("visibility", "visible").Style("border", "dotted black").
+								Body(
+									app.Div().
+										Class("form-group").
+										Body(
+											app.Div().
+												Class("input-group").
+												Body(
+													app.Label().
+														Class("input-group-addon").
+														ID("option1CheckBox").
+														// Style("", "").
+														Body(
+															app.Input().
+																Type("checkbox").
+																Value(true),
+															app.Text("Option1"),
+														),
+													app.Select().
+														Class("form-control", "shortSelect").
+														ID("expireSelect").
+														Body(
+															app.Option().
+																Value("a").
+																Body(
+																	app.Text("a"),
+																),
+															app.Option().
+																Value("b").
+																Selected(true).
+																Body(
+																	app.Text("b"),
+																),
+															app.Option().
+																Value("c").
+																Body(
+																	app.Text("c"),
+																),
+															app.Option().
+																Value("d").
+																Body(
+																	app.Text("d"),
+																),
+														),
+												),
+										),
+								),
+						),
+				),
+		)
+}
+
+func (h *short) Render3() app.UI {
+	return app.Div().
 		Class("v2_3").
 		Body(
 			app.Div().
@@ -84,7 +347,7 @@ func (h *short) Render() app.UI {
 										Class("input-group").
 										Body(
 											app.Span().
-												Class("input-group-addon fld-title").
+												Class("input-group-addon", "fld-title").
 												Body(
 													app.Text("sh0r7 public"),
 												),
@@ -99,7 +362,7 @@ func (h *short) Render() app.UI {
 												Body(
 													app.Button().
 														ID("copy-public").
-														Class("btn btn-warning btn-copy").
+														Class("btn", "btn-warning", "btn-copy").
 														Type("button").
 														Body(
 															app.Text("Copy"),
@@ -122,7 +385,7 @@ func (h *short) Render() app.UI {
 										Class("input-group").
 										Body(
 											app.Span().
-												Class("input-group-addon fld-title").
+												Class("input-group-addon", "fld-title").
 												Body(
 													app.Text("sh0r7 private"),
 												),
@@ -138,7 +401,7 @@ func (h *short) Render() app.UI {
 												Body(
 													app.Button().
 														ID("copy-private").
-														Class("btn btn-warning btn-copy").
+														Class("btn", "btn-warning", "btn-copy").
 														Type("button").
 														Body(
 															app.Text("Copy"),
@@ -161,7 +424,7 @@ func (h *short) Render() app.UI {
 										Class("input-group").
 										Body(
 											app.Span().
-												Class("input-group-addon fld-title").
+												Class("input-group-addon", "fld-title").
 												Body(
 													app.Text("sh0r7 delete"),
 												),
@@ -176,7 +439,7 @@ func (h *short) Render() app.UI {
 												Body(
 													app.Button().
 														ID("copy-delete").
-														Class("btn btn-warning btn-copy").
+														Class("btn", "btn-warning", "btn-copy").
 														Type("button").
 														Body(
 															app.Text("Copy"),
@@ -202,7 +465,7 @@ func (h *short) Render() app.UI {
 				Body(
 					app.If(!h.resultReady,
 						app.Button().
-							Class("btn btn-primary btn-lg btn-block").
+							Class("btn", "btn-primary", "btn-lg", "btn-block").
 							Text("short it").
 							OnClick(func(ctx app.Context, e app.Event) {
 								elem := app.Window().GetElementByID("in-out")
@@ -214,7 +477,7 @@ func (h *short) Render() app.UI {
 							}),
 					).Else(
 						app.Button().
-							Class("btn btn-success btn-lg btn-block").
+							Class("btn", "btn-success", "btn-lg", "btn-block").
 							Text("New").
 							OnClick(func(ctx app.Context, e app.Event) {
 								h.result = ""
@@ -359,6 +622,18 @@ func (h *short) copyToClipboard(from string) {
 	elem := app.Window().GetElementByID(from)
 	clipboard := app.Window().Get("navigator").Get("clipboard")
 	clipboard.Call("writeText", elem.Get("value"))
+	h.getUserAgent()
+}
+
+func (h *short) getUserAgent() {
+	ua := app.Window().Get("navigator").Get("userAgent")
+	uaData := app.Window().Get("navigator").Get("userAgentData")
+	fmt.Printf("*** UA: %s\n", ua)
+	fmt.Printf("*** UAData platform: %s\n", uaData.Get("platform"))
+	fmt.Printf("*** UAData mobile: %s\n", uaData.Get("mobile"))
+	fmt.Printf("*** UAData brands brand: %s\n", uaData.Get("brands").Index(0).Get("brand"))
+	fmt.Printf("*** UAData brands version: %s\n", uaData.Get("brands").Index(0).Get("version"))
+}
 
 func (h *short) getStID() {
 
@@ -401,9 +676,12 @@ func (h *short) getStID() {
 		app.Logf("problem with number convertion: %s\n", err)
 		return
 	}
+
+	fmt.Printf("******************************* stid from header: %+#v\n", stid)
 	ua := app.Window().Get("navigator").Get("userAgent").String()
 
 	token := shortener.GenerateToken2(ua+seed, tokenLen, tokenStartPos)
+	fmt.Printf("******************************* calculated token: %s\n", token)
 	if token == "" {
 		app.Logf("problem with token generation\n")
 		return
