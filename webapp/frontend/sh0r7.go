@@ -140,17 +140,170 @@ func (h *short) Render() app.UI {
 					app.Div().
 						Class("shortInputWrapper").
 						Body(
-							app.Div().
-								Class("shortInput").
-								Body(
-									app.Textarea().
-										ID("shortInputText").
-										Class("form-control").
-										Rows(5).
-										Cols(50).
-										Wrap("off").
-										Placeholder("long url or data to shorten..."),
-								),
+							app.If(!h.resultReady,
+								app.Div().
+									Class("shortInput").
+									Body(
+										app.Textarea().
+											ID("shortInputText").
+											Class("form-control").
+											Rows(5).
+											Cols(50).
+											Wrap("off").
+											Placeholder("long url or data to shorten..."),
+									),
+							).Else(
+								app.Div().
+									Class("shortOutput").
+									Body(
+										app.Div().
+											Class("").
+											Body(
+												app.Div().
+													Class("input-group").
+													Body(
+														app.Span().
+															Class("input-group-addon", "fld-title").
+															Styles(map[string]string{
+																"float": "left",
+																"width": "12%"}).
+															Body(
+																app.Text("sh0r7 public"),
+															),
+														app.Input().
+															ID("short-public").
+															Type("text").
+															Class("form-control").
+															ReadOnly(true).
+															Styles(map[string]string{
+																"float": "center",
+																"width": "30%"}).
+															Value(h.shortLink("short")),
+														app.Span().
+															Class("input-group-btn").
+															Styles(map[string]string{
+																"float": "center",
+																"width": "10%"}).
+															Body(
+																app.Button().
+																	Title("Copy to clipboard...").
+																	ID("copy-public").
+																	Class("btn", "btn-warning", "btn-copy").
+																	Type("button").
+																	Body(
+																		app.Text("Copy"),
+																	).
+																	OnClick(func(ctx app.Context, e app.Event) {
+																		h.copyToClipboard("short-public")
+																		elem := app.Window().GetElementByID("copy-public")
+																		fmt.Printf("current value: %v\n", elem.Get("body"))
+																		elem.Set("textContent", "Copied")
+																		ctx.After(400*time.Millisecond, func(ctx app.Context) {
+																			elem.Set("textContent", "Copy")
+																		})
+																	}),
+															),
+													),
+											),
+										app.Div().
+											Class("").
+											Body(
+												app.Div().
+													Class("input-group").
+													Body(
+														app.Span().
+															Class("input-group-addon", "fld-title").
+															Styles(map[string]string{
+																"float": "left",
+																"width": "12%"}).
+															Body(
+																app.Text("sh0r7 private"),
+															),
+														app.Input().
+															ID("short-private").
+															Type("text").
+															Class("form-control").
+															ReadOnly(true).
+															Styles(map[string]string{
+																"float": "center",
+																"width": "30%"}).
+															Value(h.shortLink("private")),
+
+														app.Span().
+															Class("input-group-btn").
+															Styles(map[string]string{
+																"float": "center",
+																"width": "10%"}).
+															Body(
+																app.Button().
+																	Title("Copy to clipboard...").
+																	ID("copy-private").
+																	Class("btn", "btn-warning", "btn-copy").
+																	Type("button").
+																	Body(
+																		app.Text("Copy"),
+																	).OnClick(func(ctx app.Context, e app.Event) {
+																	h.copyToClipboard("short-private")
+																	elem := app.Window().GetElementByID("copy-private")
+																	fmt.Printf("current value: %v\n", elem.Get("body"))
+																	elem.Set("textContent", "Copied")
+																	ctx.After(400*time.Millisecond, func(ctx app.Context) {
+																		elem.Set("textContent", "Copy")
+																	})
+																}),
+															),
+													),
+											),
+										app.Div().
+											Class("").
+											Body(
+												app.Div().
+													Class("input-group").
+													Body(
+														app.Span().
+															Class("input-group-addon", "fld-title").
+															Styles(map[string]string{
+																"float": "left",
+																"width": "12%"}).
+															Body(
+																app.Text("sh0r7 delete"),
+															),
+														app.Input().
+															ID("short-delete").
+															Type("text").
+															Class("form-control").
+															ReadOnly(true).
+															Styles(map[string]string{
+																"float": "center",
+																"width": "30%"}).
+															Value(h.shortLink("delete")),
+														app.Span().
+															Class("input-group-btn").
+															Styles(map[string]string{
+																"float": "center",
+																"width": "10%"}).
+															Body(
+																app.Button().
+																	Title("Copy to clipboard...").
+																	ID("copy-delete").
+																	Class("btn", "btn-warning", "btn-copy").
+																	Type("button").
+																	Body(
+																		app.Text("Copy"),
+																	).OnClick(func(ctx app.Context, e app.Event) {
+																	h.copyToClipboard("short-delete")
+																	elem := app.Window().GetElementByID("copy-delete")
+																	fmt.Printf("current value: %v\n", elem.Get("body"))
+																	elem.Set("textContent", "Copied")
+																	ctx.After(400*time.Millisecond, func(ctx app.Context) {
+																		elem.Set("textContent", "Copy")
+																	})
+																}),
+															),
+													),
+											),
+									),
+							),
 						),
 					app.Div().
 						Class("shortButtonWrapper").
@@ -160,24 +313,35 @@ func (h *short) Render() app.UI {
 							app.Div().
 								Class("shortButton").
 								Body(
-									app.Button().
-										ID("shortInputButton").
-										Class("btn", "btn-primary", "btn-lg", "btn-block").
-										Body(
-											app.Text("short it"),
-										).
-										OnClick(func(ctx app.Context, e app.Event) {
-											elem := app.Window().GetElementByID("shortInputText")
-											v := elem.Get("value").String()
-											fmt.Printf("shortInputText value: %v\n", v)
-											h.expireValue = ""
-											if h.isExpireChecked {
-												h.expireValue = app.Window().GetElementByID("expireSelect").Get("value").String()
-											}
-											if v != "" {
-												ctx.Async(h.createShort)
-											}
-										}),
+									app.If(!h.resultReady,
+										app.Button().
+											ID("shortInputButton").
+											Class("btn", "btn-primary", "btn-lg", "btn-block").
+											Body(
+												app.Text("short it"),
+											).
+											OnClick(func(ctx app.Context, e app.Event) {
+												elem := app.Window().GetElementByID("shortInputText")
+												v := elem.Get("value").String()
+												fmt.Printf("shortInputText value: %v\n", v)
+												h.expireValue = ""
+												if h.isExpireChecked {
+													h.expireValue = app.Window().GetElementByID("expireSelect").Get("value").String()
+													fmt.Printf("expire value: %v\n", h.expireValue)
+												}
+												if v != "" {
+													ctx.Async(h.createShort)
+												}
+											}),
+									).Else(
+										app.Button().
+											Class("btn", "btn-success", "btn-lg", "btn-block").
+											Text("New").
+											OnClick(func(ctx app.Context, e app.Event) {
+												h.result = ""
+												h.resultReady = false
+												h.Update()
+											}),
 								),
 							app.Div().
 								Class("shortButtonPost"),
@@ -215,6 +379,7 @@ func (h *short) Render() app.UI {
 																Type("checkbox").
 																OnClick(func(ctx app.Context, e app.Event) {
 																	h.isExpireChecked = ctx.JSSrc().Get("checked").Bool()
+																	fmt.Printf("useExpire: %v\n", h.isExpireChecked)
 																}),
 															app.Text("Expiration"),
 														),
@@ -598,7 +763,10 @@ func (h *short) createShort() {
 }
 
 func (h *short) shortLink(which string) string {
-	host := app.Window().URL().String()
+	x := app.Window().URL()
+	x.Path = "/"
+	fmt.Printf("!# path: %#+v\n", x)
+	host := x.String()
 	switch which {
 	case "private", "short", "delete":
 	default:
