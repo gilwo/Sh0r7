@@ -129,41 +129,7 @@ func HandleCreateShortUrl(c *gin.Context) {
 		c.JSON(200, res)
 	}
 }
-func HandleCreateShortDataImproved1(c *gin.Context) {
-	d, err := c.GetRawData()
-	if err != nil {
-		_spawnErr(c, err)
-		return
-	}
 
-	shortValue := shortener.GenerateShortData(string(d))
-	if shortValue == "" {
-		_spawnErr(c, fmt.Errorf("there was a problem creating a short url, try again shortly"))
-		return
-	}
-	err = store.StoreCtx.SaveDataMapping(d, shortValue, 0)
-	if err != nil {
-		_spawnErr(c, err)
-		return
-	}
-
-	res := gin.H{
-		"shortData": shortValue,
-	}
-	token := shortener.GenerateToken(string(d)+shortValue+c.ClientIP(), 22)
-	if token == "" {
-		fmt.Printf("failed to _generate_ token to data mapping at %s\n", shortValue)
-	} else {
-		err = store.StoreCtx.SetMetaDataMapping(shortValue, "token", token)
-		if err != nil {
-			fmt.Printf("failed to _set_ token to data mapping at %s err: %s\n", shortValue, errors.Unwrap(err))
-		} else {
-			res["token"] = token
-		}
-	}
-
-	c.JSON(200, res)
-}
 func HandleUpdateShort(c *gin.Context) {
 	short := c.Param("short")
 	d, err := c.GetRawData()
@@ -278,37 +244,6 @@ func handleRemove(c *gin.Context, withResponse bool) bool {
 		c.Status(200)
 	}
 	return true
-}
-func CreateShortData(c *gin.Context) {
-	runningCount += 1
-	dataMap := make(map[string]interface{})
-
-	d, err := c.GetRawData()
-	if err != nil {
-		_spawnErr(c, err)
-		return
-	}
-	// fmt.Printf("raw data: %+#v\n", d)
-	err = json.Unmarshal(d, &dataMap)
-	if err != nil {
-		_spawnErr(c, err)
-		return
-	}
-	fmt.Printf("raw as json: %#+v\n", dataMap)
-	// for k, v := range data.Data {
-	// fmt.Printf("post data: %#+v\n")
-	// }
-	fmt.Printf("from: %v\n", c.Request.RemoteAddr)
-	// store.StoreCtx.SaveUrlMapping(shortUrl, creationRequest.LongUrl, creationRequest.UserId)
-	err = store.StoreCtx.SaveDataMapping(d, fmt.Sprintf("%d", runningCount), 0)
-	if err != nil {
-		_spawnErr(c, err)
-		return
-	}
-
-	c.JSON(200, gin.H{
-		"shortData": runningCount,
-	})
 }
 
 func HandleGetShortDataInfo(c *gin.Context) {
