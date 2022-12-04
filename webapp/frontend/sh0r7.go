@@ -18,10 +18,12 @@ import (
 
 type short struct {
 	app.Compo
-	result      string
-	resultMap   map[string]string
-	resultReady bool
-	token       string
+	result          string
+	resultMap       map[string]string
+	resultReady     bool
+	token           string
+	isExpireChecked bool
+	expireValue     string
 }
 
 func (h *short) Render2() app.UI {
@@ -145,7 +147,7 @@ func (h *short) Render() app.UI {
 										ID("shortInputText").
 										Class("form-control").
 										Rows(5).
-										Cols(20).
+										Cols(50).
 										Wrap("off").
 										Placeholder("long url or data to shorten..."),
 								),
@@ -163,7 +165,19 @@ func (h *short) Render() app.UI {
 										Class("btn", "btn-primary", "btn-lg", "btn-block").
 										Body(
 											app.Text("short it"),
-										),
+										).
+										OnClick(func(ctx app.Context, e app.Event) {
+											elem := app.Window().GetElementByID("shortInputText")
+											v := elem.Get("value").String()
+											fmt.Printf("shortInputText value: %v\n", v)
+											h.expireValue = ""
+											if h.isExpireChecked {
+												h.expireValue = app.Window().GetElementByID("expireSelect").Get("value").String()
+											}
+											if v != "" {
+												ctx.Async(h.createShort)
+											}
+										}),
 								),
 							app.Div().
 								Class("shortButtonPost"),
@@ -199,103 +213,77 @@ func (h *short) Render() app.UI {
 														Body(
 															app.Input().
 																Type("checkbox").
-																Value(true),
+																OnClick(func(ctx app.Context, e app.Event) {
+																	h.isExpireChecked = ctx.JSSrc().Get("checked").Bool()
+																}),
 															app.Text("Expiration"),
 														),
-													app.Select().
-														Class("form-control", "shortSelect").
-														ID("expireSelect").
-														Body(
-															app.Option().
-																Value("10m").
-																Body(
-																	app.Text("10 minutes"),
-																),
-															app.Option().
-																Value("12h").
-																Selected(true).
-																Body(
-																	app.Text("12 hours"),
-																),
-															app.Option().
-																Value("2d").
-																Body(
-																	app.Text("2 days"),
-																),
-															app.Option().
-																Value("2w").
-																Body(
-																	app.Text("2 weeks"),
-																),
-															app.Option().
-																Value("2mo").
-																Body(
-																	app.Text("2 months"),
-																),
-															app.Option().
-																Value("2y").
-																Body(
-																	app.Text("year"),
-																),
-															app.Option().
-																Value("n").
-																Body(
-																	app.Text("never"),
-																),
-														),
-												),
-										),
-								),
-							app.Div().
-								ID("shortOption1").
-								// Style("visibility", "visible").Style("border", "dotted black").
-								Body(
-									app.Div().
-										Class("form-group").
-										Body(
-											app.Div().
-												Class("input-group").
-												Body(
-													app.Label().
-														Class("input-group-addon").
-														ID("option1CheckBox").
-														// Style("", "").
-														Body(
-															app.Input().
-																Type("checkbox").
-																Value(true),
-															app.Text("Option1"),
-														),
-													app.Select().
-														Class("form-control", "shortSelect").
-														ID("expireSelect").
-														Body(
-															app.Option().
-																Value("a").
-																Body(
-																	app.Text("a"),
-																),
-															app.Option().
-																Value("b").
-																Selected(true).
-																Body(
-																	app.Text("b"),
-																),
-															app.Option().
-																Value("c").
-																Body(
-																	app.Text("c"),
-																),
-															app.Option().
-																Value("d").
-																Body(
-																	app.Text("d"),
-																),
-														),
+													app.If(h.isExpireChecked,
+														app.Span().
+															Dir("ltr").
+															Style("margin", "10px").
+															Body(
+																// app.Text("  "),
+																app.Select().
+																	Class("form-control", "shortSelect").
+																	ID("expireSelect").
+																	Body(
+																		app.Option().
+																			Value("10m").
+																			Body(
+																				app.Text("10 minutes"),
+																			),
+																		app.Option().
+																			Value("12h").
+																			Selected(true).
+																			Body(
+																				app.Text("12 hours"),
+																			),
+																		app.Option().
+																			Value("2d").
+																			Body(
+																				app.Text("2 days"),
+																			),
+																		app.Option().
+																			Value("2w").
+																			Body(
+																				app.Text("2 weeks"),
+																			),
+																		app.Option().
+																			Value("2mo").
+																			Body(
+																				app.Text("2 months"),
+																			),
+																		app.Option().
+																			Value("2y").
+																			Body(
+																				app.Text("year"),
+																			),
+																		app.Option().
+																			Value("n").
+																			Body(
+																				app.Text("never"),
+																			),
+																	).
+																	OnChange(func(ctx app.Context, e app.Event) {
+																		h.expireValue = ctx.JSSrc().Get("value").String()
+																		fmt.Printf("select change value: %v\n", h.expireValue)
+																	}),
+															),
+													),
 												),
 										),
 								),
 						),
+				),
+			app.Div().
+				Class("marker").
+				ID("footer"),
+			app.Div().
+				Class("footer").
+				Body(
+					app.Textarea().
+						ID("footerText"),
 				),
 		)
 }
@@ -542,8 +530,9 @@ func urlCheck(s string) (string, bool) {
 func (h *short) createShort() {
 	var err error
 	host := app.Window().URL().Host
-	elem := app.Window().GetElementByID("in-out")
+	elem := app.Window().GetElementByID("shortInputText")
 	data := elem.Get("value").String()
+	errElem := app.Window().GetElementByID("footerText")
 	destCreate := "http://" + host
 	payload := []byte(data)
 
@@ -553,7 +542,7 @@ func (h *short) createShort() {
 			"url": url,
 		})
 		if err != nil {
-			elem.Set("value", fmt.Sprintf("url problem: error occurred: %s", err))
+			errElem.Set("value", fmt.Sprintf("url problem: error occurred: %s", err))
 			return
 		}
 	} else {
@@ -566,37 +555,37 @@ func (h *short) createShort() {
 	// fmt.Printf("app %#v\n", app.)
 	req, err := http.NewRequest(http.MethodPost, destCreate, bytes.NewBuffer(payload))
 	if err != nil {
-		elem.Set("value", fmt.Sprintf("new request: error occurred: %s", err))
+		errElem.Set("value", fmt.Sprintf("new request: error occurred: %s", err))
 		return
 	}
 	req.Header.Set("Content-Type", "text/plain")
 	req.Header.Set("TID", h.token)
 	resp, err := client.Do(req)
 	if err != nil {
-		elem.Set("value", fmt.Sprintf("request invoke: error occurred: %s", err))
+		errElem.Set("value", fmt.Sprintf("request invoke: error occurred: %s", err))
 		return
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		elem.Set("value", fmt.Sprintf("response read: error occurred: %s", err))
+		errElem.Set("value", fmt.Sprintf("response read: error occurred: %s", err))
 		return
 	}
 	if resp.StatusCode != http.StatusOK {
-		elem.Set("value", fmt.Sprintf("response status: : %v", resp.StatusCode))
+		errElem.Set("value", fmt.Sprintf("response status: : %v", resp.StatusCode))
 		return
 	}
 
 	// elem := app.Window().GetElementByID("in-out")
 	err = json.Unmarshal(body, &h.resultMap)
 	if err != nil {
-		elem.Set("value", fmt.Sprintf("response read: error occurred: %s", err))
+		errElem.Set("value", fmt.Sprintf("response read: error occurred: %s", err))
 		return
 	}
 
 	r, err := json.MarshalIndent(h.resultMap, "", "\t")
 	if err != nil {
-		elem.Set("value", fmt.Sprintf("response read: error occurred: %s", err))
+		errElem.Set("value", fmt.Sprintf("response read: error occurred: %s", err))
 		return
 	}
 	h.result = string(r)
