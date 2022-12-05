@@ -292,7 +292,6 @@ func HandleShort(c *gin.Context) {
 	}
 	fmt.Println("trying data for ", short)
 	if getData(c) {
-
 		return
 	}
 	fmt.Println("trying data for ", short)

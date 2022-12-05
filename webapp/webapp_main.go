@@ -146,8 +146,8 @@ func generateSeedAndToken(input string, seedLen, tokenLen int) (string, string) 
 	var seed, token string
 	c := 0
 	for {
-		seed = shortener.GenerateToken2(uuid.NewString(), seedLen, 0)
-		token = shortener.GenerateToken2(input+seed, tokenLen, 0)
+		seed = shortener.GenerateTokenTweaked(uuid.NewString(), 0, seedLen, 0)
+		token = shortener.GenerateTokenTweaked(input+seed, 0, tokenLen, 0)
 		err := store.StoreCtx.SaveDataMapping([]byte(""), token, ShortLiveTokenExpiration)
 		if err == nil {
 			break

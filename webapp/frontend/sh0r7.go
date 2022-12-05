@@ -593,7 +593,8 @@ func (h *short) getStID() {
 		return
 	}
 	req.Header.Set("Content-Type", "text/plain")
-	req.Header.Set("RTS", shortener.GenerateToken2(uuid.NewString(), 0, -1))
+	preSeed := shortener.GenerateTokenTweaked(uuid.NewString(), -1, 20, 0)
+	req.Header.Set("RTS", preSeed)
 	resp, err := client.Do(req)
 	if err != nil {
 		app.Logf("failed to invoke request: %s\n", err)
@@ -624,7 +625,7 @@ func (h *short) getStID() {
 	fmt.Printf("******************************* stid from header: %+#v\n", stid)
 	ua := app.Window().Get("navigator").Get("userAgent").String()
 
-	token := shortener.GenerateToken2(ua+seed, tokenLen, tokenStartPos)
+	token := shortener.GenerateTokenTweaked(ua+seed, tokenStartPos, tokenLen, 0)
 	fmt.Printf("******************************* calculated token: %s\n", token)
 	if token == "" {
 		app.Logf("problem with token generation\n")

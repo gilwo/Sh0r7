@@ -13,95 +13,67 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
-func GenerateToken2(data string, size, start int) string {
-	finalString := base64.StdEncoding.EncodeToString(sha3Of(data))
-	N := len(finalString)
+func GenerateToken(data string) string {
+	return generateShortFrom(base64.StdEncoding.EncodeToString(sha3Of(data)), -1, 0, 0)
+}
+
+func GenerateTokenTweaked(data string, startOffset, sizeFixed, sizeMin int) string {
+	return generateShortFrom(base64.StdEncoding.EncodeToString(sha3Of(data)), startOffset, sizeFixed, sizeMin)
+}
+
+// generateShortFrom use input hash as a source for the short form
+// startOffset - offset from the start of the input source, -1 stand for random offset
+// sizeFixed - the result string length - take precedence over sizeMin, 0 stand for not used
+// sizeMin - the result string minimum length - used when sizeFixed is 0, 0 stand for min any size > 1
+func generateShortFrom(hash string, startOffset, sizeFixed, sizeMin int) string {
+	N := len(hash)
 	c := 0
+	if sizeMin <= 0 {
+		sizeMin = 1
+	}
 	startPos := func() int {
-		if start > -1 {
-			return start
+		if startOffset > -1 {
+			return startOffset
 		}
 		return rand.Intn(N)
 	}
 	ofsCalc := func(r int) int {
-		if size < 1 {
+		if sizeFixed < 1 {
 			return rand.Intn(r)
 		}
-		return size
+		return sizeFixed
 	}
 	for {
 		lPos := startPos()
 		ofs := ofsCalc(N - lPos)
-		if N > lPos+ofs {
-			return finalString[lPos : lPos+ofs]
-		}
-		c += 1
-		if c > 100 {
-			fmt.Printf("attmpets [%d], data [%s], N[%d], lpos[%d], ofs[%d], short <%s>, final<%s>\n",
-				c, data, N, lPos, ofs, "no token", finalString)
-			fmt.Printf("not found proper short after %d attempts\n", c)
-			return ""
-		}
-	}
-}
-func GenerateToken(data string, size int) string {
-	urlHashBytes := sha256Of(data)
-	generatedNumber := new(big.Int).SetBytes(urlHashBytes).Uint64()
-	finalString := base58Encoded([]byte(fmt.Sprintf("%d", generatedNumber)))
-	urlHashBytes = sha256Of(uuid.NewString())
-	generatedNumber = new(big.Int).SetBytes(urlHashBytes).Uint64()
-	finalString += base58Encoded([]byte(fmt.Sprintf("%d", generatedNumber)))
-	finalString = base64.StdEncoding.EncodeToString([]byte(finalString))
-	N := len(finalString)
-	c := 0
-	for {
-		lPos := rand.Intn(N)
-		ofs := size
-		if N > lPos+ofs {
-			return finalString[lPos : lPos+ofs]
-		}
-		c += 1
-		if c > 100 {
-			fmt.Printf("attmpets [%d], data [%s], N[%d], lpos[%d], ofs[%d], short <%s>, final<%s>\n",
-				c, data, N, lPos, ofs, "no token", finalString)
-			fmt.Printf("not found proper short after %d attempts\n", c)
-			return ""
-		}
-	}
-}
-func GenerateShortData(data string) string {
-	urlHashBytes := sha256Of(data + uuid.NewString())
-	generatedNumber := new(big.Int).SetBytes(urlHashBytes).Uint64()
-	finalString := base58Encoded([]byte(fmt.Sprintf("%d", generatedNumber)))
-
-	N := len(finalString)
-	c := 0
-	for {
-		lPos := rand.Intn(N)
-		ofs := rand.Intn(10)
-		if ofs > 1 && N > lPos+ofs {
-			res := finalString[lPos : lPos+ofs]
+		if ofs > sizeMin && N > lPos+ofs {
+			res := hash[lPos : lPos+ofs]
 			if store.StoreCtx.CheckShortDataMapping(res) == nil {
-				if c > 1 {
-					fmt.Printf("found proper short after %d attempts\n", c)
-				}
-				fmt.Printf("attmpets [%d], N[%d], lpos[%d], ofs[%d], short <%s>, final<%s>\n",
-					c, N, lPos, ofs, res, finalString)
+				fmt.Printf("attmpets [%d], N[%d], lpos[%d], ofs[%d], short <%s>, hash<%s>\n",
+					c, N, lPos, ofs, res, hash)
 				return res
 			}
 		}
 		c += 1
-		if c > 100 {
+		if c > 1000 {
+			fmt.Printf("attmpets [%d], data [%s], N[%d], lpos[%d], ofs[%d], short <%s>, hash<%s>\n",
+				c, hash, N, lPos, ofs, "no token", hash)
 			fmt.Printf("not found proper short after %d attempts\n", c)
 			return ""
 		}
 	}
 }
-func GenerateShortLink(initialLink string, userId string) string {
-	urlHashBytes := sha256Of(initialLink + userId)
+
+func GenerateShortData(data string) string {
+	urlHashBytes := sha256Of(data + uuid.NewString())
 	generatedNumber := new(big.Int).SetBytes(urlHashBytes).Uint64()
-	finalString := base58Encoded([]byte(fmt.Sprintf("%d", generatedNumber)))
-	return finalString[:8]
+	return generateShortFrom(base58Encoded([]byte(fmt.Sprintf("%d", generatedNumber))), -1, 0, 0)
+}
+
+func GenerateShortDataTweaked(data string, startOffset, sizeFixed, sizeMin int) string {
+	urlHashBytes := sha256Of(data + uuid.NewString())
+	generatedNumber := new(big.Int).SetBytes(urlHashBytes).Uint64()
+	return generateShortFrom(base58Encoded([]byte(fmt.Sprintf("%d", generatedNumber))), startOffset, sizeFixed, sizeMin)
 }
 
 func sha256Of(input string) []byte {
