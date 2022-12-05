@@ -24,6 +24,7 @@ type short struct {
 	token           string
 	isExpireChecked bool
 	expireValue     string
+	debug           bool
 }
 
 func (h *short) Render() app.UI {
@@ -40,8 +41,19 @@ func (h *short) Render() app.UI {
 						// Style("text-align", "center").
 						Body(
 							app.Text("under construction - not yet ready for live ...."),
-							// app.Text("Resize the browser window to see the responsive effect."),
 						),
+					app.If(h.debug,
+						app.Div().
+							Styles(map[string]string{
+								"position":    "absolute",
+								"margin-left": "450px",
+								// "float":    "right",
+							}).
+							Body(
+								app.P().
+									ID("messages"),
+							),
+					),
 				),
 			app.Div().
 				Class("marker").
@@ -188,6 +200,18 @@ func (h *short) Render() app.UI {
 																		ctx.After(400*time.Millisecond, func(ctx app.Context) {
 																			elem.Set("textContent", "Copy")
 																		})
+																	}).
+																	OnMouseOver(func(ctx app.Context, e app.Event) {
+																		if h.debug {
+																			elem := app.Window().GetElementByID("messages")
+																			elem.Set("innerText", "copy to clipboard")
+																		}
+																	}).
+																	OnMouseOut(func(ctx app.Context, e app.Event) {
+																		if h.debug {
+																			elem := app.Window().GetElementByID("messages")
+																			elem.Set("innerText", "")
+																		}
 																	}),
 															),
 													),
@@ -402,7 +426,7 @@ func (h *short) Render() app.UI {
 																				app.Text("2 weeks"),
 																			),
 																		app.Option().
-																			Value("2mo").
+																			Value("8w").
 																			Body(
 																				app.Text("2 months"),
 																			),
@@ -481,14 +505,21 @@ func urlCheck(s string) (string, bool) {
 }
 func (h *short) createShort() {
 	var err error
-	host := app.Window().URL().Host
+	fmt.Printf("!!URL: %+#v\n", app.Window().URL())
+	appUrl := app.Window().URL()
+	dest := url.URL{
+		Scheme: appUrl.Scheme,
+		Host:   appUrl.Host,
+	}
 	elem := app.Window().GetElementByID("shortInputText")
 	data := elem.Get("value").String()
 	errElem := app.Window().GetElementByID("footerText")
-	destCreate := "http://" + host
+	destCreate := dest.String()
+	fmt.Printf("!!! new dest: %s\n", destCreate)
 	payload := []byte(data)
 
 	if url, ok := urlCheck(data); ok {
+
 		destCreate += "/create-short-url"
 		payload, err = json.Marshal(map[string]string{
 			"url": url,
@@ -551,9 +582,13 @@ func (h *short) createShort() {
 
 func (h *short) shortLink(which string) string {
 	x := app.Window().URL()
-	x.Path = "/"
+	newURL := url.URL{
+		Scheme: x.Scheme,
+		Host:   x.Host,
+		Path:   "/",
+	}
 	fmt.Printf("!# path: %#+v\n", x)
-	host := x.String()
+	host := newURL.String()
 	switch which {
 	case "private", "short", "delete":
 	default:
@@ -564,19 +599,18 @@ func (h *short) shortLink(which string) string {
 
 func (h *short) copyToClipboard(from string) {
 	elem := app.Window().GetElementByID(from)
-	clipboard := app.Window().Get("navigator").Get("clipboard")
-	clipboard.Call("writeText", elem.Get("value"))
-	h.getUserAgent()
-}
+	if !app.Window().Get("window").Get("isSecureContext").Bool() {
+		// https://stackoverflow.com/questions/51805395/navigator-clipboard-is-undefined
+		fmt.Printf("!! cant copy to clipboard using navigator on non secure origin, use execCommand")
 
-func (h *short) getUserAgent() {
-	ua := app.Window().Get("navigator").Get("userAgent")
-	uaData := app.Window().Get("navigator").Get("userAgentData")
-	fmt.Printf("*** UA: %s\n", ua)
-	fmt.Printf("*** UAData platform: %s\n", uaData.Get("platform"))
-	fmt.Printf("*** UAData mobile: %s\n", uaData.Get("mobile"))
-	fmt.Printf("*** UAData brands brand: %s\n", uaData.Get("brands").Index(0).Get("brand"))
-	fmt.Printf("*** UAData brands version: %s\n", uaData.Get("brands").Index(0).Get("version"))
+		// https://web.dev/async-clipboard/
+		elem.Call("select")
+		app.Window().Get("document").Call("execCommand", "copy")
+		return
+	}
+	if clipboard := app.Window().Get("navigator").Get("clipboard"); !clipboard.IsUndefined() {
+		clipboard.Call("writeText", elem.Get("value"))
+	}
 }
 
 func (h *short) getStID() {
@@ -632,4 +666,15 @@ func (h *short) getStID() {
 		return
 	}
 	h.token = token
+
+	if resp.Header.Get("debug") == "on" {
+		h.debug = true
+		tokData := fmt.Sprintf("preSeed: %s\nseed: %s\ntoken: %s\n", preSeed, seed, token)
+		go func() {
+			<-time.After(50 * time.Millisecond)
+			elem := app.Window().GetElementByID("messages")
+			elem.Set("innerText", tokData)
+		}()
+	}
+
 }

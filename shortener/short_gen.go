@@ -49,7 +49,7 @@ func generateShortFrom(hash string, startOffset, sizeFixed, sizeMin int) string 
 		if ofs > sizeMin && N > lPos+ofs {
 			res := hash[lPos : lPos+ofs]
 			if store.StoreCtx != nil {
-				if store.StoreCtx.CheckShortDataMapping(res) == nil {
+				if !store.StoreCtx.CheckExistShortDataMapping(res) {
 					fmt.Printf("attmpets [%d], N[%d], lpos[%d], ofs[%d], short <%s>, hash<%s>\n",
 						c, N, lPos, ofs, res, hash)
 					return res

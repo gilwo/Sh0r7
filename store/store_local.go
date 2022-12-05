@@ -82,11 +82,11 @@ func (st *StorageLocal) SaveDataMapping(data []byte, short string, ttl time.Dura
 
 	return func() error { st.cacheSync.Store(short, t); return nil }()
 }
-func (st *StorageLocal) CheckShortDataMapping(short string) error {
+func (st *StorageLocal) CheckExistShortDataMapping(short string) bool {
 	if _, ok := st.cacheSync.Load(short); ok {
-		return fmt.Errorf("entry exist for %s", short)
+		return true
 	}
-	return nil
+	return false
 }
 func (st *StorageLocal) LoadDataMapping(short string) ([]byte, error) {
 	tup, ok := st.cacheSync.Load(short)

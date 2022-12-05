@@ -104,7 +104,7 @@ func webappgenfunc(args ...interface{}) interface{} {
 			return false
 		}
 		// fmt.Printf("*********\n%#+v\n*********\n", c.Request)
-		path := c.Request.RequestURI
+		path := c.Request.URL.Path
 		fmt.Printf("webappgenfunc: handling path: %s\n", path)
 		if _, ok := webappServedPaths[path]; !ok {
 			return false

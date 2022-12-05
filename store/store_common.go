@@ -21,6 +21,7 @@ func init() {
 		}
 		log.Printf("expire duration loaded from env and set to %s\n", DefaultExpireDuration)
 	}
+
 }
 
 func Maintainence() {

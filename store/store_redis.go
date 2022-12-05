@@ -136,13 +136,13 @@ func (st *StorageRedis) SaveDataMapping(data []byte, short string, ttl time.Dura
 	return nil
 }
 
-func (st *StorageRedis) CheckShortDataMapping(short string) error {
+func (st *StorageRedis) CheckExistShortDataMapping(short string) bool {
 	v, err := st.redisClient.Exists(ctx, short).Result()
 	fmt.Printf("exists %s result: %v, %v\n", short, v, err)
 	if err != nil || v == 1 {
-		return errors.Errorf("entry exist for %s", short)
+		return true
 	}
-	return nil
+	return false
 }
 func (st *StorageRedis) LoadDataMapping(short string) ([]byte, error) {
 	res, err := st.redisClient.Get(ctx, short).Result()
