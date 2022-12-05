@@ -23,6 +23,7 @@ type short struct {
 	resultReady     bool
 	token           string
 	isExpireChecked bool
+	isShortAsData   bool
 	expireValue     string
 	debug           bool
 }
@@ -372,6 +373,24 @@ func (h *short) Render() app.UI {
 									app.Text("Options"),
 								),
 							app.Div().
+								ID("shortAsUrl").
+								Body(
+									app.Label().
+										Title("Treat input as data").
+										Class("input-group-addon").
+										ID("DataCheckBox").
+										// Style("", "").
+										Body(
+											app.Input().
+												Type("checkbox").
+												OnClick(func(ctx app.Context, e app.Event) {
+													h.isShortAsData = ctx.JSSrc().Get("checked").Bool()
+													fmt.Printf("data url: %v\n", h.isShortAsData)
+												}),
+											app.Text("As Data"),
+										),
+								),
+							app.Div().
 								ID("shortOption2").
 								// Style("", "").
 								Body(
@@ -382,6 +401,7 @@ func (h *short) Render() app.UI {
 												Class("input-group").
 												Body(
 													app.Label().
+														Title("Set expiration for the short URL").
 														Class("input-group-addon").
 														ID("expireCheckBox").
 														// Style("", "").
@@ -518,7 +538,7 @@ func (h *short) createShort() {
 	fmt.Printf("!!! new dest: %s\n", destCreate)
 	payload := []byte(data)
 
-	if url, ok := urlCheck(data); ok {
+	if url, ok := urlCheck(data); ok && !h.isShortAsData {
 
 		destCreate += "/create-short-url"
 		payload, err = json.Marshal(map[string]string{
