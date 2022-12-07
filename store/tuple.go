@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/zlib"
 	"encoding/base64"
+	"encoding/json"
 	"io"
 	"sort"
 
@@ -16,6 +17,14 @@ type fieldValue struct {
 }
 type stringTuple struct {
 	tuple map[string]string
+}
+
+func NewTupleFromString(in string) (*stringTuple, error) {
+	t := NewTuple()
+	if err := t.FromString(in); err != nil {
+		return nil, err
+	}
+	return t, nil
 }
 
 func NewTuple() *stringTuple {
@@ -120,7 +129,7 @@ func (t *stringTuple) unpackMsgPack(data []byte) error {
 func (t *stringTuple) Dump() string {
 	s := ""
 	for _, k := range t.Keys() {
-		s += "\t[" + k + "]:\n\t\t[" + t.tuple[k] + "]\n"
+		s += "\t[" + k + "]:\n\t\t<" + t.MustGet(k) + ">\n"
 	}
 	return s
 }
@@ -183,4 +192,15 @@ func (t *stringTuple) Get2(field string) (string, error) {
 	}
 	return string(res), nil
 
+}
+func (t *stringTuple) MustGet(field string) string {
+	r, err := t.Get2(field)
+	if err != nil {
+		return t.tuple[field]
+	}
+	return r
+}
+
+func (t *stringTuple) FromString(asString string) error {
+	return json.Unmarshal([]byte(asString), &t.tuple)
 }

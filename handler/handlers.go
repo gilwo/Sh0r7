@@ -114,10 +114,12 @@ func HandleCreateShortUrl(c *gin.Context) {
 	err = json.Unmarshal(d, &mapping)
 	if err != nil {
 		_spawnErr(c, fmt.Errorf("invalid payload"))
+		fmt.Printf("err in json unmarshal, %s\n", err)
 		return
 	}
 	if url, ok := mapping["url"]; !ok {
 		_spawnErr(c, fmt.Errorf("invalid payload"))
+		fmt.Printf("json field url is missing, %#v\n", mapping)
 		return
 	} else {
 		res, err := handleCreateShortModDelete(url, true)
@@ -167,11 +169,13 @@ func updateUrl(c *gin.Context, d []byte) bool {
 	err = json.Unmarshal(d, &mapping)
 	if err != nil {
 		_spawnErr(c, fmt.Errorf("invalid payload"))
+		fmt.Printf("err in json unmarshal, %s\n", err)
 		return false
 	}
 	url, ok := mapping["url"]
 	if !ok {
 		_spawnErr(c, fmt.Errorf("invalid payload"))
+		fmt.Printf("json field url is missing, %#v\n", mapping)
 		return false
 	}
 
@@ -248,17 +252,18 @@ func handleRemove(c *gin.Context, withResponse bool) bool {
 
 func HandleGetShortDataInfo(c *gin.Context) {
 	short := c.Param("short")
-	privateKey, err := store.StoreCtx.LoadDataMapping(short + "p")
+	dataKey, err := store.StoreCtx.LoadDataMapping(short + "p")
 	if err != nil {
 		msg := errors.Errorf("there was a problem with short: %s", short)
-		fmt.Printf("%s, err: %s", msg, err)
+		fmt.Printf("%s, err: %s\n", msg, err)
 		_spawnErr(c, msg)
 		return
 	}
-	data, err := store.StoreCtx.LoadDataMappingInfo(string(privateKey))
+	log.Printf("data key: %s, short %s\n", string(dataKey), short)
+	data, err := store.StoreCtx.LoadDataMappingInfo(string(dataKey))
 	if err != nil {
 		msg := errors.Errorf("there was a problem with short: %s", short)
-		fmt.Printf("%s, err: %s", msg, err)
+		fmt.Printf("%s, err: %s\n", msg, err)
 		_spawnErr(c, msg)
 		return
 	}
@@ -266,17 +271,17 @@ func HandleGetShortDataInfo(c *gin.Context) {
 }
 func HandleGetOriginData(c *gin.Context) {
 	short := c.Param("short")
-	privateKey, err := store.StoreCtx.LoadDataMapping(short + "p")
+	dataKey, err := store.StoreCtx.LoadDataMapping(short + "p")
 	if err != nil {
 		msg := errors.Errorf("there was a problem with short: %s", short)
-		fmt.Printf("%s, err: %s", msg, err)
+		fmt.Printf("%s, err: %s\n", msg, err)
 		_spawnErr(c, msg)
 		return
 	}
-	data, err := store.StoreCtx.LoadDataMapping(string(privateKey))
+	data, err := store.StoreCtx.LoadDataMapping(string(dataKey))
 	if err != nil {
 		msg := errors.Errorf("there was a problem with short: %s", short)
-		fmt.Printf("%s, err: %s", msg, err)
+		fmt.Printf("%s, err: %s\n", msg, err)
 		_spawnErr(c, msg)
 		return
 	}
@@ -286,19 +291,19 @@ func HandleGetOriginData(c *gin.Context) {
 
 func HandleShort(c *gin.Context) {
 	short := c.Param("short")
-	fmt.Println("trying url for ", short)
+	fmt.Printf("trying url for <%s>\n", short)
 	if tryUrl(c) {
 		return
 	}
-	fmt.Println("trying data for ", short)
+	fmt.Printf("trying data for <%s>\n", short)
 	if getData(c) {
 		return
 	}
-	fmt.Println("trying data for ", short)
+	fmt.Printf("trying private data for <%s>\n", short)
 	if getDataPrivate(c) {
 		return
 	}
-	fmt.Println("trying delete for ", short)
+	fmt.Printf("trying delete for <%s>\n", short)
 	if tryDelete(c) {
 		return
 	}
@@ -310,7 +315,7 @@ func getData(c *gin.Context) bool {
 	data, err := store.StoreCtx.LoadDataMapping(short)
 	if err != nil {
 		msg := errors.Errorf("there was a problem with short: %s", short)
-		fmt.Printf("%s, err: %s", msg, err)
+		fmt.Printf("%s, err: %s\n", msg, err)
 		return false
 	}
 	c.String(200, "%s", data)
