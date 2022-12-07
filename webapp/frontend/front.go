@@ -14,7 +14,9 @@ func init() {
 }
 
 func mainfrtonend() {
-	app.Route(common.ShortPath, newShort())
+	short := newShort()
+	app.Route(common.ShortPath, short)
+	app.Route(common.PrivatePath, short)
 
 	app.RunWhenOnBrowser()
 }

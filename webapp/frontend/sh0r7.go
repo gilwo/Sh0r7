@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/gilwo/Sh0r7/shortener"
+	"github.com/gilwo/Sh0r7/store"
+	webappCommon "github.com/gilwo/Sh0r7/webapp/common"
 	"github.com/google/uuid"
 	"github.com/maxence-charriere/go-app/v9/pkg/app"
 )
@@ -26,9 +28,54 @@ type short struct {
 	isShortAsData   bool
 	expireValue     string
 	debug           bool
+	isPrivate       bool
+}
+
+func (h *short) RenderPrivate() app.UI {
+	out, err := h.getPrivateInfo()
+	if err != nil {
+		out = map[string]string{"error": err.Error()}
+	}
+	return app.Div().
+		Body(
+			app.H3().
+				ID("privateTitle").
+				Body(
+					// app.Text("using private for "+app.Window().URL().String()),
+					app.Text(app.Window().URL().Query().Get("key")+" deatils"),
+				),
+			app.Br(),
+			app.Range(out).Map(func(s string) app.UI {
+				return app.Div().
+					Class("input-group").
+					Body(
+						app.Span().
+							Class("").
+							Styles(map[string]string{
+								"float": "left",
+								"width": "12%"}).
+							Body(
+								app.Text(s),
+							),
+						app.Input().
+							ID("").
+							Type("text").
+							Class("").
+							ReadOnly(true).
+							Styles(map[string]string{
+								"float": "center",
+								"width": "30%"}).
+							Value(out[s]),
+					)
+			}),
+			app.Br(),
+		)
 }
 
 func (h *short) Render() app.UI {
+	if h.isPrivate {
+		return h.RenderPrivate()
+	}
 	return app.Div().
 		Body(
 			app.Div().
@@ -489,7 +536,11 @@ func newShort() *short {
 }
 
 func (h *short) OnInit() {
-	h.getStID()
+	if strings.Contains(app.Window().URL().Path, webappCommon.PrivatePath) {
+		h.isPrivate = true
+	} else {
+		h.getStID()
+	}
 	fmt.Println("******************************* init")
 }
 func (h *short) OnPreRender() {
@@ -697,4 +748,68 @@ func (h *short) getStID() {
 		}()
 	}
 
+}
+
+func (h *short) getPrivateInfo() (map[string]string, error) {
+
+	var err error
+	url := app.Window().URL()
+	url.Path = "/" + url.Query().Get("key") + "/info"
+	url.RawQuery = ""
+
+	client := http.Client{
+		Timeout: time.Duration(5 * time.Second),
+	}
+	req, err := http.NewRequest(http.MethodGet, url.String(), nil)
+	if err != nil {
+		app.Logf("failed to create new request: %s\n", err)
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "text/plain")
+	resp, err := client.Do(req)
+	if err != nil {
+		app.Logf("failed to invoke request: %s\n", err)
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		app.Logf("response not ok: %s\n", resp.StatusCode)
+		return nil, fmt.Errorf("status: %v", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		app.Logf("failed to read response body: %s\n", err)
+		return nil, err
+	}
+	tup, err := store.NewTupleFromString(string(body))
+	if err != nil {
+		app.Logf("failed to parse body: %s\n", err)
+		return nil, err
+	}
+	r := map[string]string{}
+	var tc time.Time
+	for _, k := range tup.Keys() {
+		r[k] = tup.MustGet(k)
+		// r[k], err = tup.Get2(k)
+		// if err != nil {
+		// 	r[k] = tup.Get(k)
+		// }
+		switch k {
+		case "data.compress", "url", "p":
+			// drop it
+			delete(r, k)
+		case "s":
+			r["short"] = r[k]
+			delete(r, k)
+		case "d":
+			r["delete"] = r[k]
+			delete(r, k)
+		case "created":
+			tc, _ = time.Parse(time.RFC3339, r[k])
+			r[k] = tc.String()
+		}
+	}
+	d, _ := time.ParseDuration(r["ttl"])
+	r["expire"] = tc.Add(d).String()
+	return r, nil
 }

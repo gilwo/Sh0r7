@@ -5,7 +5,9 @@ package webapp
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gilwo/Sh0r7/common"
@@ -39,7 +41,7 @@ func init() {
 }
 
 var (
-	helloH *app.Handler = &app.Handler{
+	sh0r7H *app.Handler = &app.Handler{
 		Name:        "Sh0r7",
 		Description: "Sh0r7 url and data shortener",
 		Icon: app.Icon{
@@ -72,6 +74,7 @@ func webappInit() {
 
 	webappServedPaths = map[string]bool{
 		webappCommon.ShortPath:                 true,
+		webappCommon.PrivatePath:               true,
 		"/wasm_exec.js":                        true,
 		"/app.js":                              true,
 		"/manifest.webmanifest":                true,
@@ -107,15 +110,78 @@ func webappgenfunc(args ...interface{}) interface{} {
 		path := c.Request.URL.Path
 		fmt.Printf("webappgenfunc: handling path: %s\n", path)
 		if _, ok := webappServedPaths[path]; !ok {
+			if fixPath(c) {
+				return true
+			}
+			if checkPrivateRedirect(c) {
+				return true
+			}
+			if handlePrivateRedirect(c) {
+				return true
+			}
 			return false
 		}
 		if path == webappCommon.ShortPath {
 			headerUpdate(c)
 		}
-		helloH.ServeHTTP(c.Writer, c.Request)
+		sh0r7H.ServeHTTP(c.Writer, c.Request)
 		return true
 	}
 	return false
+}
+
+func fixPath(c *gin.Context) bool {
+	if c.Request.Referer() != "" {
+		return false
+	}
+	if strings.Contains(c.Request.URL.Path, webappCommon.PrivatePath) {
+		redirect := c.Request.URL
+		redirect.Path = webappCommon.PrivatePath
+		c.Redirect(http.StatusFound, redirect.String())
+		return true
+	}
+	if strings.Contains(c.Request.URL.Path, webappCommon.ShortPath) {
+		redirect := c.Request.URL
+		redirect.Path = webappCommon.ShortPath
+		c.Redirect(http.StatusFound, redirect.String())
+		return true
+	}
+	return false
+}
+
+func checkPrivateRedirect(c *gin.Context) bool {
+	path := strings.Trim(c.Request.URL.Path, "/")
+	if dataKey, err := store.StoreCtx.LoadDataMapping(path + "p"); err == nil {
+		if info, err := store.StoreCtx.LoadDataMappingInfo(string(dataKey)); err == nil {
+			if v, ok := info["p"]; ok && v == path {
+				redirect := c.Request.URL
+				redirect.Path = webappCommon.PrivatePath
+				redirect.RawQuery = "key=" + path
+				c.Redirect(http.StatusFound, redirect.String())
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func handlePrivateRedirect(c *gin.Context) bool {
+	if strings.Contains(c.Request.URL.Path, webappCommon.PrivatePath) {
+		if key, ok := c.GetQuery("key"); ok {
+			if dataKey, err := store.StoreCtx.LoadDataMapping(key + "p"); err == nil {
+				if info, err := store.StoreCtx.LoadDataMappingInfo(string(dataKey)); err == nil {
+					if v, ok := info["p"]; ok && v == key {
+						fmt.Printf("!! serving path: <%s>\n", c.Request.RequestURI)
+						sh0r7H.ServeHTTP(c.Writer, c.Request)
+						return true
+					}
+				}
+			}
+		}
+	}
+	fmt.Printf("!! path not served: <%s>\n", c.Request.URL)
+	return false
+
 }
 
 func headerUpdate(c *gin.Context) {
