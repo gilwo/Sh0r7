@@ -83,10 +83,10 @@ func (h *short) Render() app.UI {
 				ID("headerNote"),
 			app.Div().
 				Class("note").
-				// Style("", "").
+				Style("", "").
 				Body(
 					app.H4().
-						// Style("text-align", "center").
+						Style("text-align", "center").
 						Body(
 							app.Text("under construction - not yet ready for live ...."),
 						),
@@ -125,7 +125,7 @@ func (h *short) Render() app.UI {
 									app.Text("Sh0r7"),
 								),
 							app.H2().
-								// Style("text-align", "center").
+								Style("text-align", "center").
 								Body(
 									app.B().
 										Body(
@@ -401,6 +401,7 @@ func (h *short) Render() app.UI {
 												h.resultReady = false
 												h.Update()
 											}),
+									),
 								),
 							app.Div().
 								Class("shortButtonPost"),
@@ -426,7 +427,7 @@ func (h *short) Render() app.UI {
 										Title("Treat input as data").
 										Class("input-group-addon").
 										ID("DataCheckBox").
-										// Style("", "").
+										Style("", "").
 										Body(
 											app.Input().
 												Type("checkbox").
@@ -439,7 +440,7 @@ func (h *short) Render() app.UI {
 								),
 							app.Div().
 								ID("shortOption2").
-								// Style("", "").
+								Style("", "").
 								Body(
 									app.Div().
 										Class("form-group").
