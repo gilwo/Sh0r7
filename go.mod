@@ -7,6 +7,7 @@ require (
 	github.com/go-redis/redis/v8 v8.0.0-beta.6
 	github.com/google/uuid v1.3.0
 	github.com/itchyny/base58-go v0.1.0
+	github.com/karrick/tparse v2.4.2+incompatible
 	github.com/maxence-charriere/go-app/v9 v9.6.7
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.6.1
@@ -18,6 +19,7 @@ require (
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200624174652-8d2f3be8b2d9 // indirect
+	github.com/etdub/goparsetime v0.0.0-20160315173935-ea17b0ac3318 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
 	github.com/go-playground/locales v0.13.0 // indirect
 	github.com/go-playground/universal-translator v0.17.0 // indirect
