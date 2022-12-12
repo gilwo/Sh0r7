@@ -13,6 +13,7 @@ import (
 	"github.com/gilwo/Sh0r7/shortener"
 	"github.com/gilwo/Sh0r7/store"
 	"github.com/gin-gonic/gin"
+	"github.com/karrick/tparse"
 	"github.com/pkg/errors"
 )
 
@@ -33,7 +34,7 @@ var (
 	runningCount = 0
 )
 
-func handleCreateShortModDelete(data string, isUrl bool) (map[string]interface{}, error) {
+func handleCreateShortModDelete(data string, isUrl bool, expiration time.Duration) (map[string]interface{}, error) {
 	var err error
 	res := map[string]interface{}{}
 	shorts := map[string]string{
@@ -56,7 +57,7 @@ func handleCreateShortModDelete(data string, isUrl bool) (map[string]interface{}
 		mapping["url"] = shorts[""]
 	}
 	for k, e := range shorts {
-		err = store.StoreCtx.SaveDataMapping([]byte(mapping[k]), e+k, 0)
+		err = store.StoreCtx.SaveDataMapping([]byte(mapping[k]), e+k, expiration)
 		if err != nil {
 			break
 		}
@@ -95,7 +96,7 @@ func HandleCreateShortData(c *gin.Context) {
 		_spawnErr(c, err)
 		return
 	}
-	res, err := handleCreateShortModDelete(string(d), false)
+	res, err := handleCreateShortModDelete(string(d), false, getExpiration(c))
 	if err != nil {
 		_spawnErr(c, err)
 		return
@@ -182,7 +183,7 @@ func HandleCreateShortUrl(c *gin.Context) {
 		fmt.Printf("json field url is missing, %#v\n", mapping)
 		return
 	} else {
-		res, err := handleCreateShortModDelete(url, true)
+		res, err := handleCreateShortModDelete(url, true, getExpiration(c))
 		if err != nil {
 			_spawnErr(c, err)
 			return
@@ -466,4 +467,17 @@ func checkToken(c *gin.Context) bool {
 		return false
 	}
 	return true
+}
+
+func getExpiration(c *gin.Context) time.Duration {
+	expiration := c.Request.Header.Get("exp")
+	if expiration == "n" {
+		return -1
+	}
+	t1, err := tparse.AddDuration(time.Time{}, expiration)
+	if err != nil {
+		log.Printf("expiration [%s] parsing failed: %s\n", expiration, err)
+		return 0
+	}
+	return t1.Sub(time.Time{})
 }

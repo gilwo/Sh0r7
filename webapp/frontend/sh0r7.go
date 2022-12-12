@@ -621,6 +621,9 @@ func (h *short) createShort() {
 		errElem.Set("value", fmt.Sprintf("new request: error occurred: %s", err))
 		return
 	}
+	if h.expireValue != "" {
+		req.Header.Set("exp", h.expireValue)
+	}
 	req.Header.Set("Content-Type", "text/plain")
 	req.Header.Set("TID", h.token)
 	resp, err := client.Do(req)
@@ -756,7 +759,6 @@ func (h *short) getStID() {
 			elem.Set("innerText", tokData)
 		}()
 	}
-
 }
 
 func (h *short) getPrivateInfo() (map[string]string, error) {
@@ -818,7 +820,9 @@ func (h *short) getPrivateInfo() (map[string]string, error) {
 			r[k] = tc.String()
 		}
 	}
-	d, _ := time.ParseDuration(r["ttl"])
-	r["expire"] = tc.Add(d).String()
+	if v, ok := r["ttl"]; ok {
+		d, _ := time.ParseDuration(v)
+		r["expire"] = tc.Add(d).String()
+	}
 	return r, nil
 }
