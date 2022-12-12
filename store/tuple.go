@@ -12,6 +12,10 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 )
 
+var (
+	KeyNotFound = errors.New("key not found")
+)
+
 type fieldValue struct {
 	f, v string
 }
@@ -67,21 +71,21 @@ func (t *stringTuple) AtCheck(field string) (string, error) {
 	if v, ok := t.tuple[field]; ok {
 		return v, nil
 	}
-	return "", errors.Errorf("field %s not exists in tuple", field)
+	return "", errors.Wrapf(KeyNotFound, " "+field)
 }
 func (t *stringTuple) Get(field string) string {
-	// fmt.Printf("content of tuple %#v\n", t)
-	if v, ok := t.tuple[field]; ok {
-		return v
+	v, err := t.AtCheck(field)
+	if err != nil {
+		v = ""
 	}
-	panic(errors.Errorf("field %s not exists in tuple", field))
+	return v
 }
 func (t *stringTuple) Set(field, value string) {
 	t.tuple[field] = value
 }
 func (t *stringTuple) SetCheck(field, value string) error {
 	if _, ok := t.tuple[field]; !ok {
-		return errors.Errorf("field %s not exists in tuple", field)
+		return errors.Wrapf(KeyNotFound, " "+field)
 	}
 	t.tuple[field] = value
 	return nil
@@ -129,7 +133,11 @@ func (t *stringTuple) unpackMsgPack(data []byte) error {
 func (t *stringTuple) Dump() string {
 	s := ""
 	for _, k := range t.Keys() {
-		s += "\t[" + k + "]:\n\t\t<" + t.MustGet(k) + ">\n"
+		v := t.Get(k)
+		if len(v) > 300 {
+			v = v[:300]
+		}
+		s += "\t[" + k + "]:\n\t\t<" + v + ">\n"
 	}
 	return s
 }
@@ -170,7 +178,7 @@ func (t *stringTuple) Get2Bytes(field string) ([]byte, error) {
 func (t *stringTuple) Get2(field string) (string, error) {
 	d, ok := t.tuple[field]
 	if !ok {
-		return "", errors.Errorf("field %s not exists in tuple", field)
+		return "", errors.Wrapf(KeyNotFound, " "+field)
 	}
 	v := bytes.NewBufferString(d)
 	if _, ok := t.tuple[field+fCompress]; ok { // field value is compressed
@@ -195,8 +203,8 @@ func (t *stringTuple) Get2(field string) (string, error) {
 }
 func (t *stringTuple) MustGet(field string) string {
 	r, err := t.Get2(field)
-	if err != nil {
-		return t.tuple[field]
+	if err != nil && err != KeyNotFound {
+		r = t.tuple[field]
 	}
 	return r
 }
