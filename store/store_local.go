@@ -93,7 +93,11 @@ func (st *StorageLocal) LoadDataMapping(short string) ([]byte, error) {
 	if !ok {
 		return nil, fmt.Errorf("entry not exist for %s", short)
 	}
-	return tup.(*stringTuple).Get2Bytes("data")
+	t := tup.(*stringTuple)
+	if t.Get(FieldBLOCKED) == IsBLOCKED {
+		return nil, fmt.Errorf("not allowed %s", short)
+	}
+	return t.Get2Bytes("data")
 }
 func (st *StorageLocal) LoadDataMappingInfo(short string) (map[string]interface{}, error) {
 	tup, ok := st.cacheSync.Load(short)

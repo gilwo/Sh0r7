@@ -151,6 +151,9 @@ func (st *StorageRedis) LoadDataMapping(short string) ([]byte, error) {
 	}
 	tup := stringTuple{}
 	tup.unpackMsgPack([]byte(res))
+	if tup.Get(FieldBLOCKED) == IsBLOCKED {
+		return nil, fmt.Errorf("not allowed %s", short)
+	}
 	return tup.Get2Bytes("data")
 }
 

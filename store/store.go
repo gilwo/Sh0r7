@@ -5,6 +5,9 @@ import "time"
 type Store interface {
 	InitializeStore() error
 	UpdateDataMapping(data []byte, short string) error
+	// SaveDataMapping - store <data> under key <short> with exipry of <ttl>
+	//  ttl == 0 - use default
+	//  ttl < 0 dont use ttl
 	SaveDataMapping(data []byte, short string, ttl time.Duration) error
 	CheckExistShortDataMapping(short string) bool
 	LoadDataMapping(short string) ([]byte, error)

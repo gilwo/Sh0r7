@@ -14,10 +14,12 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 
 	"github.com/gilwo/Sh0r7/common"
 	"github.com/gilwo/Sh0r7/handler"
+	"github.com/gilwo/Sh0r7/shortener"
 	"github.com/gilwo/Sh0r7/store"
 	_ "github.com/gilwo/Sh0r7/webapp"
 )
@@ -90,9 +92,24 @@ func storageInit() error {
 		return errors.Wrap(err, "store init failed, exiting...\n")
 	}
 	handler.StoreFavicon()
+	adTokenSet()
 	return nil
 }
 
+func adTokenSet() {
+	adminKey := os.Getenv("SH0R7_ADMIN_KEY")
+	if adminKey == "" {
+		adminKey = uuid.NewString()
+	}
+	adTok := shortener.GenerateTokenTweaked(adminKey, 0, 32, 0)
+	err := store.StoreCtx.SaveDataMapping([]byte(""), adTok, -1)
+	if err != nil {
+		panic(err)
+	}
+	err = store.StoreCtx.SetMetaDataMapping(adTok, store.FieldBLOCKED, store.IsBLOCKED)
+	if err != nil {
+		panic(err)
+	}
 func startServer() {
 	addr := ":9808"
 	envProd := os.Getenv("SH0R7_PRODUCTION")
