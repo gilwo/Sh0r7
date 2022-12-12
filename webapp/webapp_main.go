@@ -46,8 +46,8 @@ var (
 		Description: "Sh0r7 url and data shortener",
 		Icon: app.Icon{
 			// Default: "/web/sh0r7-website-favicon-color.png",
-			Default: "/web/short-giraffe-0.jpg",
-			Large:   "/web/sh0r7-logo-color-on-transparent-background.png",
+			Default: "logoS.png",
+			Large:   "logoL.png",
 		},
 		Styles: []string{
 			// "/web/sh0r7-main.css",
@@ -83,7 +83,6 @@ func webappInit() {
 		"/web/app.wasm":                        true,
 		"/web/sh0r7-main.css":                  true,
 		"/web/sh0r7-website-favicon-color.png": true,
-		"/web/short-giraffe-0.jpg":             true,
 		"/web/sh0r7-logo-color-on-transparent-background.png": true,
 	}
 

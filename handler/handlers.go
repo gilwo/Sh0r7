@@ -37,9 +37,9 @@ func handleCreateShortModDelete(data string, isUrl bool) (map[string]interface{}
 	var err error
 	res := map[string]interface{}{}
 	shorts := map[string]string{
-		"":  shortener.GenerateShortData(data),
-		"d": shortener.GenerateShortData(data + "delete"),
-		"p": shortener.GenerateShortData(data + "private"),
+		"":  shortener.GenerateShortDataWithStore(data, store.StoreCtx),
+		"d": shortener.GenerateShortDataWithStore(data+"delete", store.StoreCtx),
+		"p": shortener.GenerateShortDataWithStore(data+"private", store.StoreCtx),
 	}
 	for _, e := range shorts {
 		if e == "" {
@@ -105,16 +105,21 @@ func HandleCreateShortData(c *gin.Context) {
 }
 
 func HandleUploadFile(c *gin.Context) {
-	adTok := c.Query("adTok")
-	if adTok == "" {
-		adTok = c.Request.Header.Get("adTok")
+	adminKey := c.Query("adKey")
+	if adminKey == "" {
+		adminKey = c.Request.Header.Get("adKey")
 	}
-
+	adTok := shortener.GenerateTokenTweaked(adminKey, 0, 32, 0)
+	if adTok == "" {
+		adTok = c.Query("adTok")
+		if adTok == "" {
+			adTok = c.Request.Header.Get("adTok")
+		}
+	}
 	if adTok == "" || !store.StoreCtx.CheckExistShortDataMapping(adTok) {
 		_spawnErrWithCode(c, http.StatusForbidden, fmt.Errorf("operation not allowed"))
 		fmt.Printf("invalid adTok (%s)\n", adTok)
 		return
-
 	}
 
 	name := c.Query("name")

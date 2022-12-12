@@ -86,7 +86,11 @@ func (h *short) Render() app.UI {
 				Style("", "").
 				Body(
 					app.H4().
-						Style("text-align", "center").
+						Styles(
+							map[string]string{
+								"background": "yellow",
+								"text-align": "left",
+								"width":      "fit-content"}).
 						Body(
 							app.Text("under construction - not yet ready for live ...."),
 						),
@@ -114,7 +118,7 @@ func (h *short) Render() app.UI {
 						Body(
 							app.Img().
 								Class("logo-img").
-								Src("web/short-giraffe-0.jpg").
+								Src("logoL.png").
 								Width(200),
 						),
 					app.Div().
@@ -125,7 +129,11 @@ func (h *short) Render() app.UI {
 									app.Text("Sh0r7"),
 								),
 							app.H2().
-								Style("text-align", "center").
+								Styles(
+									map[string]string{
+										"margin-left": "40px",
+										"text-align":  "left",
+									}).
 								Body(
 									app.B().
 										Body(

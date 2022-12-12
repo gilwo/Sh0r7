@@ -14,18 +14,26 @@ import (
 )
 
 func GenerateToken(data string) string {
-	return generateShortFrom(base64.StdEncoding.EncodeToString(sha3Of(data)), -1, 0, 0)
+	return GenerateTokenWithStore(data, nil)
+}
+
+func GenerateTokenWithStore(data string, checkInStore store.Store) string {
+	return generateShortFrom(base64.StdEncoding.EncodeToString(sha3Of(data)), -1, 0, 0, checkInStore)
 }
 
 func GenerateTokenTweaked(data string, startOffset, sizeFixed, sizeMin int) string {
-	return generateShortFrom(base64.StdEncoding.EncodeToString(sha3Of(data)), startOffset, sizeFixed, sizeMin)
+	return GenerateTokenTweakedWithStore(data, startOffset, sizeFixed, sizeMin, nil)
+}
+
+func GenerateTokenTweakedWithStore(data string, startOffset, sizeFixed, sizeMin int, checkInStore store.Store) string {
+	return generateShortFrom(base64.StdEncoding.EncodeToString(sha3Of(data)), startOffset, sizeFixed, sizeMin, checkInStore)
 }
 
 // generateShortFrom use input hash as a source for the short form
 // startOffset - offset from the start of the input source, -1 stand for random offset
 // sizeFixed - the result string length - take precedence over sizeMin, 0 stand for not used
 // sizeMin - the result string minimum length - used when sizeFixed is 0, 0 stand for min any size > 1
-func generateShortFrom(hash string, startOffset, sizeFixed, sizeMin int) string {
+func generateShortFrom(hash string, startOffset, sizeFixed, sizeMin int, checkInStore store.Store) string {
 	N := len(hash)
 	c := 0
 	if sizeMin <= 0 {
@@ -48,8 +56,8 @@ func generateShortFrom(hash string, startOffset, sizeFixed, sizeMin int) string 
 		ofs := ofsCalc(N - lPos)
 		if ofs > sizeMin && N > lPos+ofs {
 			res := hash[lPos : lPos+ofs]
-			if store.StoreCtx != nil {
-				if !store.StoreCtx.CheckExistShortDataMapping(res) {
+			if checkInStore != nil {
+				if !checkInStore.CheckExistShortDataMapping(res) {
 					fmt.Printf("attmpets [%d], N[%d], lpos[%d], ofs[%d], short <%s>, hash<%s>\n",
 						c, N, lPos, ofs, res, hash)
 					return res
@@ -68,16 +76,23 @@ func generateShortFrom(hash string, startOffset, sizeFixed, sizeMin int) string 
 	}
 }
 
-func GenerateShortData(data string) string {
+func GenerateShortDataWithStore(data string, checkInStore store.Store) string {
 	urlHashBytes := sha256Of(data + uuid.NewString())
 	generatedNumber := new(big.Int).SetBytes(urlHashBytes).Uint64()
-	return generateShortFrom(base58Encoded([]byte(fmt.Sprintf("%d", generatedNumber))), -1, 0, 0)
+	return generateShortFrom(base58Encoded([]byte(fmt.Sprintf("%d", generatedNumber))), -1, 0, 0, checkInStore)
+}
+func GenerateShortData(data string) string {
+	return GenerateShortDataWithStore(data, nil)
+}
+
+func GenerateShortDataTweakedWithStore(data string, startOffset, sizeFixed, sizeMin int, checkInStore store.Store) string {
+	urlHashBytes := sha256Of(data + uuid.NewString())
+	generatedNumber := new(big.Int).SetBytes(urlHashBytes).Uint64()
+	return generateShortFrom(base58Encoded([]byte(fmt.Sprintf("%d", generatedNumber))), startOffset, sizeFixed, sizeMin, checkInStore)
 }
 
 func GenerateShortDataTweaked(data string, startOffset, sizeFixed, sizeMin int) string {
-	urlHashBytes := sha256Of(data + uuid.NewString())
-	generatedNumber := new(big.Int).SetBytes(urlHashBytes).Uint64()
-	return generateShortFrom(base58Encoded([]byte(fmt.Sprintf("%d", generatedNumber))), startOffset, sizeFixed, sizeMin)
+	return GenerateShortDataTweakedWithStore(data, startOffset, sizeFixed, sizeMin, nil)
 }
 
 func sha256Of(input string) []byte {
