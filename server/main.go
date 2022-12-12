@@ -110,6 +110,8 @@ func adTokenSet() {
 	if err != nil {
 		panic(err)
 	}
+}
+
 func startServer() {
 	addr := ":9808"
 	envProd := os.Getenv("SH0R7_PRODUCTION")
@@ -164,6 +166,8 @@ func GinInit() *gin.Engine {
 	// 	})
 	// })
 
+	r.MaxMultipartMemory = 1 << 20 // 1 MiB
+
 	genericHandleShort := func(c *gin.Context) {
 		paramShort := c.Param("short")
 		paramExt := strings.Trim(c.Param("ext"), "/")
@@ -201,6 +205,9 @@ func GinInit() *gin.Engine {
 		handler.HandleCreateShortUrl(c)
 	})
 
+	r.POST("/admin/upload", func(c *gin.Context) {
+		handler.HandleUploadFile(c)
+	})
 	// create short for data
 	r.POST("/create-short-data", func(c *gin.Context) {
 		handler.HandleCreateShortData(c)

@@ -1,8 +1,10 @@
 package handler
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"strings"
@@ -101,6 +103,59 @@ func HandleCreateShortData(c *gin.Context) {
 	fmt.Printf("res: %#v\n", res)
 	c.JSON(200, res)
 }
+
+func HandleUploadFile(c *gin.Context) {
+	adTok := c.Query("adTok")
+	if adTok == "" {
+		adTok = c.Request.Header.Get("adTok")
+	}
+
+	if adTok == "" || !store.StoreCtx.CheckExistShortDataMapping(adTok) {
+		_spawnErrWithCode(c, http.StatusForbidden, fmt.Errorf("operation not allowed"))
+		fmt.Printf("invalid adTok (%s)\n", adTok)
+		return
+
+	}
+
+	name := c.Query("name")
+	if name == "" {
+		_spawnErr(c, fmt.Errorf("invalid empty name"))
+		fmt.Printf("name file is empty\n")
+		return
+	}
+	file, err := c.FormFile("file")
+	if err != nil {
+		_spawnErr(c, err)
+		fmt.Printf("err in form file, %s\n", err)
+		return
+	}
+	if file.Size > 1<<20 {
+		err = fmt.Errorf("size too big")
+		_spawnErr(c, err)
+		fmt.Printf("err in file upload, %s\n", err)
+		return
+	}
+	src, err := file.Open()
+	if err != nil {
+		_spawnErr(c, err)
+		fmt.Printf("err in file open, %s\n", err)
+		return
+	}
+	defer src.Close()
+
+	buf := bytes.NewBuffer(func() []byte { return []byte{} }())
+
+	_, err = io.Copy(buf, src)
+	if err != nil {
+		_spawnErr(c, err)
+		fmt.Printf("err in file upload, %s\n", err)
+		return
+	}
+
+	store.StoreCtx.RemoveDataMapping(name)
+	store.StoreCtx.SaveDataMapping(buf.Bytes(), name, -1)
+}
+
 func HandleCreateShortUrl(c *gin.Context) {
 	if !checkToken(c) {
 		return
