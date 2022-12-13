@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"io"
 	"sort"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/vmihailenco/msgpack/v5"
@@ -93,6 +94,10 @@ func (t *stringTuple) SetCheck(field, value string) error {
 func (t *stringTuple) Keys() []string {
 	r := []string{}
 	for k := range t.tuple {
+		if strings.HasSuffix(k, "url") ||
+			strings.HasSuffix(k, fCompress) {
+			continue
+		}
 		r = append(r, k)
 	}
 	sort.Strings(r)
