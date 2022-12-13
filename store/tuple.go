@@ -148,9 +148,14 @@ func (t *stringTuple) Dump() string {
 }
 
 const (
-	fCompress    = ".compress"
-	FieldBLOCKED = "blocked"
-	IsBLOCKED    = "true"
+	fCompress     = ".compress"
+	FieldTime     = "created"
+	FieldTTL      = "ttl"
+	FieldDATA     = "data"
+	FieldModCount = "changes"
+	FieldModTime  = "changed_time"
+	FieldBlocked  = "blocked"
+	IsBLOCKED     = "true"
 )
 
 func (t *stringTuple) Set2Bytes(field string, value []byte, compress bool) error {

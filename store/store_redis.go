@@ -3,10 +3,7 @@
 package store
 
 import (
-	"bytes"
-	"compress/zlib"
 	"context"
-	"encoding/base64"
 	"fmt"
 	"sort"
 	"strconv"
@@ -78,7 +75,7 @@ func (st *StorageRedis) UpdateDataMapping(data []byte, short string) error {
 			return errors.New("invalid number of changes")
 		}
 	}
-	k, err := tup.Get2("data")
+	k, err := tup.Get2(FieldDATA)
 	if err != nil {
 		return fmt.Errorf("some problem in original data extraction")
 	}
@@ -87,7 +84,7 @@ func (st *StorageRedis) UpdateDataMapping(data []byte, short string) error {
 	countNumber += 1
 	tup.Set("changes", fmt.Sprintf("%d", countNumber))
 	tup.Set(fmt.Sprintf("changed_%d", countNumber), time.Now().Format(time.RFC3339))
-	tup.Set2Bytes("data", data, true)
+	tup.Set2Bytes(FieldDATA, data, true)
 
 	buf, err := tup.packMsgPack()
 	if err != nil {
@@ -106,15 +103,15 @@ func (st *StorageRedis) SaveDataMapping(data []byte, short string, ttl time.Dura
 		return errors.Errorf("entry exist for %s", short)
 	}
 	t := NewTuple()
-	err = t.Set2Bytes("data", data, true)
+	err = t.Set2Bytes(FieldDATA, data, true)
 	if err != nil {
 		return err
 	}
-	t.Set("created", time.Now().Format(time.RFC3339))
+	t.Set(FieldTime, time.Now().Format(time.RFC3339))
 	if ttl == 0 {
-		t.Set("ttl", DefaultExpireDuration.String())
+		t.Set(FieldTTL, DefaultExpireDuration.String())
 	} else if ttl > 0 {
-		t.Set("ttl", ttl.String())
+		t.Set(FieldTTL, ttl.String())
 	} // ttl < 0 - dont use ttl at all
 
 	buf, err := t.packMsgPack()
@@ -145,10 +142,10 @@ func (st *StorageRedis) LoadDataMapping(short string) ([]byte, error) {
 	}
 	tup := stringTuple{}
 	tup.unpackMsgPack([]byte(res))
-	if tup.Get(FieldBLOCKED) == IsBLOCKED {
+	if tup.Get(FieldBlocked) == IsBLOCKED {
 		return nil, fmt.Errorf("not allowed %s", short)
 	}
-	return tup.Get2Bytes("data")
+	return tup.Get2Bytes(FieldDATA)
 }
 
 func (st *StorageRedis) LoadDataMappingInfo(short string) (map[string]interface{}, error) {

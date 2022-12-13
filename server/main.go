@@ -106,7 +106,7 @@ func adTokenSet() {
 	if err != nil {
 		panic(err)
 	}
-	err = store.StoreCtx.SetMetaDataMapping(adTok, store.FieldBLOCKED, store.IsBLOCKED)
+	err = store.StoreCtx.SetMetaDataMapping(adTok, store.FieldBlocked, store.IsBLOCKED)
 	if err != nil {
 		panic(err)
 	}

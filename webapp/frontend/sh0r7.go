@@ -805,7 +805,11 @@ func (h *short) getPrivateInfo() (map[string]string, error) {
 		} else {
 			r[k] = tup.Get(k)
 		}
-		k2 := strings.Split(k, "_")[0]
+		k2 := k
+		if strings.HasPrefix(k2, store.FieldModTime) {
+			k2 = strings.TrimSuffix(k, strings.TrimPrefix(k, store.FieldModTime))
+		}
+		// k2 := strings.Split(k, "_")[0]
 		// r[k], err = tup.Get2(k)
 		// if err != nil {
 		// 	r[k] = tup.Get(k)
@@ -820,12 +824,12 @@ func (h *short) getPrivateInfo() (map[string]string, error) {
 		case "d":
 			r["delete"] = r[k]
 			delete(r, k)
-		case "created", "changed":
+		case store.FieldTime, store.FieldModTime:
 			tc, _ = time.Parse(time.RFC3339, r[k])
 			r[k] = tc.String()
 		}
 	}
-	if v, ok := r["ttl"]; ok {
+	if v, ok := r[store.FieldTTL]; ok {
 		d, _ := time.ParseDuration(v)
 		r["expire"] = tc.Add(d).String()
 	}
