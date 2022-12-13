@@ -1,9 +1,6 @@
 package store
 
 import (
-	"bytes"
-	"compress/zlib"
-	"encoding/base64"
 	"fmt"
 	"sort"
 	"strconv"
@@ -33,20 +30,9 @@ func (st *StorageLocal) UpdateDataMapping(data []byte, short string) error {
 	if !ok {
 		return fmt.Errorf("entry not exist for %s", short)
 	}
-	s := base64.StdEncoding.EncodeToString(data)
-	var in bytes.Buffer
-	b := []byte(s)
-	w, err := zlib.NewWriterLevel(&in, zlib.BestCompression)
-	if err != nil {
-		return err
-	}
-	w.Write(b)
-	w.Close()
-
-	k := base64.StdEncoding.EncodeToString(in.Bytes())
 
 	countNumber := 0
-	count, err := entry.(*stringTuple).AtCheck("changed")
+	count, err := entry.(*stringTuple).AtCheck("changes")
 	if err != nil {
 		// never been changed
 	} else {
@@ -55,12 +41,17 @@ func (st *StorageLocal) UpdateDataMapping(data []byte, short string) error {
 			return fmt.Errorf("invalid number of changes")
 		}
 	}
+	t := entry.(*stringTuple)
+	k, err := t.Get2("data")
+	if err != nil {
+		return fmt.Errorf("some problem in original data extraction")
+	}
 	// keep old data
-	entry.(*stringTuple).Set(fmt.Sprintf("data_%d", countNumber), entry.(*stringTuple).Get("data"))
+	t.Set2(fmt.Sprintf("data_%d", countNumber), k, true)
 	countNumber += 1
-	entry.(*stringTuple).Set("changed", fmt.Sprintf("%d", countNumber))
-	entry.(*stringTuple).Set(fmt.Sprintf("changed_time_%d", countNumber), time.Now().Format(time.RFC3339))
-	entry.(*stringTuple).Set("data", k)
+	t.Set("changes", fmt.Sprintf("%d", countNumber))
+	t.Set(fmt.Sprintf("changed_%d", countNumber), time.Now().Format(time.RFC3339))
+	t.Set2Bytes("data", data, true)
 	return nil
 }
 

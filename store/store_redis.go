@@ -63,17 +63,7 @@ func (st *StorageRedis) UpdateDataMapping(data []byte, short string) error {
 		return errors.Wrapf(err, "tuple msgunpack failed")
 	}
 
-	s := base64.StdEncoding.EncodeToString(data)
-	var in bytes.Buffer
-	b := []byte(s)
-	w, err := zlib.NewWriterLevel(&in, zlib.BestCompression)
-	if err != nil {
-		return errors.Wrapf(err, "zlib writer failed")
-	}
-	w.Write(b)
-	w.Close()
 
-	k := base64.StdEncoding.EncodeToString(in.Bytes())
 
 
 
@@ -88,12 +78,16 @@ func (st *StorageRedis) UpdateDataMapping(data []byte, short string) error {
 			return errors.New("invalid number of changes")
 		}
 	}
+	k, err := tup.Get2("data")
+	if err != nil {
+		return fmt.Errorf("some problem in original data extraction")
+	}
 	// // keep old data
-	tup.Set(fmt.Sprintf("data_%d", countNumber), tup.Get("data"))
+	tup.Set2(fmt.Sprintf("data_%d", countNumber), k, true)
 	countNumber += 1
 	tup.Set("changes", fmt.Sprintf("%d", countNumber))
-	tup.Set(fmt.Sprintf("changed_time_%d", countNumber), time.Now().Format(time.RFC3339))
-	tup.Set("data", k)
+	tup.Set(fmt.Sprintf("changed_%d", countNumber), time.Now().Format(time.RFC3339))
+	tup.Set2Bytes("data", data, true)
 
 	buf, err := tup.packMsgPack()
 	if err != nil {

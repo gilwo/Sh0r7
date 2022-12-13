@@ -800,13 +800,18 @@ func (h *short) getPrivateInfo() (map[string]string, error) {
 	r := map[string]string{}
 	var tc time.Time
 	for _, k := range tup.Keys() {
-		r[k] = tup.MustGet(k)
+		if strings.Contains(k, store.FieldDATA) {
+			r[k] = tup.MustGet(k)
+		} else {
+			r[k] = tup.Get(k)
+		}
+		k2 := strings.Split(k, "_")[0]
 		// r[k], err = tup.Get2(k)
 		// if err != nil {
 		// 	r[k] = tup.Get(k)
 		// }
-		switch k {
-		case "data.compress", "url", "p":
+		switch k2 {
+		case "p":
 			// drop it
 			delete(r, k)
 		case "s":
@@ -815,7 +820,7 @@ func (h *short) getPrivateInfo() (map[string]string, error) {
 		case "d":
 			r["delete"] = r[k]
 			delete(r, k)
-		case "created":
+		case "created", "changed":
 			tc, _ = time.Parse(time.RFC3339, r[k])
 			r[k] = tc.String()
 		}
