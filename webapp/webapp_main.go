@@ -86,10 +86,10 @@ func webappInit() {
 
 	if gin.Mode() == gin.DebugMode {
 		sh0r7H.Icon = app.Icon{
-			Default: "/web/logo.png",
-			Large:   "/web/logo.png",
+			Default: "/web/logo.jpg",
+			Large:   "/web/logo.jpg",
 		}
-		webappServedPaths["/web/logo.png"] = true
+		webappServedPaths["/web/logo.jpg"] = true
 	}
 }
 

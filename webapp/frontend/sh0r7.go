@@ -31,6 +31,11 @@ type short struct {
 	isPrivate       bool
 }
 
+var (
+	imgSource = "/web/logo.jpg"
+	// imgSource: "logoL.png",
+)
+
 func (h *short) RenderPrivate() app.UI {
 	out, err := h.getPrivateInfo()
 	if err != nil {
@@ -123,17 +128,17 @@ func (h *short) Render() app.UI {
 				Class("header").
 				Body(
 					app.Div().
-						Class("col-md-4", "col-md-offset-2", "col-sm-4", "col-sm-offset-2", "col-xs-4", "col-xs-offset-2").
+						Class("col-md-4", "col-md-offset-2", "col-sm-4", "col-sm-offset-2", "col-xs-4", "col-xs-offset-3").
 						Class("logo").
 						Body(
 							app.Img().
 								Class("logo-img").
-								Src("logoL.png").
+								Src(imgSource).
 								Alt("Sh0r7 Logo").
 								Width(200),
 						),
 					app.Div().
-						Class("col-md-6", "col-md-offset-0", "col-sm-4", "col-sm-offset-0", "col-xs-6", "col-xs-offset-2").
+						Class("col-md-6", "col-md-offset-0", "col-sm-4", "col-sm-offset-0", "col-xs-6", "col-xs-offset-3").
 						Class("text").
 						Body(
 							app.H1().
@@ -585,7 +590,7 @@ func (h *short) Render() app.UI {
 				Class("footer").
 				Body(
 					app.Div().
-						Class("col-md-8").
+						Class("col-xs-8 col-xs-offset-2").
 						Body(
 							app.Textarea().
 								ID("footerText"),
