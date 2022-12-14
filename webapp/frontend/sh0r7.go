@@ -222,6 +222,7 @@ func (h *short) Render() app.UI {
 										app.Textarea().
 											ID("shortInputText").
 											Class("form-control").
+											Style("resize", "none").
 											Rows(5).
 											Cols(50).
 											Wrap("off").
@@ -470,24 +471,36 @@ func (h *short) Render() app.UI {
 										Class("col-md-offset-2", "col-md-6", "col-sm-offset-2", "col-sm-6", "col-xs-offset-2", "col-xs-6").
 										Body(
 											app.Div().
-												Class("checkbox").
+												Class("input-group").
+												Class("has-success").
+												Title("use short as data").
 												ID("shortAsUrl").
 												Body(
-													app.Label().
-														Title("Treat input as data").
+													app.Div().
 														Class("input-group-addon").
-														ID("DataCheckBox").
-														Style("", "").
+														Class("checkbox").
 														Body(
-															app.Input().
-																Type("checkbox").
-																Value("").
-																OnClick(func(ctx app.Context, e app.Event) {
-																	h.isShortAsData = ctx.JSSrc().Get("checked").Bool()
-																	fmt.Printf("data url: %v\n", h.isShortAsData)
-																}),
-															app.Text("As Data"),
+															app.Label().
+																Body(
+																	app.Input().
+																		Type("checkbox").
+																		Value("").
+																		OnClick(func(ctx app.Context, e app.Event) {
+																			h.isShortAsData = ctx.JSSrc().Get("checked").Bool()
+																		}),
+																	app.Text("Data"),
+																),
 														),
+													app.If(h.isShortAsData,
+														app.Div().
+															Class("input-group-addon").
+															Body(
+																app.Text("Input is treated as data"),
+															),
+													).Else(
+														app.Div().
+															Class("input-group-addon"),
+													),
 												),
 										),
 								),
@@ -499,7 +512,9 @@ func (h *short) Render() app.UI {
 										Class("col-md-offset-2", "col-md-6", "col-sm-offset-2", "col-sm-6", "col-xs-offset-2", "col-xs-6").
 										Body(
 											app.Div().
-												ID("shortOption2").
+												ID("shortExpire").
+												Class("checkbox").
+												Class("has-success").
 												Style("", "").
 												Body(
 													app.Div().
@@ -524,6 +539,7 @@ func (h *short) Render() app.UI {
 																		),
 																	app.If(h.isExpireChecked,
 																		app.Span().
+																			Class("input-group-addon").
 																			Dir("ltr").
 																			Style("margin", "10px").
 																			Body(
@@ -574,6 +590,9 @@ func (h *short) Render() app.UI {
 																						fmt.Printf("select change value: %v\n", h.expireValue)
 																					}),
 																			),
+																	).Else(
+																		app.Div().
+																			Class("input-group-addon"),
 																	),
 																),
 														),
