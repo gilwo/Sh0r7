@@ -229,36 +229,37 @@ func (h *short) Render() app.UI {
 									),
 							).Else(
 								app.Div().
+									Class("container-fluid").
 									Class("shortOutput").
 									Body(
 										app.Div().
-											Class("").
+											Class("row").
 											Body(
 												app.Div().
 													Class("input-group").
 													Body(
 														app.Span().
 															Class("input-group-addon", "fld-title").
-															Styles(map[string]string{
-																"float": "left",
-																"width": "12%"}).
+															// Styles(map[string]string{
+															// 	"float": "left",
+															// 	"width": "12%"}).
 															Body(
-																app.Text("sh0r7 public"),
+																app.Text("public"),
 															),
 														app.Input().
 															ID("short-public").
 															Type("text").
 															Class("form-control").
 															ReadOnly(true).
-															Styles(map[string]string{
-																"float": "center",
-																"width": "30%"}).
+															// Styles(map[string]string{
+															// 	"float": "center",
+															// 	"width": "30%"}).
 															Value(h.shortLink("short")),
 														app.Span().
 															Class("input-group-btn").
-															Styles(map[string]string{
-																"float": "center",
-																"width": "10%"}).
+															// Styles(map[string]string{
+															// 	"float": "center",
+															// 	"width": "10%"}).
 															Body(
 																app.Button().
 																	Title("Copy to clipboard...").
@@ -293,34 +294,34 @@ func (h *short) Render() app.UI {
 													),
 											),
 										app.Div().
-											Class("").
+											Class("row").
 											Body(
 												app.Div().
 													Class("input-group").
 													Body(
 														app.Span().
 															Class("input-group-addon", "fld-title").
-															Styles(map[string]string{
-																"float": "left",
-																"width": "12%"}).
+															// Styles(map[string]string{
+															// 	"float": "left",
+															// 	"width": "12%"}).
 															Body(
-																app.Text("sh0r7 private"),
+																app.Text("private"),
 															),
 														app.Input().
 															ID("short-private").
 															Type("text").
 															Class("form-control").
 															ReadOnly(true).
-															Styles(map[string]string{
-																"float": "center",
-																"width": "30%"}).
+															// Styles(map[string]string{
+															// 	"float": "center",
+															// 	"width": "30%"}).
 															Value(h.shortLink("private")),
 
 														app.Span().
 															Class("input-group-btn").
-															Styles(map[string]string{
-																"float": "center",
-																"width": "10%"}).
+															// Styles(map[string]string{
+															// 	"float": "center",
+															// 	"width": "10%"}).
 															Body(
 																app.Button().
 																	Title("Copy to clipboard...").
@@ -342,33 +343,33 @@ func (h *short) Render() app.UI {
 													),
 											),
 										app.Div().
-											Class("").
+											Class("row").
 											Body(
 												app.Div().
 													Class("input-group").
 													Body(
 														app.Span().
 															Class("input-group-addon", "fld-title").
-															Styles(map[string]string{
-																"float": "left",
-																"width": "12%"}).
+															// Styles(map[string]string{
+															// 	"float": "left",
+															// 	"width": "12%"}).
 															Body(
-																app.Text("sh0r7 delete"),
+																app.Text("delete"),
 															),
 														app.Input().
 															ID("short-delete").
 															Type("text").
 															Class("form-control").
 															ReadOnly(true).
-															Styles(map[string]string{
-																"float": "center",
-																"width": "30%"}).
+															// Styles(map[string]string{
+															// 	"float": "center",
+															// 	"width": "30%"}).
 															Value(h.shortLink("delete")),
 														app.Span().
 															Class("input-group-btn").
-															Styles(map[string]string{
-																"float": "center",
-																"width": "10%"}).
+															// Styles(map[string]string{
+															// 	"float": "center",
+															// 	"width": "10%"}).
 															Body(
 																app.Button().
 																	Title("Copy to clipboard...").
