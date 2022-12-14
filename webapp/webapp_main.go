@@ -1,5 +1,3 @@
-//go:build webapp
-
 package webapp
 
 import (
@@ -51,11 +49,11 @@ var (
 		},
 		Styles: []string{
 			// "/web/sh0r7-main.css",
-			// "https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css",
+			"https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css",
 		},
 		Title: "this is Sh0r7",
 		RawHeaders: []string{
-			`<head>
+			`
 			<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
 			<link href="https://fonts.googleapis.com/css?family=Cairo&display=swap" rel="stylesheet" />
 			`,
@@ -86,6 +84,13 @@ func webappInit() {
 		"/web/sh0r7-logo-color-on-transparent-background.png": true,
 	}
 
+	if gin.Mode() == gin.DebugMode {
+		sh0r7H.Icon = app.Icon{
+			Default: "/web/logo.png",
+			Large:   "/web/logo.png",
+		}
+		webappServedPaths["/web/logo.png"] = true
+	}
 }
 
 func webappgenfunc(args ...interface{}) interface{} {

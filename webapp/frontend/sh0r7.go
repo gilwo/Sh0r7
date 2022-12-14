@@ -77,22 +77,29 @@ func (h *short) Render() app.UI {
 		return h.RenderPrivate()
 	}
 	return app.Div().
+		ID("mainWrapper").
+		Class("container").
 		Body(
 			app.Div().
+				Class("row").
 				Class("marker").
 				ID("headerNote"),
 			app.Div().
+				Class("row").
 				Class("note").
-				Style("", "").
 				Body(
-					app.H4().
-						Styles(
-							map[string]string{
-								"background": "yellow",
-								"text-align": "left",
-								"width":      "fit-content"}).
+					app.Div().
+						Class("col-md-4", "col-md-offset-4", "col-sm-6", "col-sm-offset-3", "col-xs-4", "col-xs-offset-3").
 						Body(
-							app.Text("under construction - not yet ready for live ...."),
+							app.H4().
+								Styles(
+									map[string]string{
+										"background": "yellow",
+										"text-align": "left",
+										"width":      "fit-content"}).
+								Body(
+									app.Text("under construction - not yet ready for live ...."),
+								),
 						),
 					app.If(h.debug,
 						app.Div().
@@ -108,20 +115,25 @@ func (h *short) Render() app.UI {
 					),
 				),
 			app.Div().
+				Class("row").
 				Class("marker").
 				ID("headerTitle"),
 			app.Div().
-				Class("header", "row").
+				Class("row").
+				Class("header").
 				Body(
 					app.Div().
+						Class("col-md-4", "col-md-offset-2", "col-sm-4", "col-sm-offset-2", "col-xs-4", "col-xs-offset-2").
 						Class("logo").
 						Body(
 							app.Img().
 								Class("logo-img").
 								Src("logoL.png").
+								Alt("Sh0r7 Logo").
 								Width(200),
 						),
 					app.Div().
+						Class("col-md-6", "col-md-offset-0", "col-sm-4", "col-sm-offset-0", "col-xs-6", "col-xs-offset-2").
 						Class("text").
 						Body(
 							app.H1().
@@ -187,12 +199,15 @@ func (h *short) Render() app.UI {
 			// 	),
 
 			app.Div().
+				Class("row").
 				Class("marker").
 				ID("mainDo"),
 			app.Div().
-				Class("row", "shortDo").
+				Class("row").
+				Class("shortDo").
 				Body(
 					app.Div().
+						Class("col-xs-8", "col-xs-offset-2", "shortInputWrapper").
 						Class("shortInputWrapper").
 						Body(
 							app.If(!h.resultReady,
@@ -373,6 +388,7 @@ func (h *short) Render() app.UI {
 							),
 						),
 					app.Div().
+						Class("col-xs-8", "col-xs-offset-2").
 						Class("shortButtonWrapper").
 						Body(
 							app.Div().
@@ -416,126 +432,164 @@ func (h *short) Render() app.UI {
 						),
 				),
 			app.Div().
+				Class("row").
 				Class("marker").
 				ID("mainOptions"),
 			app.Div().
+				Class("row").
 				Class("shortOptionsWrapper").
 				Body(
 					app.Div().
+						Class("container-fluid").
 						Class("shortOptions").
 						Body(
-							app.H3().
-								Body(
-									app.Text("Options"),
-								),
 							app.Div().
-								ID("shortAsUrl").
+								ID("shortOptionsTitleWrapper").
+								Class("row").
 								Body(
-									app.Label().
-										Title("Treat input as data").
-										Class("input-group-addon").
-										ID("DataCheckBox").
-										Style("", "").
+									app.Div().
+										Class("col-md-offset-2", "col-md-4", "col-sm-4", "col-sm-offset-2", "col-xs-4", "col-xs-offset-2").
 										Body(
-											app.Input().
-												Type("checkbox").
-												OnClick(func(ctx app.Context, e app.Event) {
-													h.isShortAsData = ctx.JSSrc().Get("checked").Bool()
-													fmt.Printf("data url: %v\n", h.isShortAsData)
-												}),
-											app.Text("As Data"),
+											app.H3().
+												Body(
+													app.Text("Options"),
+												),
 										),
 								),
 							app.Div().
-								ID("shortOption2").
-								Style("", "").
+								ID("shortOption1Wrapper").
+								Class("row").
 								Body(
 									app.Div().
-										Class("form-group").
+										Class("col-md-offset-2", "col-md-6", "col-sm-offset-2", "col-sm-6", "col-xs-offset-2", "col-xs-6").
 										Body(
 											app.Div().
-												Class("input-group").
+												Class("checkbox").
+												ID("shortAsUrl").
 												Body(
 													app.Label().
-														Title("Set expiration for the short URL").
+														Title("Treat input as data").
 														Class("input-group-addon").
-														ID("expireCheckBox").
-														// Style("", "").
+														ID("DataCheckBox").
+														Style("", "").
 														Body(
 															app.Input().
 																Type("checkbox").
+																Value("").
 																OnClick(func(ctx app.Context, e app.Event) {
-																	h.isExpireChecked = ctx.JSSrc().Get("checked").Bool()
-																	fmt.Printf("useExpire: %v\n", h.isExpireChecked)
+																	h.isShortAsData = ctx.JSSrc().Get("checked").Bool()
+																	fmt.Printf("data url: %v\n", h.isShortAsData)
 																}),
-															app.Text("Expiration"),
+															app.Text("As Data"),
 														),
-													app.If(h.isExpireChecked,
-														app.Span().
-															Dir("ltr").
-															Style("margin", "10px").
-															Body(
-																// app.Text("  "),
-																app.Select().
-																	Class("form-control", "shortSelect").
-																	ID("expireSelect").
-																	Body(
-																		app.Option().
-																			Value("10m").
+												),
+										),
+								),
+							app.Div().
+								ID("shortOption2Wrapper").
+								Class("row").
+								Body(
+									app.Div().
+										Class("col-md-offset-2", "col-md-6", "col-sm-offset-2", "col-sm-6", "col-xs-offset-2", "col-xs-6").
+										Body(
+											app.Div().
+												ID("shortOption2").
+												Style("", "").
+												Body(
+													app.Div().
+														Class("form-group").
+														Body(
+															app.Div().
+																Class("input-group").
+																Body(
+																	app.Label().
+																		Title("Set expiration for the short URL").
+																		Class("input-group-addon").
+																		ID("expireCheckBox").
+																		// Style("", "").
+																		Body(
+																			app.Input().
+																				Type("checkbox").
+																				OnClick(func(ctx app.Context, e app.Event) {
+																					h.isExpireChecked = ctx.JSSrc().Get("checked").Bool()
+																					fmt.Printf("useExpire: %v\n", h.isExpireChecked)
+																				}),
+																			app.Text("Expiration"),
+																		),
+																	app.If(h.isExpireChecked,
+																		app.Span().
+																			Dir("ltr").
+																			Style("margin", "10px").
 																			Body(
-																				app.Text("10 minutes"),
+																				// app.Text("  "),
+																				app.Select().
+																					Class("form-control", "shortSelect").
+																					ID("expireSelect").
+																					Body(
+																						app.Option().
+																							Value("10m").
+																							Body(
+																								app.Text("10 minutes"),
+																							),
+																						app.Option().
+																							Value("12h").
+																							Selected(true).
+																							Body(
+																								app.Text("12 hours"),
+																							),
+																						app.Option().
+																							Value("2d").
+																							Body(
+																								app.Text("2 days"),
+																							),
+																						app.Option().
+																							Value("2w").
+																							Body(
+																								app.Text("2 weeks"),
+																							),
+																						app.Option().
+																							Value("8w").
+																							Body(
+																								app.Text("2 months"),
+																							),
+																						app.Option().
+																							Value("2y").
+																							Body(
+																								app.Text("year"),
+																							),
+																						app.Option().
+																							Value("n").
+																							Body(
+																								app.Text("never"),
+																							),
+																					).
+																					OnChange(func(ctx app.Context, e app.Event) {
+																						h.expireValue = ctx.JSSrc().Get("value").String()
+																						fmt.Printf("select change value: %v\n", h.expireValue)
+																					}),
 																			),
-																		app.Option().
-																			Value("12h").
-																			Selected(true).
-																			Body(
-																				app.Text("12 hours"),
-																			),
-																		app.Option().
-																			Value("2d").
-																			Body(
-																				app.Text("2 days"),
-																			),
-																		app.Option().
-																			Value("2w").
-																			Body(
-																				app.Text("2 weeks"),
-																			),
-																		app.Option().
-																			Value("8w").
-																			Body(
-																				app.Text("2 months"),
-																			),
-																		app.Option().
-																			Value("2y").
-																			Body(
-																				app.Text("year"),
-																			),
-																		app.Option().
-																			Value("n").
-																			Body(
-																				app.Text("never"),
-																			),
-																	).
-																	OnChange(func(ctx app.Context, e app.Event) {
-																		h.expireValue = ctx.JSSrc().Get("value").String()
-																		fmt.Printf("select change value: %v\n", h.expireValue)
-																	}),
-															),
-													),
+																	),
+																),
+														),
 												),
 										),
 								),
 						),
 				),
 			app.Div().
+				Class("row").
 				Class("marker").
 				ID("footer"),
 			app.Div().
+				Class("row").
 				Class("footer").
 				Body(
-					app.Textarea().
-						ID("footerText"),
+					app.Div().
+						Class("col-md-8").
+						Body(
+							app.Textarea().
+								ID("footerText"),
+						),
 				),
 		)
 }
