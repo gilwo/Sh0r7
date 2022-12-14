@@ -1,0 +1,150 @@
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="author" content="">
+    <meta name="description" content="Sh0r7 url and data shortener">
+    <meta name="keywords" content="">
+    <meta name="theme-color" content="#2d2c2c">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover">
+    <meta property="og:url" content="http://localhost:8080/testapp">
+    <meta property="og:title" content="this is Sh0r7">
+    <meta content="Sh0r7 url and data shortener" property="og:description">
+    <meta content="website" property="og:type">
+    <meta property="og:image" content="">
+    <title>
+        this is Sh0r7
+    </title>
+    <link rel="icon" href="/web/logo.jpg">
+    <link href="/web/logo.jpg" rel="apple-touch-icon">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link type="text/css" rel="stylesheet" href="/app.css">
+    <script defer="true" src="/wasm_exec.js"></script>
+    <script defer="true" src="/app.js"></script>
+    <link type="text/css" rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&amp;display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Cairo&amp;display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div id="mainWrapper" class="container">
+        <div id="headerNote" class="row marker"></div>
+        <div class="row note">
+            <div class="col-md-4 col-md-offset-4 col-sm-6 col-sm-offset-3 col-xs-4 col-xs-offset-3">
+                <h4 style="background:yellow;text-align:left;width:fit-content;">under construction - not yet ready for
+                    live ....</h4>
+            </div>
+        </div>
+        <div class="row marker" id="headerTitle"></div>
+        <div class="row header">
+            <div class="col-md-4 col-md-offset-2 col-sm-4 col-sm-offset-2 col-xs-4 col-xs-offset-3 logo"><img
+                    class="logo-img" src="/web/logo.jpg" alt="Sh0r7 Logo" width="200"></div>
+            <div class="col-md-6 col-md-offset-0 col-sm-4 col-sm-offset-0 col-xs-6 col-xs-offset-3 text">
+                <h1>Sh0r7</h1>
+                <h2 style="text-align:left;margin-left:40px;"><b>Not</b> only URLs!</h2>
+            </div>
+        </div>
+        <div class="row marker" id="mainDo"></div>
+        <div class="row shortDo">
+            <div class="col-xs-8 col-xs-offset-2 shortInputWrapper shortInputWrapper">
+                <div class="shortOutput">
+                    <div class="">
+                        <div class="input-group">
+                            <span class="input-group-addon fld-title" style="float:left;width:12%;">
+                                sh0r7 public
+                            </span>
+                            <input class="form-control" readonly="" style="float:center;width:30%;" id="short-public"
+                                type="text" value="http://localhost:8080/UfJR8hkTNh">
+                            <span class="input-group-btn" style="float:center;width:10%;">
+                                <button title="Copy to clipboard..." id="copy-public" class="btn btn-warning btn-copy"
+                                    type="button">Copy
+                                </button>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="">
+                        <div class="input-group">
+                            <span class="input-group-addon fld-title" style="float:left;width:12%;">
+                                sh0r7 private
+                            </span>
+                            <input style="float:center;width:30%;" id="short-private" type="text" class="form-control"
+                                readonly="" value="http://localhost:8080/UfJR8hkTNh">
+                            <span class="input-group-btn" style="float:center;width:10%;">
+                                <button class="btn btn-warning btn-copy" type="button" title="Copy to clipboard..."
+                                    id="copy-private">
+                                    Copy
+                                </button>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="">
+                        <div class="input-group">
+                            <span class="input-group-addon fld-title" style="float:left;width:12%;">
+                                sh0r7 delete
+                            </span>
+                            <input id="short-delete" type="text" class="form-control" style="width:30%;float:center;"
+                            readonly="" value="http://localhost:8080/UfJR8hkTNh">
+                            <span
+                                class="input-group-btn" style="width:10%;float:center;">
+                                <button type="button" title="Copy to clipboard..." id="copy-delete"
+                                    class="btn btn-warning btn-copy">
+                                    Copy
+                                </button>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xs-8 col-xs-offset-2 shortButtonWrapper">
+                <div class="shortButtonPre"></div>
+                <div class="shortButton"><button class="btn btn-success btn-lg btn-block">New</button></div>
+                <div class="shortButtonPost"></div>
+            </div>
+        </div>
+        <div class="row marker" id="mainOptions"></div>
+        <div class="row shortOptionsWrapper">
+            <div class="container-fluid shortOptions">
+                <div id="shortOptionsTitleWrapper" class="row">
+                    <div class="col-md-offset-2 col-md-4 col-sm-4 col-sm-offset-2 col-xs-4 col-xs-offset-2">
+                        <h3>Options</h3>
+                    </div>
+                </div>
+                <div class="row" id="shortOption1Wrapper">
+                    <div class="col-md-offset-2 col-md-6 col-sm-offset-2 col-sm-6 col-xs-offset-2 col-xs-6">
+                        <div class="checkbox" id="shortAsUrl"><label style=":;" title="Treat input as data"
+                                class="input-group-addon" id="DataCheckBox"><input type="checkbox" value="">As
+                                Data</label></div>
+                    </div>
+                </div>
+                <div id="shortOption2Wrapper" class="row">
+                    <div class="col-md-offset-2 col-md-6 col-sm-offset-2 col-sm-6 col-xs-offset-2 col-xs-6">
+                        <div id="shortOption2" style=":;">
+                            <div class="form-group">
+                                <div class="input-group"><label title="Set expiration for the short URL"
+                                        class="input-group-addon" id="expireCheckBox"><input
+                                            type="checkbox">Expiration</label><span dir="ltr"
+                                        style="margin:10px;"><select class="form-control shortSelect" id="expireSelect">
+                                            <option value="10m">10 minutes</option>
+                                            <option value="12h">12 hours</option>
+                                            <option value="2d">2 days</option>
+                                            <option value="2w">2 weeks</option>
+                                            <option value="8w">2 months</option>
+                                            <option value="2y">year</option>
+                                            <option value="n">never</option>
+                                        </select></span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row marker" id="footer"></div>
+        <div class="row footer">
+            <div class="col-xs-8 col-xs-offset-2"><textarea id="footerText"></textarea></div>
+        </div>
+    </div>
+
+</body>
+
+</html>
