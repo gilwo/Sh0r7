@@ -472,13 +472,17 @@ func (h *short) Render() app.UI {
 										Body(
 											app.Div().
 												Class("input-group").
-												Class("has-success").
-												Title("use short as data").
+												Class(func() string {
+													if h.isShortAsData {
+														return "has-success"
+													}
+													return "has-warning"
+												}()).
+												Title("use input as data").
 												ID("shortAsUrl").
 												Body(
 													app.Div().
 														Class("input-group-addon").
-														Class("checkbox").
 														Body(
 															app.Label().
 																Body(
@@ -488,18 +492,12 @@ func (h *short) Render() app.UI {
 																		OnClick(func(ctx app.Context, e app.Event) {
 																			h.isShortAsData = ctx.JSSrc().Get("checked").Bool()
 																		}),
-																	app.Text("Data"),
 																),
 														),
 													app.If(h.isShortAsData,
-														app.Div().
-															Class("input-group-addon").
-															Body(
-																app.Text("Input is treated as data"),
-															),
+														app.Input().Class("form-control").ReadOnly(true).Value("Input treated as data"),
 													).Else(
-														app.Div().
-															Class("input-group-addon"),
+														app.Input().Class("form-control").ReadOnly(true).Value("Automatic treat input as data or Url"),
 													),
 												),
 										),
