@@ -237,6 +237,7 @@ func (h *short) Render() app.UI {
 											Class("row").
 											Body(
 												app.Div().
+													Class("form-group").
 													Class("input-group").
 													Body(
 														app.Span().
@@ -298,6 +299,7 @@ func (h *short) Render() app.UI {
 											Class("row").
 											Body(
 												app.Div().
+													Class("form-group").
 													Class("input-group").
 													Body(
 														app.Span().
@@ -347,6 +349,7 @@ func (h *short) Render() app.UI {
 											Class("row").
 											Body(
 												app.Div().
+													Class("form-group").
 													Class("input-group").
 													Body(
 														app.Span().
@@ -468,6 +471,7 @@ func (h *short) Render() app.UI {
 								Class("row").
 								Body(
 									app.Div().
+										Class("form-group").
 										Class("col-md-offset-2", "col-md-6", "col-sm-offset-2", "col-sm-6", "col-xs-offset-2", "col-xs-6").
 										Body(
 											app.Div().
@@ -507,93 +511,72 @@ func (h *short) Render() app.UI {
 								Class("row").
 								Body(
 									app.Div().
+										Class("form-group").
 										Class("col-md-offset-2", "col-md-6", "col-sm-offset-2", "col-sm-6", "col-xs-offset-2", "col-xs-6").
 										Body(
 											app.Div().
 												ID("shortExpire").
-												Class("checkbox").
-												Class("has-success").
-												Style("", "").
+												Class("input-group").
+												Class(func() string {
+													if h.isExpireChecked {
+														return "has-success"
+													}
+													return "has-warning"
+												}()).
+												Title("Set expiration for the short url").
 												Body(
 													app.Div().
-														Class("form-group").
+														Class("input-group-addon").
 														Body(
-															app.Div().
-																Class("input-group").
+															app.Label().
 																Body(
-																	app.Label().
-																		Title("Set expiration for the short URL").
-																		Class("input-group-addon").
-																		ID("expireCheckBox").
-																		// Style("", "").
-																		Body(
-																			app.Input().
-																				Type("checkbox").
-																				OnClick(func(ctx app.Context, e app.Event) {
-																					h.isExpireChecked = ctx.JSSrc().Get("checked").Bool()
-																					fmt.Printf("useExpire: %v\n", h.isExpireChecked)
-																				}),
-																			app.Text("Expiration"),
-																		),
-																	app.If(h.isExpireChecked,
-																		app.Span().
-																			Class("input-group-addon").
-																			Dir("ltr").
-																			Style("margin", "10px").
-																			Body(
-																				// app.Text("  "),
-																				app.Select().
-																					Class("form-control", "shortSelect").
-																					ID("expireSelect").
-																					Body(
-																						app.Option().
-																							Value("10m").
-																							Body(
-																								app.Text("10 minutes"),
-																							),
-																						app.Option().
-																							Value("12h").
-																							Selected(true).
-																							Body(
-																								app.Text("12 hours"),
-																							),
-																						app.Option().
-																							Value("2d").
-																							Body(
-																								app.Text("2 days"),
-																							),
-																						app.Option().
-																							Value("2w").
-																							Body(
-																								app.Text("2 weeks"),
-																							),
-																						app.Option().
-																							Value("8w").
-																							Body(
-																								app.Text("2 months"),
-																							),
-																						app.Option().
-																							Value("2y").
-																							Body(
-																								app.Text("year"),
-																							),
-																						app.Option().
-																							Value("n").
-																							Body(
-																								app.Text("never"),
-																							),
-																					).
-																					OnChange(func(ctx app.Context, e app.Event) {
-																						h.expireValue = ctx.JSSrc().Get("value").String()
-																						fmt.Printf("select change value: %v\n", h.expireValue)
-																					}),
-																			),
-																	).Else(
-																		app.Div().
-																			Class("input-group-addon"),
-																	),
+																	app.Input().
+																		Type("checkbox").
+																		Value("").
+																		OnClick(func(ctx app.Context, e app.Event) {
+																			h.isExpireChecked = ctx.JSSrc().Get("checked").Bool()
+																		}),
 																),
 														),
+													app.If(h.isExpireChecked,
+														app.Div().Class("input-group-addon").Body(
+															app.Label().Body(
+																app.Text("Expiration"),
+															),
+														),
+														app.Div().Dir("ltr").Body(
+															app.Select().Class("input-group-addon").Class("form-control").ID("expireSelect").Body(
+																app.Option().
+																	Value("10m").
+																	Body(app.Text("10 minutes")),
+																app.Option().
+																	Value("12h").
+																	Selected(true).
+																	Body(app.Text("12 hours")),
+																app.Option().
+																	Value("2d").
+																	Body(app.Text("2 days")),
+																app.Option().
+																	Value("2w").
+																	Body(app.Text("2 weeks")),
+																app.Option().
+																	Value("8w").
+																	Body(app.Text("2 months")),
+																app.Option().
+																	Value("2y").
+																	Body(app.Text("year")),
+																app.Option().
+																	Value("n").
+																	Body(app.Text("never")),
+															).OnChange(func(ctx app.Context, e app.Event) {
+																h.expireValue = ctx.JSSrc().Get("value").String()
+																fmt.Printf("select change value: %v\n", h.expireValue)
+															}),
+														),
+														app.Div().Class("input-group-addon"),
+													).Else(
+														app.Input().Class("form-control").ReadOnly(true).Value("Default expiration (12 hours)"),
+													),
 												),
 										),
 								),
