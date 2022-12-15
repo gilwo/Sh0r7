@@ -22,7 +22,7 @@
     <link type="text/css" rel="stylesheet" href="/app.css">
     <script defer="true" src="/wasm_exec.js"></script>
     <script defer="true" src="/app.js"></script>
-    <link type="text/css" rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <link type="text/css" rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&amp;display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css?family=Cairo&amp;display=swap" rel="stylesheet">
 </head>
@@ -109,7 +109,20 @@
                         <h3>Options</h3>
                     </div>
                 </div>
-                <div class="row">
+
+                <form class="form-inline">
+                    <div class="form-group">
+                        <label class="sr-only" for="exampleInputAmount">Amount (in dollars)</label>
+                        <div class="input-group">
+                            <div class="input-group-addon">$</div>
+                            <input type="text" class="form-control" id="exampleInputAmount" placeholder="Amount">
+                            <div class="input-group-addon">.00</div>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Transfer cash</button>
+                </form>
+
+                <!-- <div class="row">
                     <div class="form-group has-success has-feedback col-md-offset-2 col-md-6 col-sm-offset-2 col-sm-6 col-xs-offset-2 col-xs-6">
                         <label class="control-label" for="inputGroupSuccess1">Input group with success</label>
                         <div class="input-group">
@@ -120,22 +133,44 @@
                         <span class="glyphicon glyphicon-ok form-control-feedback" aria-hidden="true"></span>
                         <span id="inputGroupSuccess1Status" class="sr-only">(success)</span>
                     </div>
+                </div> -->
+
+
+
+                <div class="row container">
+                    <div class="row">
+                        <div class="col-lg-1">lg</div>
+                        <div class="col-md-1">md</div>
+                        <div class="col-sm-1">sm</div>
+                        <div class="col-xs-1">xs</div>
+                    </div>
                 </div>
+
+
                 <div class="row" id="shortOption4Wrapper">
-                    <div class="col-md-offset-2 col-md-6 col-sm-offset-2 col-sm-6 col-xs-offset-2 col-xs-6">
+                    <div class="form-group col-md-offset-2 col-md-6 col-sm-offset-2 col-sm-6 col-xs-offset-2 col-xs-6">
                         <div class="input-group has-success" title="use short as data">
-                            <div class="input-group-addon ">
+                            <span class="input-group-addon ">
                                 <label _aria-label="">
                                     <input type="checkbox" value="">
-                                     data
                                 </label>
-                            </div>
-                            <!-- <div>
-                            <input type="text" class="form-control" id="something something" value="Input is treated as data" readonly>
-                            </div> -->
+                            </span>
+                            <!-- <span class="input-group-addon">
+                                <label class="1form-control" >
+                                    Data
+                                </label>
+                            </span> -->
+                            <!-- <input type="text" class="form-control" id="something something" value="Input is treated as data" readonly> -->
 
-                            <div class="input-group-addon ">
-                            </div>
+                            <!-- <div class="input-group-addon ">
+                            </div> -->
+                            <!-- <span class="input-group-addon" span>
+                                <label class="1form-control">
+                                    Treat input as Data
+                                </label>
+                            </span> -->
+                            <input class="form-control" readonly value="Automatic treat input as data or Url">
+                            <input class="form-control" readonly value="Input treated as Data">
                         </div>
                         <!-- <div class="checkbox" id="shortAsUrl">
                             <label title="Treat input as data" class="input-group-addon" id="DataCheckBox">
@@ -145,10 +180,146 @@
                         </div> -->
                     </div>
                 </div>
+
+                <div class="row" id="shortOption4Wrapper">
+                    <div class="form-group col-md-offset-2 col-md-6 col-sm-offset-2 col-sm-6 col-xs-offset-2 col-xs-6">
+                        <div class="input-group has-warning" title="use short as data">
+                            <span class="input-group-addon ">
+                                <label _aria-label="">
+                                    <input type="checkbox" value="">
+                                </label>
+                            </span>
+                            <!-- <span class="input-group-addon">
+                                <label class="1form-control" >
+                                    Data
+                                </label>
+                            </span> -->
+                            <!-- <input type="text" class="form-control" id="something something" value="Input is treated as data" readonly> -->
+
+                            <!-- <div class="input-group-addon ">
+                            </div> -->
+                            <!-- <span class="input-group-addon" span>
+                                <label class="1form-control">
+                                    Treat input as Data
+                                </label>
+                            </span> -->
+                            <input class="form-control" readonly value="Default expiration (12 hours)">
+                            <span class="1form-control input-group-addon">
+                                <label class="1form-control">
+                                    Expiration
+                                </label>
+                            </span>
+                            <span dir="ltr" 1style="margin:10px;">
+                                <select class="input-group-addon form-control shortSelect" id="expireSelect">
+                                    <option value="10m">10 minutes</option>
+                                    <option value="12h">12 hours</option>
+                                    <option value="2d">2 days</option>
+                                    <option value="2w">2 weeks</option>
+                                    <option value="8w">2 months</option>
+                                    <option value="2y">year</option>
+                                    <option value="n">never</option>
+                                </select>
+                            </span>
+                            <span class="input-group-addon"></span>
+
+                        </div>
+                        <!-- <div class="checkbox" id="shortAsUrl">
+                            <label title="Treat input as data" class="input-group-addon" id="DataCheckBox">
+                                <input type="checkbox" value="">
+                                As Data4
+                            </label>
+                        </div> -->
+                    </div>
+                </div>
+
+                <div class="row" id="shortOption4Wrapper">
+                    <div class="form-group col-md-offset-2 col-md-6 col-sm-offset-2 col-sm-6 col-xs-offset-2 col-xs-6">
+                        <div class="input-group has-success" title="use short as data">
+                            <span class="input-group-addon ">
+                                <label _aria-label="">
+                                    <input type="checkbox" value="">
+                                </label>
+                            </span>
+                            <span class="input-group-addon">
+                                <label class="1form-control">
+                                    Expiration
+                                </label>
+                                <!-- <input type="text" class="form-control" id="something something" value="Input is treated as data" readonly> -->
+                            </span>
+
+                            <!-- <div class="input-group-addon ">
+                            </div> -->
+                            <!-- <span class="input-group-addon" span>
+                                <label class="1form-control">
+                                    Treat input as Data
+                                </label>
+                            </span> -->
+                            <input class="form-control" readonly>
+                        </div>
+                        <!-- <div class="checkbox" id="shortAsUrl">
+                            <label title="Treat input as data" class="input-group-addon" id="DataCheckBox">
+                                <input type="checkbox" value="">
+                                As Data4
+                            </label>
+                        </div> -->
+                    </div>
+                </div>
+
+
+                <div class="row" id="shortOption4Wrapper">
+                    <div
+                        class="container-fluid form-group col-md-offset-2 col-md-6 col-sm-offset-2 col-sm-6 col-xs-offset-2 col-xs-6">
+                        <div class="row row-no-gutter 1input-group has-success" title="use short as data">
+                            <span class=" col-xs-1 1input-group-addon 1bg-info" style="1border:dotted grey">
+                                <label _aria-label="">
+                                    <input type="checkbox" value="">
+                                </label>
+                            </span>
+                            <span class=" col-xs-3 col-xs-offset-0 1input-group-addon bg-info "
+                                style="1border:dotted grey">
+                                <label class="1form-control">
+                                    Data
+                                </label>
+                                <!-- <input type="text" class="form-control" id="something something" value="Input is treated as data" readonly> -->
+                            </span>
+
+                            <!-- <div class="input-group-addon ">
+                            </div> -->
+                            <!-- <span class=" col-xs-1 bg-info" 1style="border: dotted grey"><label>a</label></span> -->
+                            <span class=" col-xs-6 col-xs-offset0 text-nowrap 1input-group-addon bg-success"
+                                style="1border:dotted grey">
+                                <label class="1form-control">
+                                    Treat
+                                    input as data
+
+                                    <!-- Input is treated as data -->
+                                </label>
+                            </span>
+                            <!-- <span class=" col-xs-2" style=1"border: dotted grey"><label>pad</label></span> -->
+                        </div>
+                        <!-- <div class="checkbox" id="shortAsUrl">
+                            <label title="Treat input as data" class="input-group-addon" id="DataCheckBox">
+                                <input type="checkbox" value="">
+                                As Data4
+                            </label>
+                        </div> -->
+                        <div class="row row-no-gutters">
+                            <div class="col-lg-2" style="border:dotted blue;">lg</div>
+                            <div class="col-md-2" style="border:dotted blue;">md</div>
+                            <div class="col-sm-2" style="border:dotted blue;">sm</div>
+                            <div class="col-xs-2" style="border:dotted blue;">xs</div>
+                            <div class="col-xs-2" style="border:dotted blue;">xs</div>
+                            <div class="col-xs-2" style="border:dotted blue;">xs</div>
+                            <div class="col-xs-2" style="border:dotted blue;">xs</div>
+                            <div class="col-xs-2" style="border:dotted blue;">xs</div>
+                            <div class="col-xs-2" style="border:dotted blue;">xs</div>
+                        </div>
+                    </div>
+                </div>
                 <div class="row" id="shortOption3Wrapper">
                     <div class="col-md-offset-2 col-md-6 col-sm-offset-2 col-sm-6 col-xs-offset-2 col-xs-6">
                         <div class="checkbox" id="shortAsUrl">
-                            <label  title="Treat input as data" class="input-group-addon" id="DataCheckBox">
+                            <label title="Treat input as data" class="input-group-addon" id="DataCheckBox">
                                 <input type="checkbox" value="">
                                 As Data3
                             </label>
@@ -166,10 +337,13 @@
                     <div class="col-md-offset-2 col-md-6 col-sm-offset-2 col-sm-6 col-xs-offset-2 col-xs-6">
                         <div id="shortOption2" style=":;">
                             <div class="form-group">
-                                <div class="input-group"><label title="Set expiration for the short URL"
-                                        class="input-group-addon" id="expireCheckBox"><input
-                                            type="checkbox">Expiration</label><span dir="ltr"
-                                        style="margin:10px;"><select class="form-control shortSelect" id="expireSelect">
+                                <div class="input-group">
+                                    <label title="Set expiration for the short URL" class="input-group-addon"
+                                        id="expireCheckBox">
+                                        <input type="checkbox">Expiration
+                                    </label>
+                                    <span dir="ltr" style="margin:10px;">
+                                        <select class="form-control shortSelect" id="expireSelect">
                                             <option value="10m">10 minutes</option>
                                             <option value="12h">12 hours</option>
                                             <option value="2d">2 days</option>
@@ -177,7 +351,9 @@
                                             <option value="8w">2 months</option>
                                             <option value="2y">year</option>
                                             <option value="n">never</option>
-                                        </select></span></div>
+                                        </select>
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>
