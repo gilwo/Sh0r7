@@ -1,0 +1,59 @@
+#mainWrapper {
+    /* background-color: darkkhaki; */
+    font-size: 17px;
+}
+
+.row.note {
+    /* background-color: darkkhaki; */
+    /* background-color: #80558C; */
+    background-color: #7D6E83;
+
+
+    /* font-size: 17px; */
+    /* padding-top: 30px; */
+    /* padding-bottom: 30px; */
+} */
+
+.logo-img {
+    background-color: bisque;
+    border-radius: 15%;
+}
+
+ /* #logoTitle { */
+.row.header {
+    padding-top: 30px;
+    padding-bottom: 30px;
+    /* background-color: palegreen; */
+    background-color: #CBA0AE;
+}
+.row.header h1 {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 55px;
+  /* color: purple; */
+  color: #0000ae;
+  font-weight: bold;
+  opacity: 0.7;
+  text-align: left;
+ }
+
+.row.header h2 {
+  font-family: Cairo;
+  font-weight: Regular;
+  font-size: 35px;
+  opacity: 1;
+  text-align: center;
+ }
+ .row.shortDo {
+    padding-top: 30px;
+    padding-bottom: 30px;
+    /* background-color: rosybrown; */
+  background-color:  #AF7AB3;
+ }
+
+ .row.shortOptionsWrapper {
+    background-color: #E4D192;
+ }
+
+ .row.footer {
+    background-color: #7D6E83;
+ }

@@ -31,6 +31,10 @@ type short struct {
 	isPrivate       bool
 }
 
+const (
+	NOTEMESSAGE = "Sh0r7 service is still in alpha!"
+)
+
 var (
 	imgSource = "/web/logo.jpg"
 	// imgSource: "logoL.png",
@@ -94,7 +98,7 @@ func (h *short) Render() app.UI {
 				Class("note").
 				Body(
 					app.Div().
-						Class("col-md-4", "col-md-offset-4", "col-sm-6", "col-sm-offset-3", "col-xs-4", "col-xs-offset-3").
+						Class("col-xs-8", "col-xs-offset-2").
 						Body(
 							app.H4().
 								Styles(
@@ -103,7 +107,7 @@ func (h *short) Render() app.UI {
 										"text-align": "left",
 										"width":      "fit-content"}).
 								Body(
-									app.Text("under construction - not yet ready for live ...."),
+									app.Text(NOTEMESSAGE),
 								),
 						),
 					app.If(h.debug,
@@ -126,6 +130,7 @@ func (h *short) Render() app.UI {
 			app.Div().
 				Class("row").
 				Class("header").
+				ID("logoTitle").
 				Body(
 					app.Div().
 						Class("col-md-4", "col-md-offset-2", "col-sm-4", "col-sm-offset-2", "col-xs-4", "col-xs-offset-3").
@@ -133,6 +138,7 @@ func (h *short) Render() app.UI {
 						Body(
 							app.Img().
 								Class("logo-img").
+								Class("img-responsive").
 								Src(imgSource).
 								Alt("Sh0r7 Logo").
 								Width(200),

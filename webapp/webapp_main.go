@@ -49,7 +49,8 @@ var (
 		},
 		Styles: []string{
 			// "/web/sh0r7-main.css",
-			"https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css",
+			"/web/main.css",
+			"https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css",
 		},
 		Title: "this is Sh0r7",
 		RawHeaders: []string{
@@ -80,6 +81,7 @@ func webappInit() {
 		"/app.css":                             true,
 		"/web/app.wasm":                        true,
 		"/web/sh0r7-main.css":                  true,
+		"/web/main.css":                        true,
 		"/web/sh0r7-website-favicon-color.png": true,
 		"/web/sh0r7-logo-color-on-transparent-background.png": true,
 	}
@@ -89,7 +91,6 @@ func webappInit() {
 			Default: "/web/logo.jpg",
 			Large:   "/web/logo.jpg",
 		}
-		webappServedPaths["/web/logo.jpg"] = true
 	}
 }
 

@@ -1,5 +1,7 @@
 all: build-web build
 
+web: build-web
+
 build-web: webapp/common/common.go webapp/front/front_main.go webapp/frontend/front.go webapp/frontend/sh0r7.go 
 	GOOS=js GOARCH=wasm go build -o web/app.wasm webapp/front/front_main.go
 
