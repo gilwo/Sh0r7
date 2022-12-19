@@ -36,7 +36,7 @@ const (
 )
 
 var (
-	imgSource = "/web/logo.jpg"
+	ImgSource = "/web/logo.jpg"
 	// imgSource: "logoL.png",
 )
 
@@ -139,7 +139,7 @@ func (h *short) Render() app.UI {
 							app.Img().
 								Class("logo-img").
 								Class("img-responsive").
-								Src(imgSource).
+								Src(ImgSource).
 								Alt("Sh0r7 Logo").
 								Width(200),
 						),
@@ -228,6 +228,7 @@ func (h *short) Render() app.UI {
 										app.Textarea().
 											ID("shortInputText").
 											Class("form-control").
+											Class("syncTextStyle").
 											Style("resize", "none").
 											Rows(5).
 											Cols(50).
@@ -258,6 +259,7 @@ func (h *short) Render() app.UI {
 															ID("short-public").
 															Type("text").
 															Class("form-control").
+															Class("syncTextStyle").
 															ReadOnly(true).
 															// Styles(map[string]string{
 															// 	"float": "center",
@@ -320,6 +322,7 @@ func (h *short) Render() app.UI {
 															ID("short-private").
 															Type("text").
 															Class("form-control").
+															Class("syncTextStyle").
 															ReadOnly(true).
 															// Styles(map[string]string{
 															// 	"float": "center",
@@ -370,6 +373,7 @@ func (h *short) Render() app.UI {
 															ID("short-delete").
 															Type("text").
 															Class("form-control").
+															Class("syncTextStyle").
 															ReadOnly(true).
 															// Styles(map[string]string{
 															// 	"float": "center",
@@ -505,7 +509,10 @@ func (h *short) Render() app.UI {
 																),
 														),
 													app.If(h.isShortAsData,
-														app.Input().Class("form-control").ReadOnly(true).Value("Input treated as data"),
+														app.Input().
+															Class("form-control").
+															Class("syncTextStyle").
+															ReadOnly(true).Value("Input treated as data"),
 													).Else(
 														app.Input().Class("form-control").ReadOnly(true).Value("Automatic treat input as data or Url"),
 													),
@@ -600,6 +607,7 @@ func (h *short) Render() app.UI {
 						Class("col-xs-8 col-xs-offset-2").
 						Body(
 							app.Textarea().
+								Class("syncTextStyle").
 								ID("footerText"),
 						),
 				),

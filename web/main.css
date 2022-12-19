@@ -57,3 +57,11 @@
  .row.footer {
     background-color: #7D6E83;
  }
+
+ .input-group-addon.fld-title{
+    font-weight: bold;
+ }
+input.form-control.syncTextStyle, .form-control.syncTextStyle, .syncTextStyle, .input-group-addon.fld-title{
+    background-color: #dff0d8;
+
+ }

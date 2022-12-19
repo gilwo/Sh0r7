@@ -375,6 +375,12 @@ func getData(c *gin.Context) bool {
 	short := c.Param("short")
 	data, err := store.StoreCtx.LoadDataMapping(short)
 	if err != nil {
+		path := c.Request.URL.Path
+		data, err = store.StoreCtx.LoadDataMapping(path)
+		if err == nil {
+			c.String(200, string(data))
+			return true
+		}
 		msg := errors.Errorf("there was a problem with short: %s", short)
 		fmt.Printf("%s, err: %s\n", msg, err)
 		return false

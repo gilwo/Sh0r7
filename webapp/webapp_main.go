@@ -13,6 +13,7 @@ import (
 	"github.com/gilwo/Sh0r7/store"
 	_ "github.com/gilwo/Sh0r7/webapp/backend"
 	webappCommon "github.com/gilwo/Sh0r7/webapp/common"
+	"github.com/gilwo/Sh0r7/webapp/frontend"
 	_ "github.com/gilwo/Sh0r7/webapp/frontend"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -88,8 +89,8 @@ func webappInit() {
 
 	if gin.Mode() == gin.DebugMode {
 		sh0r7H.Icon = app.Icon{
-			Default: "/web/logo.jpg",
-			Large:   "/web/logo.jpg",
+			Default: frontend.ImgSource,
+			Large:   frontend.ImgSource,
 		}
 	}
 }
