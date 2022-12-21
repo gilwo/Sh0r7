@@ -1002,5 +1002,6 @@ func (h *short) getPrivateInfo() (map[string]string, []string, error) {
 		order = append(order, k)
 	}
 	sort.Strings(order)
+	order = append(order, store.FieldDATA)
 	return r, order, nil
 }
