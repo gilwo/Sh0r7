@@ -65,6 +65,12 @@ input.form-control.syncTextStyle, .form-control.syncTextStyle, .syncTextStyle, .
     background-color: #dff0d8;
     /* background-color: brown; */
 }
+
+input.form-control.errorTextStyle {
+    background-color: #d9534f;
+    color: aliceblue;
+    /* background-color: brown; */
+}
 /* table.tbody.td.resultField, table.tbody.td.resultValue {
     vertical-align: middle;
 } */

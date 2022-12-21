@@ -116,14 +116,25 @@ func (h *short) RenderPrivate() app.UI {
 																	Class("resultForm").
 																	Body(
 																		// app.Text(out[s]),
-																		app.Div().
-																			Class("1input-group", "has-success").
-																			Body(
-																				app.Input().
-																					Class("form-control", "syncTextStyle").
-																					Value(out[s]).
-																					ReadOnly(true),
-																			),
+																		app.If(s == "error",
+																			app.Div().
+																				Class("1input-group", "has-error").
+																				Body(
+																					app.Input().
+																						Class("form-control", "errorTextStyle").
+																						Value(out[s]).
+																						ReadOnly(true),
+																				),
+																		).Else(
+																			app.Div().
+																				Class("1input-group", "has-success").
+																				Body(
+																					app.Input().
+																						Class("form-control", "syncTextStyle").
+																						Value(out[s]).
+																						ReadOnly(true),
+																				),
+																		),
 																	),
 															),
 													)
