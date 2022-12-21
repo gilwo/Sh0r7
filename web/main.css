@@ -63,5 +63,16 @@
  }
 input.form-control.syncTextStyle, .form-control.syncTextStyle, .syncTextStyle, .input-group-addon.fld-title{
     background-color: #dff0d8;
-
- }
+    /* background-color: brown; */
+}
+/* table.tbody.td.resultField, table.tbody.td.resultValue {
+    vertical-align: middle;
+} */
+table.table.table-hover td.result {
+    vertical-align: middle ;
+}
+table.table.table-hover td.result div.form-group.resultForm {
+    /* vertical-align: bottom ; */
+    /* vertical-align: bottom; */
+    margin: 0px;
+}

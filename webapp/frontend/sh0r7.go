@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -41,42 +42,117 @@ var (
 )
 
 func (h *short) RenderPrivate() app.UI {
-	out, err := h.getPrivateInfo()
+	out, keys, err := h.getPrivateInfo()
 	if err != nil {
 		out = map[string]string{"error": err.Error()}
+		keys = []string{"error"}
 	}
 	return app.Div().
+		Class("container").
 		Body(
-			app.H3().
-				ID("privateTitle").
+			app.Div().
+				Class("row").
 				Body(
-					// app.Text("using private for "+app.Window().URL().String()),
-					app.Text(app.Window().URL().Query().Get("key")+" deatils"),
+					app.Div().
+						Class("col-xs-8", "col-xs-offset-2").
+						Body(
+							app.H2().
+								Body(app.Text("Sh0r7 private details")),
+						),
 				),
-			app.Br(),
-			app.Range(out).Map(func(s string) app.UI {
-				return app.Div().
-					Class("input-group").
-					Body(
-						app.Span().
-							Class("").
-							Styles(map[string]string{
-								"float": "left",
-								"width": "12%"}).
-							Body(
-								app.Text(s),
-							),
-						app.Input().
-							ID("").
-							Type("text").
-							Class("").
-							ReadOnly(true).
-							Styles(map[string]string{
-								"float": "center",
-								"width": "30%"}).
-							Value(out[s]),
-					)
-			}),
+			app.Div().
+				Class("row").
+				Body(
+					app.Div().
+						Class("col-xs-6", "col-xs-offset-3").
+						Body(
+							app.H3().
+								ID("privateTitle").
+								Body(
+									// app.Text("using private for "+app.Window().URL().String()),
+									app.Text(app.Window().URL().Query().Get("key")+" deatils"),
+								),
+							app.Br(),
+						),
+				),
+			app.Div().
+				Class("row").
+				Body(
+					app.Div().
+						Class("col-xs-8", "col-xs-offset-1").
+						Body(
+							app.Table().
+								Class("table", "table-hover").
+								Body(
+									app.TBody().
+										Body(
+											app.Range(keys).Slice(func(i int) app.UI {
+												s := keys[i]
+												return app.Tr().
+													Class().
+													Body(
+														app.Td().
+															Class("result").
+															// Class(s).
+															Styles(map[string]string{
+																// "vertical-align": "middle",
+															}).
+															Body(
+																app.Text(s),
+															),
+														app.Td().
+															Class("result").
+															// Class(s+"Value").
+															Body(
+																// <div class="form-group">
+																// <div class="1input-group has-success">
+																// <!-- <div class="input-group-addon"></div> -->
+																// <input class="form-control syncTextStyle" value="1234" readonly>
+																// <!-- <div class="input-group-addon" ></div> -->
+																// </div>
+																// </div>
+																app.Div().
+																	Class("form-group").
+																	Class("resultForm").
+																	Body(
+																		// app.Text(out[s]),
+																		app.Div().
+																			Class("1input-group", "has-success").
+																			Body(
+																				app.Input().
+																					Class("form-control", "syncTextStyle").
+																					Value(out[s]).
+																					ReadOnly(true),
+																			),
+																	),
+															),
+													)
+												// return app.Div().
+												// 	Class("input-group").
+												// 	Body(
+												// 		app.Span().
+												// 			Class("").
+												// 			Styles(map[string]string{
+												// 				"float": "left",
+												// 				"width": "12%"}).
+												// 			Body(
+												// 				app.Text(s),
+												// 			),
+												// 		app.Input().
+												// 			ID("").
+												// 			Type("text").
+												// 			Class("").
+												// 			ReadOnly(true).
+												// 			Styles(map[string]string{
+												// 				"float": "center",
+												// 				"width": "30%"}).
+												// 			Value(out[s]),
+												// 	)
+											}),
+										),
+								),
+						),
+				),
 			app.Br(),
 		)
 }
@@ -835,7 +911,7 @@ func (h *short) getStID() {
 	}
 }
 
-func (h *short) getPrivateInfo() (map[string]string, error) {
+func (h *short) getPrivateInfo() (map[string]string, []string, error) {
 
 	var err error
 	url := app.Window().URL()
@@ -848,28 +924,28 @@ func (h *short) getPrivateInfo() (map[string]string, error) {
 	req, err := http.NewRequest(http.MethodGet, url.String(), nil)
 	if err != nil {
 		app.Logf("failed to create new request: %s\n", err)
-		return nil, err
+		return nil, nil, err
 	}
 	req.Header.Set("Content-Type", "text/plain")
 	resp, err := client.Do(req)
 	if err != nil {
 		app.Logf("failed to invoke request: %s\n", err)
-		return nil, err
+		return nil, nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
 		app.Logf("response not ok: %s\n", resp.StatusCode)
-		return nil, fmt.Errorf("status: %v", resp.StatusCode)
+		return nil, nil, fmt.Errorf("status: %v", resp.StatusCode)
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		app.Logf("failed to read response body: %s\n", err)
-		return nil, err
+		return nil, nil, err
 	}
 	tup, err := store.NewTupleFromString(string(body))
 	if err != nil {
 		app.Logf("failed to parse body: %s\n", err)
-		return nil, err
+		return nil, nil, err
 	}
 	r := map[string]string{}
 	var tc time.Time
@@ -907,5 +983,13 @@ func (h *short) getPrivateInfo() (map[string]string, error) {
 		d, _ := time.ParseDuration(v)
 		r["expire"] = tc.Add(d).String()
 	}
-	return r, nil
+	order := []string{}
+	for k := range r {
+		if k == store.FieldDATA {
+			continue
+		}
+		order = append(order, k)
+	}
+	sort.Strings(order)
+	return r, order, nil
 }
