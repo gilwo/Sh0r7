@@ -305,7 +305,7 @@ func (h *short) Render() app.UI {
 				Class("shortDo").
 				Body(
 					app.Div().
-						Class("col-xs-8", "col-xs-offset-2", "shortInputWrapper").
+						Class("col-xs-10", "col-xs-offset-1", "shortInputWrapper").
 						Class("shortInputWrapper").
 						Body(
 							app.If(!h.resultReady,
@@ -569,7 +569,7 @@ func (h *short) Render() app.UI {
 								Body(
 									app.Div().
 										Class("form-group").
-										Class("col-md-offset-2", "col-md-6", "col-sm-offset-2", "col-sm-6", "col-xs-offset-2", "col-xs-6").
+										Class("col-md-offset-2", "col-md-6", "col-sm-offset-2", "col-sm-6", "col-xs-offset-1", "col-xs-10").
 										Body(
 											app.Div().
 												Class("input-group").
@@ -612,7 +612,7 @@ func (h *short) Render() app.UI {
 								Body(
 									app.Div().
 										Class("form-group").
-										Class("col-md-offset-2", "col-md-6", "col-sm-offset-2", "col-sm-6", "col-xs-offset-2", "col-xs-6").
+										Class("col-md-offset-2", "col-md-6", "col-sm-offset-2", "col-sm-6", "col-xs-offset-1", "col-xs-10").
 										Body(
 											app.Div().
 												ID("shortExpire").
