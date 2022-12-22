@@ -127,6 +127,17 @@ func (h *short) RenderPrivate() app.UI {
 																						Value(out[s]).
 																						ReadOnly(true),
 																				),
+																		).ElseIf(s == "data",
+																			app.Div().
+																				Class("1input-group", "has-success").
+																				Body(
+																					app.Textarea().
+																						ID("").
+																						Class("form-control").
+																						Class("syncTextStyle").
+																						Style("resize", "none").
+																						Wrap("off").Body(app.Text(out[s])),
+																				),
 																		).Else(
 																			app.Div().
 																				Class("1input-group", "has-success").
