@@ -57,7 +57,7 @@ func (h *short) RenderPrivate() app.UI {
 						Class("col-xs-8", "col-xs-offset-2").
 						Body(
 							app.H2().
-								Body(app.Text("Sh0r7 private details")),
+								Body(app.Text("private details")),
 						),
 				),
 			app.Div().
@@ -70,7 +70,7 @@ func (h *short) RenderPrivate() app.UI {
 								ID("privateTitle").
 								Body(
 									// app.Text("using private for "+app.Window().URL().String()),
-									app.Text(app.Window().URL().Query().Get("key")+" deatils"),
+									app.Text(app.Window().URL().Query().Get("key")),
 								),
 							app.Br(),
 						),
@@ -663,12 +663,6 @@ func (h *short) Render() app.UI {
 																app.Option().
 																	Value("8w").
 																	Body(app.Text("2 months")),
-																app.Option().
-																	Value("2y").
-																	Body(app.Text("year")),
-																app.Option().
-																	Value("n").
-																	Body(app.Text("never")),
 															).OnChange(func(ctx app.Context, e app.Event) {
 																h.expireValue = ctx.JSSrc().Get("value").String()
 																fmt.Printf("select change value: %v\n", h.expireValue)
