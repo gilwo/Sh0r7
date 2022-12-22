@@ -138,20 +138,17 @@ func webappgenfunc(args ...interface{}) interface{} {
 
 func fixPath(c *gin.Context) bool {
 	if c.Request.Referer() != "" {
+		log.Printf("referer not empty (%s)\n", c.Request.Referer())
 		return false
 	}
 	if strings.Contains(c.Request.URL.Path, webappCommon.PrivatePath) {
 		redirect := c.Request.URL
 		redirect.Path = webappCommon.PrivatePath
 		c.Redirect(http.StatusFound, redirect.String())
+		log.Printf("redirect with private (%s)\n", redirect)
 		return true
 	}
-	if strings.Contains(c.Request.URL.Path, webappCommon.ShortPath) {
-		redirect := c.Request.URL
-		redirect.Path = webappCommon.ShortPath
-		c.Redirect(http.StatusFound, redirect.String())
-		return true
-	}
+	log.Printf("path not fixed")
 	return false
 }
 
@@ -161,13 +158,17 @@ func checkPrivateRedirect(c *gin.Context) bool {
 		if info, err := store.StoreCtx.LoadDataMappingInfo(string(dataKey)); err == nil {
 			if v, ok := info["p"]; ok && v == path {
 				redirect := c.Request.URL
+				redirect.Host = c.Request.Host
+				redirect.Scheme = c.Request.URL.Scheme
 				redirect.Path = webappCommon.PrivatePath
 				redirect.RawQuery = "key=" + path
 				c.Redirect(http.StatusFound, redirect.String())
+				log.Printf("redirect with private key (%s)\n", redirect)
 				return true
 			}
 		}
 	}
+	log.Printf("path not checked redirected")
 	return false
 }
 

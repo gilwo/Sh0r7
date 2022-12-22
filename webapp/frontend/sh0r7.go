@@ -599,6 +599,7 @@ func (h *short) Render() app.UI {
 														app.Input().
 															Class("form-control").
 															Class("syncTextStyle").
+															ID("treatData").
 															ReadOnly(true).Value("Input treated as data"),
 													).Else(
 														app.Input().Class("form-control").ReadOnly(true).Value("Automatic treat input as data or Url"),
