@@ -11,7 +11,7 @@ var (
 	ShortPath      = "/"
 	PrivatePath    = ShortPath + "private"
 	DevShortPath   = "/testapp"
-	DevPrivatePath = ShortPath + "/private"
+	DevPrivatePath = DevShortPath + "/private"
 )
 
 func init() {

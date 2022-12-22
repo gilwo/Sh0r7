@@ -48,6 +48,7 @@ var (
 			Default: "logoS.png",
 			Large:   "logoL.png",
 		},
+		LoadingLabel: "standby",
 		Styles: []string{
 			// "/web/sh0r7-main.css",
 			"/web/main.css",

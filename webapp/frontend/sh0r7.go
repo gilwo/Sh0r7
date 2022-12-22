@@ -44,12 +44,14 @@ var (
 func (h *short) RenderPrivate() app.UI {
 	out, keys, err := h.getPrivateInfo()
 	if err != nil {
-		out = map[string]string{"error": err.Error()}
+		app.Logf("error getting private info (%s)\n", err)
+		out = map[string]string{"error": "invalid entry"}
 		keys = []string{"error"}
 	}
 	return app.Div().
 		Class("container").
 		Body(
+			h.getTitleHeader(),
 			app.Div().
 				Class("row").
 				Body(
@@ -214,45 +216,7 @@ func (h *short) Render() app.UI {
 				Class("row").
 				Class("marker").
 				ID("headerTitle"),
-			app.Div().
-				Class("row").
-				Class("header").
-				ID("logoTitle").
-				Body(
-					app.Div().
-						Class("col-md-4", "col-md-offset-2", "col-sm-4", "col-sm-offset-2", "col-xs-4", "col-xs-offset-3").
-						Class("logo").
-						Body(
-							app.Img().
-								Class("logo-img").
-								Class("img-responsive").
-								Src(ImgSource).
-								Alt("Sh0r7 Logo").
-								Width(200),
-						),
-					app.Div().
-						Class("col-md-6", "col-md-offset-0", "col-sm-4", "col-sm-offset-0", "col-xs-6", "col-xs-offset-3").
-						Class("text").
-						Body(
-							app.H1().
-								Body(
-									app.Text("Sh0r7"),
-								),
-							app.H2().
-								Styles(
-									map[string]string{
-										"margin-left": "40px",
-										"text-align":  "left",
-									}).
-								Body(
-									app.B().
-										Body(
-											app.Text("Not"),
-										),
-									app.Text(" only URLs!"),
-								),
-						),
-				),
+			h.getTitleHeader(),
 			// app.Div().
 			// 	Class("marker").
 			// 	ID("navBarWide"),
@@ -999,4 +963,56 @@ func (h *short) getPrivateInfo() (map[string]string, []string, error) {
 	sort.Strings(order)
 	order = append(order, store.FieldDATA)
 	return r, order, nil
+}
+
+func (h *short) getTitleHeader() app.UI {
+	return app.Div().
+		Class("row").
+		Class("header").
+		ID("logoTitle").
+		Body(
+			app.Div().
+				Class("col-md-4", "col-md-offset-2", "col-sm-4", "col-sm-offset-2", "col-xs-4", "col-xs-offset-3").
+				Class("logo").
+				Body(
+					app.Img().
+						Class("logo-img").
+						Class("img-responsive").
+						Src(ImgSource).
+						Alt("Sh0r7 Logo").
+						Width(200).
+						OnClick(func(ctx app.Context, e app.Event) {
+							url := app.Window().URL()
+							url.Path = webappCommon.ShortPath
+							app.Window().Get("location").Set("href", url.String())
+						}),
+				),
+			app.Div().
+				Class("col-md-6", "col-md-offset-0", "col-sm-4", "col-sm-offset-0", "col-xs-6", "col-xs-offset-3").
+				Class("text").
+				Body(
+					app.H1().
+						Body(
+							app.Text("Sh0r7"),
+						).
+						OnClick(func(ctx app.Context, e app.Event) {
+							url := app.Window().URL()
+							url.Path = webappCommon.ShortPath
+							app.Window().Get("location").Set("href", url.String())
+						}),
+					app.H2().
+						Styles(
+							map[string]string{
+								"margin-left": "40px",
+								"text-align":  "left",
+							}).
+						Body(
+							app.B().
+								Body(
+									app.Text("Not"),
+								),
+							app.Text(" only URLs!"),
+						),
+				),
+		)
 }
