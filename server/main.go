@@ -47,6 +47,7 @@ func mainServer() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+	adTokenSet()
 	startServer()
 }
 
@@ -62,12 +63,11 @@ func webappInit() error {
 }
 
 func storageInit() error {
-	// Note store initialization happens here
 	envLocal := os.Getenv("SH0R7_STORE_LOCAL")
 	envRedis := os.Getenv("SH0R7_STORE_REDIS")
 	envFallback := os.Getenv("SH0R7_STORE_FALLBACK")
 	if redisUrl := envRedis; redisUrl != "" && !*useLocal {
-		// fmt.Printf("redisURL: %s\n", redisUrl)
+		fmt.Printf("redisURL: %s\n", redisUrl)
 		if store.NewStoreRedis == nil {
 			return errors.New("missing redis storage support")
 		}
@@ -92,7 +92,6 @@ func storageInit() error {
 		return errors.Wrap(err, "store init failed, exiting...\n")
 	}
 	handler.StoreFavicon()
-	adTokenSet()
 	return nil
 }
 
@@ -158,6 +157,59 @@ func startServer() {
 
 }
 
+func ContextWithSignals(parent context.Context, sig ...os.Signal) (ctx context.Context, cancel func()) {
+	ctx, cancel = context.WithCancel(parent)
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, sig...)
+
+	go func() {
+		<-c
+		close(c)
+		cancel()
+	}()
+
+	return ctx, cancel
+}
+
+func exit() {
+	err := recover()
+	if err != nil {
+		fmt.Printf("command failed: %s", err)
+		os.Exit(-1)
+	}
+}
+
+func triggerMaintainence() {
+	var when time.Duration
+	if gin.Mode() == gin.DebugMode {
+		// when = time.Duration(rand.Intn(5)) * time.Minute
+		when = time.Duration(rand.Intn(5)) * time.Second
+	} else {
+		when = time.Duration(rand.Intn(5))*time.Hour + time.Duration(rand.Intn(60))*time.Minute
+	}
+	go func() {
+	again:
+		log.Printf("maintainence scheduled in %s\n", when)
+		select {
+		case <-mainCtx.Done():
+			log.Println("maintainence aborted")
+		case <-time.After(when):
+			log.Printf("maintainence triggered after %s\n", when)
+			if maintainenceOngoing {
+				log.Printf("maintainence ongoing - rescheduling in %s\n", when)
+				goto again
+			}
+			maintainenceOngoing = true
+			store.Maintainence()
+			maintainenceOngoing = false
+		}
+	}()
+}
+
+var (
+	maintainenceOngoing bool
+)
+
 func GinInit() *gin.Engine {
 
 	// gin endpoints
@@ -174,7 +226,7 @@ func GinInit() *gin.Engine {
 	genericHandleShort := func(c *gin.Context) {
 		paramShort := c.Param("short")
 		paramExt := strings.Trim(c.Param("ext"), "/")
-		fmt.Printf("generoc handler: short <%s>, ext <%s>\n", paramShort, paramExt)
+		log.Printf("generic handler: short <%s>, ext <%s>\n", paramShort, paramExt)
 
 		// if common.WebappGenFunc != nil {
 		// 	res := common.WebappGenFunc("SERVE", c)
@@ -237,56 +289,3 @@ func GinInit() *gin.Engine {
 	})
 	return r
 }
-
-func ContextWithSignals(parent context.Context, sig ...os.Signal) (ctx context.Context, cancel func()) {
-	ctx, cancel = context.WithCancel(parent)
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, sig...)
-
-	go func() {
-		<-c
-		close(c)
-		cancel()
-	}()
-
-	return ctx, cancel
-}
-
-func exit() {
-	err := recover()
-	if err != nil {
-		fmt.Printf("command failed: %s", err)
-		os.Exit(-1)
-	}
-}
-
-func triggerMaintainence() {
-	var when time.Duration
-	if gin.Mode() == gin.DebugMode {
-		// when = time.Duration(rand.Intn(5)) * time.Minute
-		when = time.Duration(rand.Intn(5)) * time.Second
-	} else {
-		when = time.Duration(rand.Intn(5))*time.Hour + time.Duration(rand.Intn(60))*time.Minute
-	}
-	go func() {
-	again:
-		log.Printf("maintainence scheduled in %s\n", when)
-		select {
-		case <-mainCtx.Done():
-			log.Println("maintainence aborted")
-		case <-time.After(when):
-			log.Printf("maintainence triggered after %s\n", when)
-			if maintainenceOngoing {
-				log.Printf("maintainence ongoing - rescheduling in %s\n", when)
-				goto again
-			}
-			maintainenceOngoing = true
-			store.Maintainence()
-			maintainenceOngoing = false
-		}
-	}()
-}
-
-var (
-	maintainenceOngoing bool
-)
