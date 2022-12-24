@@ -2,11 +2,14 @@ package store
 
 import (
 	"fmt"
+	"log"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 type StorageLocal struct {
@@ -28,7 +31,7 @@ func (st *StorageLocal) InitializeStore() error {
 func (st *StorageLocal) UpdateDataMapping(data []byte, short string) error {
 	entry, ok := st.cacheSync.Load(short)
 	if !ok {
-		return fmt.Errorf("entry not exist for %s", short)
+		return errors.Errorf("entry not exist for %s", short)
 	}
 
 	countNumber := 0
@@ -38,13 +41,13 @@ func (st *StorageLocal) UpdateDataMapping(data []byte, short string) error {
 	} else {
 		countNumber, err = strconv.Atoi(count)
 		if err != nil {
-			return fmt.Errorf("invalid number of changes")
+			return errors.Errorf("invalid number of changes")
 		}
 	}
 	t := entry.(*stringTuple)
 	k, err := t.Get2(FieldDATA)
 	if err != nil {
-		return fmt.Errorf("some problem in original data extraction")
+		return errors.Errorf("some problem in original data extraction")
 	}
 	// keep old data
 	t.Set2(fmt.Sprintf("%s_%d", FieldDATA, countNumber), k, true)
@@ -57,7 +60,7 @@ func (st *StorageLocal) UpdateDataMapping(data []byte, short string) error {
 
 func (st *StorageLocal) SaveDataMapping(data []byte, short string, ttl time.Duration) error {
 	if _, ok := st.cacheSync.Load(short); ok {
-		return fmt.Errorf("entry exist for %s", short)
+		return errors.Errorf("entry exist for %s", short)
 	}
 	t := NewTuple()
 	err := t.Set2Bytes(FieldDATA, data, true)
@@ -82,18 +85,18 @@ func (st *StorageLocal) CheckExistShortDataMapping(short string) bool {
 func (st *StorageLocal) LoadDataMapping(short string) ([]byte, error) {
 	tup, ok := st.cacheSync.Load(short)
 	if !ok {
-		return nil, fmt.Errorf("entry not exist for %s", short)
+		return nil, errors.Errorf("entry not exist for %s", short)
 	}
 	t := tup.(*stringTuple)
 	if t.Get(FieldBlocked) == IsBLOCKED {
-		return nil, fmt.Errorf("not allowed %s", short)
+		return nil, errors.Errorf("not allowed %s", short)
 	}
 	return t.Get2Bytes(FieldDATA)
 }
 func (st *StorageLocal) LoadDataMappingInfo(short string) (map[string]interface{}, error) {
 	tup, ok := st.cacheSync.Load(short)
 	if !ok {
-		return nil, fmt.Errorf("entry not exist for %s", short)
+		return nil, errors.Errorf("entry not exist for %s", short)
 	}
 	ret := map[string]interface{}{}
 	for k, v := range tup.(*stringTuple).tuple {
@@ -105,7 +108,7 @@ func (st *StorageLocal) LoadDataMappingInfo(short string) (map[string]interface{
 func (st *StorageLocal) SetMetaDataMapping(short, key, value string) error {
 	entry, ok := st.cacheSync.Load(short)
 	if !ok {
-		return fmt.Errorf("entry not exist for %s", short)
+		return errors.Errorf("entry not exist for %s", short)
 	}
 	entry.(*stringTuple).Set(key, value)
 	return nil
@@ -114,7 +117,7 @@ func (st *StorageLocal) SetMetaDataMapping(short, key, value string) error {
 func (st *StorageLocal) GetMetaDataMapping(short, key string) (string, error) {
 	entry, ok := st.cacheSync.Load(short)
 	if !ok {
-		return "", fmt.Errorf("entry not exist for %s", short)
+		return "", errors.Errorf("entry not exist for %s", short)
 	}
 	v, err := entry.(*stringTuple).AtCheck(key)
 	if err != nil {
@@ -126,14 +129,14 @@ func (st *StorageLocal) GetMetaDataMapping(short, key string) (string, error) {
 func (st *StorageLocal) RemoveDataMapping(short string) error {
 	_, ok := st.cacheSync.Load(short)
 	if !ok {
-		return fmt.Errorf("entry not exist for %s", short)
+		return errors.Errorf("entry not exist for %s", short)
 	}
 	st.cacheSync.Delete(short)
 	return nil
 }
 
 func (st *StorageLocal) GenFunc(v ...interface{}) interface{} {
-	fmt.Printf("!!!!!!!!!! genfunc ... args: <%#v>\n", v)
+	log.Printf("!!!!!!!!!! genfunc ... args: <%#v>\n", v)
 	if len(v) < 1 {
 		return nil
 	}
@@ -147,10 +150,10 @@ func (st *StorageLocal) GenFunc(v ...interface{}) interface{} {
 	case STORE_FUNC_DUMPKEYS:
 		return st.dumpKeys()
 	case STORE_FUNC_GETKEYS:
-		fmt.Println("!!!!!!!!!! getkeys ... ")
+		log.Println("!!!!!!!!!! getkeys ... ")
 		return st.getKeys()
 	case STORE_FUNC_REMOVEKEYS:
-		fmt.Println("!!!!!!!!!! getkeys ... ")
+		log.Println("!!!!!!!!!! getkeys ... ")
 		if len(v) < 2 {
 			return nil
 		}
@@ -182,7 +185,7 @@ func (st *StorageLocal) dumpKey(k string) string {
 }
 
 func (st *StorageLocal) removeKeys(ks []string) []error {
-	fmt.Printf("** removing keys: %#v\n", ks)
+	log.Printf("** removing keys: %#v\n", ks)
 	errors := []error{}
 	for _, k := range ks {
 		if err := st.RemoveDataMapping(k); err != nil {
@@ -194,6 +197,6 @@ func (st *StorageLocal) removeKeys(ks []string) []error {
 	for _, e := range errors {
 		errs = append(errs, e.Error())
 	}
-	fmt.Printf("** errors gathered: %#+v\n", strings.Join(errs, "; "))
+	log.Printf("** errors gathered: %#+v\n", strings.Join(errs, "; "))
 	return errors
 }

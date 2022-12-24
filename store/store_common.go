@@ -1,7 +1,6 @@
 package store
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -56,7 +55,7 @@ func Maintainence() {
 			log.Printf("failed to get parse time <%s>: %s\n", when, err)
 			continue
 		}
-		fmt.Printf("created time for key: <%s> : before parse [%s], after parse [%s]\n", k, when, t)
+		log.Printf("created time for key: <%s> : before parse [%s], after parse [%s]\n", k, when, t)
 		v, ok = info["ttl"]
 		if !ok {
 			log.Printf("failed to get ttl value on key: <%s>\n", k)

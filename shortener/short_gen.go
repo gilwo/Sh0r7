@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"log"
 	"math/big"
 	"math/rand"
 
@@ -58,7 +59,7 @@ func generateShortFrom(hash string, startOffset, sizeFixed, sizeMin int, checkIn
 			res := hash[lPos : lPos+ofs]
 			if checkInStore != nil {
 				if !checkInStore.CheckExistShortDataMapping(res) {
-					fmt.Printf("attmpets [%d], N[%d], lpos[%d], ofs[%d], short <%s>, hash<%s>\n",
+					log.Printf("attmpets [%d], N[%d], lpos[%d], ofs[%d], short <%s>, hash<%s>\n",
 						c, N, lPos, ofs, res, hash)
 					return res
 				}
@@ -68,9 +69,9 @@ func generateShortFrom(hash string, startOffset, sizeFixed, sizeMin int, checkIn
 		}
 		c += 1
 		if c > 1000 {
-			fmt.Printf("attmpets [%d], data [%s], N[%d], lpos[%d], ofs[%d], short <%s>, hash<%s>\n",
+			log.Printf("attmpets [%d], data [%s], N[%d], lpos[%d], ofs[%d], short <%s>, hash<%s>\n",
 				c, hash, N, lPos, ofs, "no token", hash)
-			fmt.Printf("not found proper short after %d attempts\n", c)
+			log.Printf("not found proper short after %d attempts\n", c)
 			return ""
 		}
 	}

@@ -5,6 +5,7 @@ package store
 import (
 	"context"
 	"fmt"
+	"log"
 	"sort"
 	"strconv"
 	"strings"
@@ -45,7 +46,7 @@ func (st *StorageRedis) InitializeStore() error {
 		return errors.Wrapf(err, "redis ping failed")
 	}
 
-	fmt.Printf("\nRedis started successfully: pong message = {%s}", pong)
+	log.Printf("\nRedis started successfully: pong message = {%s}", pong)
 	return nil
 }
 
@@ -60,11 +61,6 @@ func (st *StorageRedis) UpdateDataMapping(data []byte, short string) error {
 		return errors.Wrapf(err, "tuple msgunpack failed")
 	}
 
-
-
-
-
-
 	countNumber := 0
 	sn, err := tup.AtCheck("changes")
 	if err != nil {
@@ -77,7 +73,7 @@ func (st *StorageRedis) UpdateDataMapping(data []byte, short string) error {
 	}
 	k, err := tup.Get2(FieldDATA)
 	if err != nil {
-		return fmt.Errorf("some problem in original data extraction")
+		return errors.Errorf("some problem in original data extraction")
 	}
 	// // keep old data
 	tup.Set2(fmt.Sprintf("data_%d", countNumber), k, true)
@@ -129,7 +125,7 @@ func (st *StorageRedis) SaveDataMapping(data []byte, short string, ttl time.Dura
 
 func (st *StorageRedis) CheckExistShortDataMapping(short string) bool {
 	v, err := st.redisClient.Exists(ctx, short).Result()
-	fmt.Printf("exists %s result: %v, %v\n", short, v, err)
+	log.Printf("exists %s result: %v, %v\n", short, v, err)
 	if err != nil || v == 1 {
 		return true
 	}
@@ -143,7 +139,7 @@ func (st *StorageRedis) LoadDataMapping(short string) ([]byte, error) {
 	tup := stringTuple{}
 	tup.unpackMsgPack([]byte(res))
 	if tup.Get(FieldBlocked) == IsBLOCKED {
-		return nil, fmt.Errorf("not allowed %s", short)
+		return nil, errors.Errorf("not allowed %s", short)
 	}
 	return tup.Get2Bytes(FieldDATA)
 }
@@ -219,7 +215,7 @@ func (st *StorageRedis) RemoveDataMapping(short string) error {
 }
 
 func (st *StorageRedis) GenFunc(v ...interface{}) interface{} {
-	fmt.Printf("!!!!!!!!!! genfunc ... args: <%#v>\n", v)
+	log.Printf("!!!!!!!!!! genfunc ... args: <%#v>\n", v)
 	if len(v) < 1 {
 		return nil
 	}
@@ -233,10 +229,10 @@ func (st *StorageRedis) GenFunc(v ...interface{}) interface{} {
 	case STORE_FUNC_DUMPKEYS:
 		return st.dumpKeys()
 	case STORE_FUNC_GETKEYS:
-		fmt.Println("!!!!!!!!!! getkeys ... ")
+		log.Println("!!!!!!!!!! getkeys ... ")
 		return st.getKeys()
 	case STORE_FUNC_REMOVEKEYS:
-		fmt.Println("!!!!!!!!!! getkeys ... ")
+		log.Println("!!!!!!!!!! getkeys ... ")
 		if len(v) < 2 {
 			return nil
 		}
@@ -273,7 +269,7 @@ func (st *StorageRedis) dumpKey(k string) string {
 
 // need to test ...
 func (st *StorageRedis) _removeKeys(ks []string) []error {
-	fmt.Printf("** removing keys: %#v\n", ks)
+	log.Printf("** removing keys: %#v\n", ks)
 	v, err := st.redisClient.Del(ctx, ks...).Result()
 	if err != nil {
 		if err == redis.Nil {
@@ -288,7 +284,7 @@ func (st *StorageRedis) _removeKeys(ks []string) []error {
 }
 
 func (st *StorageRedis) removeKeys(ks []string) []error {
-	fmt.Printf("** removing keys: %#v\n", ks)
+	log.Printf("** removing keys: %#v\n", ks)
 	errors := []error{}
 	for _, k := range ks {
 		if err := st.RemoveDataMapping(k); err != nil {
@@ -299,6 +295,6 @@ func (st *StorageRedis) removeKeys(ks []string) []error {
 	for _, e := range errors {
 		errs = append(errs, e.Error())
 	}
-	fmt.Printf("** errors gathered: %#+v\n", strings.Join(errs, "; "))
+	log.Printf("** errors gathered: %#+v\n", strings.Join(errs, "; "))
 	return errors
 }
