@@ -1,10 +1,5 @@
 package common
 
-import (
-	"os"
-	"strings"
-)
-
 var (
 	WebappFront    func()
 	WebappBack     func()
@@ -12,11 +7,11 @@ var (
 	PrivatePath    = ShortPath + "private"
 	DevShortPath   = "/testapp"
 	DevPrivatePath = DevShortPath + "/private"
+	devBuild       bool
 )
 
 func init() {
-	envProd := os.Getenv("SH0R7_PRODUCTION")
-	if envProd == "" || strings.ToLower(envProd) != "true" {
+	if devBuild {
 		ShortPath = DevShortPath
 		PrivatePath = DevPrivatePath
 	}
