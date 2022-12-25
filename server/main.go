@@ -97,14 +97,17 @@ func storageInit() error {
 }
 
 func adTokenSet() {
+	var err error
 	adminKey := os.Getenv("SH0R7_ADMIN_KEY")
 	if adminKey == "" {
 		adminKey = uuid.NewString()
 	}
 	adTok := shortener.GenerateTokenTweaked(adminKey, 0, 32, 0)
-	err := store.StoreCtx.SaveDataMapping([]byte(""), adTok, -1)
-	if err != nil {
-		panic(err)
+	if !store.StoreCtx.CheckExistShortDataMapping(adTok) {
+		err = store.StoreCtx.SaveDataMapping([]byte(""), adTok, -1)
+		if err != nil {
+			panic(err)
+		}
 	}
 	err = store.StoreCtx.SetMetaDataMapping(adTok, store.FieldBlocked, store.IsBLOCKED)
 	if err != nil {
