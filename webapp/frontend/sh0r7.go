@@ -557,27 +557,35 @@ func (h *short) Render() app.UI {
 												Title("use input as data").
 												ID("shortAsUrl").
 												Body(
-													app.Div().
+													app.Label().
 														Class("input-group-addon").
 														Body(
-															app.Label().
-																Body(
-																	app.Input().
-																		Type("checkbox").
-																		Value("").
-																		OnClick(func(ctx app.Context, e app.Event) {
-																			h.isShortAsData = ctx.JSSrc().Get("checked").Bool()
-																		}),
-																),
+															app.Input().
+																ID("checkboxShortAsData").
+																Type("checkbox").
+																Value("").
+																OnClick(func(ctx app.Context, e app.Event) {
+																	h.isShortAsData = ctx.JSSrc().Get("checked").Bool()
+																}),
 														),
 													app.If(h.isShortAsData,
 														app.Input().
 															Class("form-control").
 															Class("syncTextStyle").
 															ID("treatData").
-															ReadOnly(true).Value("Input treated as data"),
+															ReadOnly(true).Value("Input treated as data").
+															OnClick(func(ctx app.Context, e app.Event) {
+																elem := app.Window().GetElementByID("checkboxShortAsData")
+																elem.Set("checked", false)
+																h.isShortAsData = false
+															}),
 													).Else(
-														app.Input().Class("form-control").ReadOnly(true).Value("Automatic treat input as data or Url"),
+														app.Input().Class("form-control").ReadOnly(true).Value("Automatic treat input as data or Url").
+															OnClick(func(ctx app.Context, e app.Event) {
+																elem := app.Window().GetElementByID("checkboxShortAsData")
+																elem.Set("checked", true)
+																h.isShortAsData = true
+															}),
 													),
 												),
 										),
