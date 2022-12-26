@@ -72,7 +72,6 @@ func handleCreateShortModDelete(data string, isUrl bool, expiration time.Duratio
 				break
 			}
 		}
-
 	}
 	if err != nil {
 		for k, e := range shorts {
@@ -100,6 +99,7 @@ func HandleCreateShortData(c *gin.Context) {
 		_spawnErr(c, err)
 		return
 	}
+	checkHandleDescription(c, res)
 	log.Printf("res: %#v\n", res)
 	c.JSON(200, res)
 }
@@ -187,6 +187,7 @@ func HandleCreateShortUrl(c *gin.Context) {
 			_spawnErr(c, err)
 			return
 		}
+		checkHandleDescription(c, res)
 		log.Printf("res: %#v\n", res)
 		c.JSON(200, res)
 	}
@@ -374,8 +375,9 @@ func getData(c *gin.Context) bool {
 	short := c.Param("short")
 	data, err := store.StoreCtx.LoadDataMapping(short)
 	if err != nil {
-		path := c.Request.URL.Path
-		data, err = store.StoreCtx.LoadDataMapping(path)
+		// if short fail here, then try to get the data for the full path
+		//  (some elements are stored this way using the storage provider)
+		data, err = store.StoreCtx.LoadDataMapping(c.Request.URL.Path)
 		if err == nil {
 			c.String(200, string(data))
 			return true
@@ -485,4 +487,10 @@ func getExpiration(c *gin.Context) time.Duration {
 		return 0
 	}
 	return t1.Sub(time.Time{})
+}
+
+func checkHandleDescription(c *gin.Context, res map[string]interface{}) {
+	if desc := c.Request.Header.Get("sDesc"); desc != "" {
+		store.StoreCtx.SetMetaDataMapping(res["short"].(string), store.FieldDesc, desc)
+	}
 }

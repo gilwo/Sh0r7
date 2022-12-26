@@ -155,6 +155,7 @@ const (
 	FieldModCount = "changes"
 	FieldModTime  = "changed_time"
 	FieldBlocked  = "blocked"
+	FieldDesc     = "description"
 	IsBLOCKED     = "true"
 )
 
