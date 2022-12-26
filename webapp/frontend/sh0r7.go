@@ -825,7 +825,7 @@ func (h *short) createShort() {
 		errElem.Set("value", fmt.Sprintf("new request: error occurred: %s", err))
 		return
 	}
-	if eDesc := app.Window().GetElementByID("shortDescription"); eDesc != nil {
+	if eDesc := app.Window().GetElementByID("shortDescription"); !eDesc.IsNull() {
 		if desc := eDesc.Get("value").String(); desc != "" {
 			req.Header.Set("sDesc", desc)
 		}
