@@ -60,6 +60,7 @@ var (
 			`
 			<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
 			<link href="https://fonts.googleapis.com/css?family=Cairo&display=swap" rel="stylesheet" />
+			<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.2/font/bootstrap-icons.css"rel="stylesheet"  >
 			`,
 		},
 	}
