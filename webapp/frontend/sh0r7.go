@@ -909,6 +909,11 @@ func (h *short) createShort() {
 			req.Header.Set("sDesc", desc)
 		}
 	}
+	if ePrvPass := app.Window().GetElementByID("privatePasswordText"); !ePrvPass.IsNull() {
+		if prvPass := ePrvPass.Get("value").String(); prvPass != "" {
+			req.Header.Set("sPrvPass", prvPass)
+		}
+	}
 	if h.expireValue != "" {
 		req.Header.Set("exp", h.expireValue)
 	}
@@ -1103,7 +1108,7 @@ func (h *short) getPrivateInfo() (map[string]string, []string, error) {
 		// 	r[k] = tup.Get(k)
 		// }
 		switch k2 {
-		case "p":
+		case "p", store.FieldPrvPass:
 			// drop it
 			delete(r, k)
 		case "s":

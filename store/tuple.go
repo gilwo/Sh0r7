@@ -156,6 +156,7 @@ const (
 	FieldModTime  = "changed_time"
 	FieldBlocked  = "blocked"
 	FieldDesc     = "description"
+	FieldPrvPass  = "privatePassword"
 	IsBLOCKED     = "true"
 )
 
