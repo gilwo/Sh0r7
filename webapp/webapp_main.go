@@ -60,6 +60,7 @@ var (
 			`
 			<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
 			<link href="https://fonts.googleapis.com/css?family=Cairo&display=swap" rel="stylesheet" />
+			<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.2/font/bootstrap-icons.css"rel="stylesheet"  >
 			`,
 		},
 	}
@@ -75,18 +76,15 @@ func webappInit() {
 	webappCommon.WebappFront()
 
 	webappServedPaths = map[string]bool{
-		webappCommon.ShortPath:                 true,
-		webappCommon.PrivatePath:               true,
-		"/wasm_exec.js":                        true,
-		"/app.js":                              true,
-		"/manifest.webmanifest":                true,
-		"/app-worker.js":                       true,
-		"/app.css":                             true,
-		"/web/app.wasm":                        true,
-		"/web/sh0r7-main.css":                  true,
-		"/web/main.css":                        true,
-		"/web/sh0r7-website-favicon-color.png": true,
-		"/web/sh0r7-logo-color-on-transparent-background.png": true,
+		webappCommon.ShortPath:   true,
+		webappCommon.PrivatePath: true,
+		"/wasm_exec.js":          true,
+		"/app.js":                true,
+		"/manifest.webmanifest":  true,
+		"/app-worker.js":         true,
+		"/app.css":               true,
+		"/web/app.wasm":          true,
+		"/web/main.css":          true,
 	}
 
 	if gin.Mode() == gin.DebugMode {
@@ -164,6 +162,9 @@ func checkPrivateRedirect(c *gin.Context) bool {
 				redirect.Scheme = c.Request.URL.Scheme
 				redirect.Path = webappCommon.PrivatePath
 				redirect.RawQuery = "key=" + path
+				if _, ok := info[store.FieldPrvPass]; ok {
+					redirect.RawQuery += "&" + webappCommon.PasswordProtected
+				}
 				c.Redirect(http.StatusFound, redirect.String())
 				log.Printf("redirect with private key (%s)\n", redirect)
 				return true

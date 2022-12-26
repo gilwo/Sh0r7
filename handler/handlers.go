@@ -99,7 +99,7 @@ func HandleCreateShortData(c *gin.Context) {
 		_spawnErr(c, err)
 		return
 	}
-	checkHandleDescription(c, res)
+	checkHandleHeaders(c, res)
 	log.Printf("res: %#v\n", res)
 	c.JSON(200, res)
 }
@@ -187,7 +187,7 @@ func HandleCreateShortUrl(c *gin.Context) {
 			_spawnErr(c, err)
 			return
 		}
-		checkHandleDescription(c, res)
+		checkHandleHeaders(c, res)
 		log.Printf("res: %#v\n", res)
 		c.JSON(200, res)
 	}
@@ -489,8 +489,11 @@ func getExpiration(c *gin.Context) time.Duration {
 	return t1.Sub(time.Time{})
 }
 
-func checkHandleDescription(c *gin.Context, res map[string]interface{}) {
+func checkHandleHeaders(c *gin.Context, res map[string]interface{}) {
 	if desc := c.Request.Header.Get("sDesc"); desc != "" {
 		store.StoreCtx.SetMetaDataMapping(res["short"].(string), store.FieldDesc, desc)
+	}
+	if prvPass := c.Request.Header.Get("sPrvPass"); prvPass != "" {
+		store.StoreCtx.SetMetaDataMapping(res["short"].(string), store.FieldPrvPass, prvPass)
 	}
 }
