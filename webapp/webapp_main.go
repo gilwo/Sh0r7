@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -162,8 +163,8 @@ func checkPrivateRedirect(c *gin.Context) bool {
 				redirect.Scheme = c.Request.URL.Scheme
 				redirect.Path = webappCommon.PrivatePath
 				redirect.RawQuery = "key=" + path
-				if _, ok := info[store.FieldPrvPass]; ok {
-					redirect.RawQuery += "&" + webappCommon.PasswordProtected
+				if salt, ok := info[store.FieldPrvPassSalt]; ok {
+					redirect.RawQuery += "&" + webappCommon.PasswordProtected + "=" + url.QueryEscape(salt.(string))
 				}
 				c.Redirect(http.StatusFound, redirect.String())
 				log.Printf("redirect with private key (%s)\n", redirect)

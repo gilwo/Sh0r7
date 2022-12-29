@@ -99,3 +99,33 @@ table.table.table-hover td.result div.form-group.resultForm {
 .input-grooup-addon input[type=checkbox] {
     vertical-align: middle;
 }
+
+#tableLocked {
+    filter: blur(10px);
+    z-index: -1;
+}
+
+div#lockedPassword { /*Password {*/
+    position: absolute; top: 55%; left: 50%;
+    /* "COUNTER" WIDTH & HEIGHT OF BOX TO "TRULY CENTER" ON SCREEN */
+    transform: translate(-50%, -50%);
+    /* color: #fff; background: #000; */
+    color: rgb(119, 182, 182); background: rgb(65, 87, 20);
+    padding: 50px;
+    text-align: center;
+    z-index: 1;
+    border-radius: 10px;
+}
+
+div#lockedPassword:after {
+    content: "info is locked";
+    text-transform:capitalize ;
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    font-size: 12px;
+    font-weight: 700;
+    /* color: aliceblue; */
+    color: rgb(205, 209, 213);
+    letter-spacing: 2px;
+}

@@ -148,16 +148,17 @@ func (t *stringTuple) Dump() string {
 }
 
 const (
-	fCompress     = ".compress"
-	FieldTime     = "created"
-	FieldTTL      = "ttl"
-	FieldDATA     = "data"
-	FieldModCount = "changes"
-	FieldModTime  = "changed_time"
-	FieldBlocked  = "blocked"
-	FieldDesc     = "description"
-	FieldPrvPass  = "privatePassword"
-	IsBLOCKED     = "true"
+	fCompress        = ".compress"
+	FieldTime        = "created"
+	FieldTTL         = "ttl"
+	FieldDATA        = "data"
+	FieldModCount    = "changes"
+	FieldModTime     = "changed_time"
+	FieldBlocked     = "blocked"
+	FieldDesc        = "description"
+	FieldPrvPassSalt = "privatePasswordSalt"
+	FieldPrvPassTok  = "privatePasswordToken"
+	IsBLOCKED        = "true"
 )
 
 func (t *stringTuple) Set2Bytes(field string, value []byte, compress bool) error {

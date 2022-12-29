@@ -30,9 +30,12 @@ type short struct {
 	expireValue         string
 	debug               bool
 	isPrivate           bool
-	isDescription       bool
-	isPrivatePassword   bool
-	isPasswordNotHidden bool
+	isDescription       bool   // indicate whether the description feature is enabled when creating short
+	isPrivatePassword   bool   // indicate whether the private password feature enabled when creating short
+	isPasswordNotHidden bool   // indicate showing the password when creating short
+	isResultLocked      bool   // indicate that the result info is locked
+	privatePassSalt     string // salt like used to create the passwork token
+	passToken           string // the password token used to lock and unlock the short private
 }
 
 const (
@@ -45,13 +48,29 @@ var (
 )
 
 func (h *short) RenderPrivate() app.UI {
-	if strings.Contains(app.Window().URL().Path, webappCommon.PasswordProtected) {
+	var err error
+
+	out := map[string]string{
+		"Lorem":       "ipsum dolor sit amet",
+		"consectetur": "adipiscing elit",
+		"sed":         "do eiusmod tempor incididunt ut labore et dolore magna aliqua",
+		"Ut":          "enim ad minim veniam",
+		"quis":        "nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat",
+		"Duis":        "aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur",
+		"Excepteur":   "sint occaecat cupidatat non proident",
+		"sunt":        "in culpa qui officia deserunt mollit anim id est laborum",
 	}
-	out, keys, err := h.getPrivateInfo()
-	if err != nil {
-		app.Logf("error getting private info (%s)\n", err)
-		out = map[string]string{"error": "invalid entry"}
-		keys = []string{"error"}
+	keys := []string{"Lorem", "consectetur", "sed", "Ut", "quis", "Duis", "Excepteur", "sunt"}
+	tableID := "tableInfo"
+	if h.isResultLocked {
+		tableID = "tableLocked"
+	} else {
+		out, keys, err = h.getPrivateInfo(h.passToken)
+		if err != nil {
+			app.Logf("error getting private info (%s)\n", err)
+			out = map[string]string{"error": err.Error()}
+			keys = []string{"error"}
+		}
 	}
 	return app.Div().
 		Class("container").
@@ -85,10 +104,47 @@ func (h *short) RenderPrivate() app.UI {
 			app.Div().
 				Class("row").
 				Body(
+					app.If(h.isResultLocked,
+						app.Div().
+							ID("lockedPassword").
+							Class().
+							Body(
+								app.Form().
+									Class("form-inline").
+									Body(
+										app.Div().
+											Class("form-group").
+											Body(
+												app.Input().
+													ID("resultUserPassword").
+													Class("form-control").
+													Type("password").
+													Placeholder("Password"),
+											),
+
+										app.Button().
+											Title("Unlock the private short info").
+											ID("unlockButton").
+											Class("btn", "btn-default").
+											Type("button").
+											Body(
+												app.Text("Unlock"),
+											).
+											OnClick(func(ctx app.Context, e app.Event) {
+												elem := app.Window().GetElementByID("resultUserPassword")
+												v := elem.Get("value").String()
+												h.passToken = shortener.GenerateTokenTweaked(v+h.privatePassSalt, 0, 30, 10)
+												h.isResultLocked = false
+												h.Update()
+											}),
+									),
+							),
+					),
 					app.Div().
 						Class("col-xs-8", "col-xs-offset-1").
 						Body(
 							app.Table().
+								ID(tableID).
 								Class("table", "table-hover").
 								Body(
 									app.TBody().
@@ -830,8 +886,14 @@ func newShort() *short {
 }
 
 func (h *short) OnInit() {
-	if strings.Contains(app.Window().URL().Path, webappCommon.PrivatePath) {
+	lurl := app.Window().URL()
+	app.Logf("url: %#+v\n", lurl)
+	if strings.Contains(lurl.Path, webappCommon.PrivatePath) && lurl.Query().Has("key") {
 		h.isPrivate = true
+		if lurl.Query().Has(webappCommon.PasswordProtected) {
+			h.privatePassSalt = lurl.Query().Get(webappCommon.PasswordProtected)
+			h.isResultLocked = true
+		}
 	} else {
 		h.getStID()
 	}
@@ -913,7 +975,7 @@ func (h *short) createShort() {
 	}
 	if ePrvPass := app.Window().GetElementByID("privatePasswordText"); !ePrvPass.IsNull() {
 		if prvPass := ePrvPass.Get("value").String(); prvPass != "" {
-			req.Header.Set("sPrvPass", prvPass)
+			req.Header.Set("sPvPT", shortener.GenerateTokenTweaked(prvPass+h.token, 0, 30, 10))
 		}
 	}
 	if h.expireValue != "" {
@@ -1013,7 +1075,7 @@ func (h *short) getStID() {
 		return
 	}
 	if resp.StatusCode != http.StatusOK {
-		app.Logf("response not ok: %s\n", resp.StatusCode)
+		app.Logf("response not ok: %v\n", resp.StatusCode)
 		return
 	}
 	_stid := resp.Header.Get("stid")
@@ -1056,7 +1118,7 @@ func (h *short) getStID() {
 	}
 }
 
-func (h *short) getPrivateInfo() (map[string]string, []string, error) {
+func (h *short) getPrivateInfo(passToken string) (map[string]string, []string, error) {
 
 	var err error
 	url := app.Window().URL()
@@ -1071,6 +1133,9 @@ func (h *short) getPrivateInfo() (map[string]string, []string, error) {
 		app.Logf("failed to create new request: %s\n", err)
 		return nil, nil, err
 	}
+	if passToken != "" {
+		req.Header.Set("sPassTok", passToken)
+	}
 	req.Header.Set("Content-Type", "text/plain")
 	resp, err := client.Do(req)
 	if err != nil {
@@ -1078,7 +1143,7 @@ func (h *short) getPrivateInfo() (map[string]string, []string, error) {
 		return nil, nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		app.Logf("response not ok: %s\n", resp.StatusCode)
+		app.Logf("response not ok: %v\n", resp.StatusCode)
 		return nil, nil, fmt.Errorf("status: %v", resp.StatusCode)
 	}
 

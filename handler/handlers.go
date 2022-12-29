@@ -321,6 +321,23 @@ func HandleGetShortDataInfo(c *gin.Context) {
 		return
 	}
 	log.Printf("data key: %s, short %s\n", string(dataKey), short)
+
+		recvPassToken := c.Request.Header.Get("sPassTok")
+		storedPrvPassTok, e1 := store.StoreCtx.GetMetaDataMapping(string(dataKey), store.FieldPrvPassTok)
+		storedPrvPassSalt, e2 := store.StoreCtx.GetMetaDataMapping(string(dataKey), store.FieldPrvPassSalt)
+		if e1 != nil || e2 != nil {
+			msg := errors.Errorf("no private password on short <%s>", dataKey)
+			log.Printf("%s, e1: %s, e2: %s\n", msg, e1.Error(), e2.Error())
+			_spawnErr(c, msg)
+			return
+		}
+		if recvPassToken != storedPrvPassTok {
+			msg := errors.Errorf("access denied to short <%s>", short)
+			log.Printf("%s (pass tok),  recv <%s>, salt <%s>, stored <%s>\n",
+				msg, recvPassToken, storedPrvPassSalt, storedPrvPassTok)
+			_spawnErrWithCode(c, http.StatusForbidden, msg)
+			return
+		}
 	data, err := store.StoreCtx.LoadDataMappingInfo(string(dataKey))
 	if err != nil {
 		msg := errors.Errorf("there was a problem with short: %s", short)
@@ -490,10 +507,19 @@ func getExpiration(c *gin.Context) time.Duration {
 }
 
 func checkHandleHeaders(c *gin.Context, res map[string]interface{}) {
+	var err error
 	if desc := c.Request.Header.Get("sDesc"); desc != "" {
 		store.StoreCtx.SetMetaDataMapping(res["short"].(string), store.FieldDesc, desc)
 	}
-	if prvPass := c.Request.Header.Get("sPrvPass"); prvPass != "" {
-		store.StoreCtx.SetMetaDataMapping(res["short"].(string), store.FieldPrvPass, prvPass)
+	if prvPassTok := c.Request.Header.Get("sPvPT"); prvPassTok != "" {
+		token := c.Request.Header.Get("TID")
+		err = store.StoreCtx.SetMetaDataMapping(res["short"].(string), store.FieldPrvPassSalt, token)
+		if err != nil {
+			log.Printf("failed keeping prv pass token on short <%s> metadata\n", res["short"])
+		}
+		err = store.StoreCtx.SetMetaDataMapping(res["short"].(string), store.FieldPrvPassTok, prvPassTok)
+		if err != nil {
+			log.Printf("failed keeping prv pass on short <%s> metadata\n", res["short"])
+		}
 	}
 }
