@@ -93,6 +93,7 @@ func webappInit() {
 			Default: frontend.ImgSource,
 			Large:   frontend.ImgSource,
 		}
+		webappServedPaths[frontend.ImgSource] = true
 	}
 }
 
@@ -154,15 +155,15 @@ func fixPath(c *gin.Context) bool {
 }
 
 func checkPrivateRedirect(c *gin.Context) bool {
-	path := strings.Trim(c.Request.URL.Path, "/")
-	if dataKey, err := store.StoreCtx.LoadDataMapping(path + "p"); err == nil {
+	privateKey := strings.Trim(c.Request.URL.Path, "/")
+	if dataKey, err := store.StoreCtx.LoadDataMapping(privateKey + "p"); err == nil {
 		if info, err := store.StoreCtx.LoadDataMappingInfo(string(dataKey)); err == nil {
-			if v, ok := info["p"]; ok && v == path {
+			if v, ok := info["p"]; ok && v == privateKey {
 				redirect := c.Request.URL
 				redirect.Host = c.Request.Host
 				redirect.Scheme = c.Request.URL.Scheme
 				redirect.Path = webappCommon.PrivatePath
-				redirect.RawQuery = "key=" + path
+				redirect.RawQuery = webappCommon.FPrivateKey + "=" + privateKey
 				if salt, ok := info[store.FieldPrvPassSalt]; ok {
 					redirect.RawQuery += "&" + webappCommon.PasswordProtected + "=" + url.QueryEscape(salt.(string))
 				}
@@ -196,7 +197,7 @@ func handlePrivateRedirect(c *gin.Context) bool {
 }
 
 func headerUpdate(c *gin.Context) {
-	if c.Request.Header.Get("RTS") == "" {
+	if c.Request.Header.Get(webappCommon.FRequestTokenSeed) == "" {
 		return
 	}
 	log.Println("===========================================")
@@ -214,9 +215,9 @@ func headerUpdate(c *gin.Context) {
 	log.Println("/*/*/*/*/*/*/*/*/*/*/*/*/")
 
 	log.Printf("generated seed : <%s>\n", seed)
-	c.Writer.Header().Add("stid", seed)                        // seed
-	c.Writer.Header().Add("stid", fmt.Sprintf("%d", tokenLen)) // tokenLen
-	c.Writer.Header().Add("stid", "0")                         // token start pos
+	c.Writer.Header().Add(webappCommon.FSaltTokenID, seed)                        // seed
+	c.Writer.Header().Add(webappCommon.FSaltTokenID, fmt.Sprintf("%d", tokenLen)) // tokenLen
+	c.Writer.Header().Add(webappCommon.FSaltTokenID, "0")                         // token start pos
 	log.Println("===========================================")
 }
 func generateSeedAndToken(input string, seedLen, tokenLen int) (string, string) {

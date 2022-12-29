@@ -96,7 +96,7 @@ func (h *short) RenderPrivate() app.UI {
 								ID("privateTitle").
 								Body(
 									// app.Text("using private for "+app.Window().URL().String()),
-									app.Text(app.Window().URL().Query().Get("key")),
+									app.Text(app.Window().URL().Query().Get(webappCommon.FPrivateKey)),
 								),
 							app.Br(),
 						),
@@ -289,49 +289,6 @@ func (h *short) Render() app.UI {
 				Class("marker").
 				ID("headerTitle"),
 			h.getTitleHeader(),
-			// app.Div().
-			// 	Class("marker").
-			// 	ID("navBarWide"),
-			// app.Div().
-			// 	Class("navbar", "show-in-wide").
-			// 	// Style("", "").
-			// 	Body(
-			// 		app.A().
-			// 			Href("#").
-			// 			Body(
-			// 				app.Text("Link"),
-			// 			),
-			// 		app.A().
-			// 			Href("#").
-			// 			Body(
-			// 				app.Text("Link"),
-			// 			),
-			// 		app.A().
-			// 			Href("#").
-			// 			Body(
-			// 				app.Text("Link"),
-			// 			),
-			// 		app.A().
-			// 			Href("#").
-			// 			Body(
-			// 				app.Text("Link"),
-			// 			),
-			// 	),
-
-			// app.Div().
-			// 	Class("marker").
-			// 	ID("navBarNarrow"),
-			// app.Div().
-			// 	Class("navbar", "show-in-narrow").
-			// 	// Style("", "").
-			// 	Body(
-			// 		app.A().
-			// 			Href("#").
-			// 			Body(
-			// 				app.Text("link narrow"),
-			// 			),
-			// 	),
-
 			app.Div().
 				Class("row").
 				Class("marker").
@@ -405,7 +362,7 @@ func (h *short) Render() app.UI {
 																	OnClick(func(ctx app.Context, e app.Event) {
 																		h.copyToClipboard("short-public")
 																		elem := app.Window().GetElementByID("copy-public")
-																		fmt.Printf("current value: %v\n", elem.Get("body"))
+																		app.Logf("current value: %v\n", elem.Get("body"))
 																		elem.Set("textContent", "Copied")
 																		ctx.After(400*time.Millisecond, func(ctx app.Context) {
 																			elem.Set("textContent", "Copy")
@@ -468,7 +425,7 @@ func (h *short) Render() app.UI {
 																	).OnClick(func(ctx app.Context, e app.Event) {
 																	h.copyToClipboard("short-private")
 																	elem := app.Window().GetElementByID("copy-private")
-																	fmt.Printf("current value: %v\n", elem.Get("body"))
+																	app.Logf("current value: %v\n", elem.Get("body"))
 																	elem.Set("textContent", "Copied")
 																	ctx.After(400*time.Millisecond, func(ctx app.Context) {
 																		elem.Set("textContent", "Copy")
@@ -498,15 +455,9 @@ func (h *short) Render() app.UI {
 															Class("form-control").
 															Class("syncTextStyle").
 															ReadOnly(true).
-															// Styles(map[string]string{
-															// 	"float": "center",
-															// 	"width": "30%"}).
 															Value(h.shortLink("delete")),
 														app.Span().
 															Class("input-group-btn").
-															// Styles(map[string]string{
-															// 	"float": "center",
-															// 	"width": "10%"}).
 															Body(
 																app.Button().
 																	Title("Copy to clipboard...").
@@ -518,7 +469,7 @@ func (h *short) Render() app.UI {
 																	).OnClick(func(ctx app.Context, e app.Event) {
 																	h.copyToClipboard("short-delete")
 																	elem := app.Window().GetElementByID("copy-delete")
-																	fmt.Printf("current value: %v\n", elem.Get("body"))
+																	app.Logf("current value: %v\n", elem.Get("body"))
 																	elem.Set("textContent", "Copied")
 																	ctx.After(400*time.Millisecond, func(ctx app.Context) {
 																		elem.Set("textContent", "Copy")
@@ -549,11 +500,11 @@ func (h *short) Render() app.UI {
 											OnClick(func(ctx app.Context, e app.Event) {
 												elem := app.Window().GetElementByID("shortInputText")
 												v := elem.Get("value").String()
-												fmt.Printf("shortInputText value: %v\n", v)
+												app.Logf("shortInputText value: %v\n", v)
 												h.expireValue = ""
 												if h.isExpireChecked {
 													h.expireValue = app.Window().GetElementByID("expireSelect").Get("value").String()
-													fmt.Printf("expire value: %v\n", h.expireValue)
+													app.Logf("expire value: %v\n", h.expireValue)
 												}
 												if v != "" {
 													ctx.Async(h.createShort)
@@ -711,7 +662,7 @@ func (h *short) Render() app.UI {
 																	Body(app.Text("2 months")),
 															).OnChange(func(ctx app.Context, e app.Event) {
 																h.expireValue = ctx.JSSrc().Get("value").String()
-																fmt.Printf("select change value: %v\n", h.expireValue)
+																app.Logf("select change value: %v\n", h.expireValue)
 															}),
 														),
 														app.Div().Class("input-group-addon"),
@@ -897,25 +848,25 @@ func (h *short) OnInit() {
 	} else {
 		h.getStID()
 	}
-	fmt.Println("******************************* init")
+	app.Logf("******************************* init")
 }
 func (h *short) OnPreRender() {
-	fmt.Println("******************************* prerender")
+	app.Logf("******************************* prerender")
 }
 func (h *short) OnDisMount() {
-	fmt.Println("******************************* dismount")
+	app.Logf("******************************* dismount")
 }
 func (h *short) OnMount() {
-	fmt.Println("******************************* mount")
+	app.Logf("******************************* mount")
 }
 func (h *short) OnNav() {
-	fmt.Println("******************************* nav")
+	app.Logf("******************************* nav")
 }
 func (h *short) OnUpdate() {
-	fmt.Println("******************************* update")
+	app.Logf("******************************* update")
 }
 func (h *short) OnAppUpdate() {
-	fmt.Println("******************************* app update")
+	app.Logf("******************************* app update")
 }
 
 func urlCheck(s string) (string, bool) {
@@ -932,7 +883,7 @@ func urlCheck(s string) (string, bool) {
 }
 func (h *short) createShort() {
 	var err error
-	fmt.Printf("!!URL: %+#v\n", app.Window().URL())
+	app.Logf("!!URL: %+#v\n", app.Window().URL())
 	appUrl := app.Window().URL()
 	dest := url.URL{
 		Scheme: appUrl.Scheme,
@@ -942,7 +893,7 @@ func (h *short) createShort() {
 	data := elem.Get("value").String()
 	errElem := app.Window().GetElementByID("footerText")
 	destCreate := dest.String()
-	fmt.Printf("!!! new dest: %s\n", destCreate)
+	app.Logf("!!! new dest: %s\n", destCreate)
 	payload := []byte(data)
 
 	if url, ok := urlCheck(data); ok && !h.isShortAsData {
@@ -962,7 +913,7 @@ func (h *short) createShort() {
 	client := http.Client{
 		Timeout: time.Duration(5 * time.Second),
 	}
-	// fmt.Printf("app %#v\n", app.)
+	// app.Logf("app %#v\n", app.)
 	req, err := http.NewRequest(http.MethodPost, destCreate, bytes.NewBuffer(payload))
 	if err != nil {
 		errElem.Set("value", fmt.Sprintf("new request: error occurred: %s", err))
@@ -970,19 +921,19 @@ func (h *short) createShort() {
 	}
 	if eDesc := app.Window().GetElementByID("shortDescription"); !eDesc.IsNull() {
 		if desc := eDesc.Get("value").String(); desc != "" {
-			req.Header.Set("sDesc", desc)
+			req.Header.Set(webappCommon.FShortDesc, desc)
 		}
 	}
 	if ePrvPass := app.Window().GetElementByID("privatePasswordText"); !ePrvPass.IsNull() {
 		if prvPass := ePrvPass.Get("value").String(); prvPass != "" {
-			req.Header.Set("sPvPT", shortener.GenerateTokenTweaked(prvPass+h.token, 0, 30, 10))
+			req.Header.Set(webappCommon.FPrvPassToken, shortener.GenerateTokenTweaked(prvPass+h.token, 0, 30, 10))
 		}
 	}
 	if h.expireValue != "" {
-		req.Header.Set("exp", h.expireValue)
+		req.Header.Set(webappCommon.FExpiration, h.expireValue)
 	}
 	req.Header.Set("Content-Type", "text/plain")
-	req.Header.Set("TID", h.token)
+	req.Header.Set(webappCommon.FTokenID, h.token)
 	resp, err := client.Do(req)
 	if err != nil {
 		errElem.Set("value", fmt.Sprintf("request invoke: error occurred: %s", err))
@@ -1014,9 +965,9 @@ func (h *short) createShort() {
 	h.result = string(r)
 	h.resultReady = true
 
-	fmt.Printf("******************************* create short result: %s\n", string(body))
+	app.Logf("******************************* create short result: %s\n", string(body))
 	elem.Set("value", string(body))
-	fmt.Printf("******************************* create shoty: %#v\n", r)
+	app.Logf("******************************* create shoty: %#v\n", r)
 	h.Update()
 }
 
@@ -1027,7 +978,7 @@ func (h *short) shortLink(which string) string {
 		Host:   x.Host,
 		Path:   "/",
 	}
-	fmt.Printf("!# path: %#+v\n", x)
+	// app.Logf("!# path: %#+v\n", x)
 	host := newURL.String()
 	switch which {
 	case "private", "short", "delete":
@@ -1041,7 +992,7 @@ func (h *short) copyToClipboard(from string) {
 	elem := app.Window().GetElementByID(from)
 	if !app.Window().Get("window").Get("isSecureContext").Bool() {
 		// https://stackoverflow.com/questions/51805395/navigator-clipboard-is-undefined
-		fmt.Printf("!! cant copy to clipboard using navigator on non secure origin, use execCommand")
+		app.Logf("!! cant copy to clipboard using navigator on non secure origin, use execCommand")
 
 		// https://web.dev/async-clipboard/
 		elem.Call("select")
@@ -1068,7 +1019,7 @@ func (h *short) getStID() {
 	}
 	req.Header.Set("Content-Type", "text/plain")
 	preSeed := shortener.GenerateTokenTweaked(uuid.NewString(), -1, 20, 0)
-	req.Header.Set("RTS", preSeed)
+	req.Header.Set(webappCommon.FRequestTokenSeed, preSeed)
 	resp, err := client.Do(req)
 	if err != nil {
 		app.Logf("failed to invoke request: %s\n", err)
@@ -1078,7 +1029,7 @@ func (h *short) getStID() {
 		app.Logf("response not ok: %v\n", resp.StatusCode)
 		return
 	}
-	_stid := resp.Header.Get("stid")
+	_stid := resp.Header.Get(webappCommon.FSaltTokenID)
 	stid := strings.Split(_stid, ", ")
 	if len(stid) != 3 {
 		app.Logf("problem with stid: %#v\n", stid)
@@ -1096,11 +1047,11 @@ func (h *short) getStID() {
 		return
 	}
 
-	fmt.Printf("******************************* stid from header: %+#v\n", stid)
+	app.Logf("******************************* stid from header: %+#v\n", stid)
 	ua := app.Window().Get("navigator").Get("userAgent").String()
 
 	token := shortener.GenerateTokenTweaked(ua+seed, tokenStartPos, tokenLen, 0)
-	fmt.Printf("******************************* calculated token: %s\n", token)
+	app.Logf("******************************* calculated token: %s\n", token)
 	if token == "" {
 		app.Logf("problem with token generation\n")
 		return
@@ -1122,7 +1073,7 @@ func (h *short) getPrivateInfo(passToken string) (map[string]string, []string, e
 
 	var err error
 	url := app.Window().URL()
-	url.Path = "/" + url.Query().Get("key") + "/info"
+	url.Path = "/" + url.Query().Get(webappCommon.FPrivateKey) + "/info"
 	url.RawQuery = ""
 
 	client := http.Client{

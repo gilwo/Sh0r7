@@ -11,6 +11,7 @@ import (
 
 	"github.com/gilwo/Sh0r7/shortener"
 	"github.com/gilwo/Sh0r7/store"
+	"github.com/gilwo/Sh0r7/webapp/common"
 	"github.com/gin-gonic/gin"
 	"github.com/karrick/tparse"
 	"github.com/pkg/errors"
@@ -99,30 +100,30 @@ func HandleCreateShortData(c *gin.Context) {
 		_spawnErr(c, err)
 		return
 	}
-	checkHandleHeaders(c, res)
+	handleCreateHeaders(c, res)
 	log.Printf("res: %#v\n", res)
 	c.JSON(200, res)
 }
 
 func HandleUploadFile(c *gin.Context) {
-	adminKey := c.Query("adKey")
+	adminKey := c.Query(common.FAdminKey)
 	if adminKey == "" {
-		adminKey = c.Request.Header.Get("adKey")
+		adminKey = c.Request.Header.Get(common.FAdminKey)
 	}
 	adTok := shortener.GenerateTokenTweaked(adminKey, 0, 32, 0)
 	if adTok == "" {
-		adTok = c.Query("adTok")
+		adTok = c.Query(common.FAdminToken)
 		if adTok == "" {
-			adTok = c.Request.Header.Get("adTok")
+			adTok = c.Request.Header.Get(common.FAdminToken)
 		}
 	}
 	if adTok == "" || !store.StoreCtx.CheckExistShortDataMapping(adTok) {
 		_spawnErrWithCode(c, http.StatusForbidden, errors.Errorf("operation not allowed"))
-		log.Printf("invalid adTok (%s)\n", adTok)
+		log.Printf("invalid admin token (%s)\n", adTok)
 		return
 	}
 
-	name := c.Query("name")
+	name := c.Query(common.FFileName)
 	if name == "" {
 		_spawnErr(c, errors.Errorf("invalid empty name"))
 		log.Printf("name file is empty\n")
@@ -187,7 +188,7 @@ func HandleCreateShortUrl(c *gin.Context) {
 			_spawnErr(c, err)
 			return
 		}
-		checkHandleHeaders(c, res)
+		handleCreateHeaders(c, res)
 		log.Printf("res: %#v\n", res)
 		c.JSON(200, res)
 	}
@@ -448,7 +449,7 @@ func tryUrl(c *gin.Context) bool {
 }
 
 func checkToken(c *gin.Context) bool {
-	token := c.Request.Header.Get("TID")
+	token := c.Request.Header.Get(common.FTokenID)
 	log.Printf("token: <%s> (%d)\n", token, len(token))
 	info, err := store.StoreCtx.LoadDataMappingInfo(token)
 	if err != nil {
@@ -494,7 +495,7 @@ func checkToken(c *gin.Context) bool {
 }
 
 func getExpiration(c *gin.Context) time.Duration {
-	expiration := c.Request.Header.Get("exp")
+	expiration := c.Request.Header.Get(common.FExpiration)
 	if expiration == "n" {
 		return -1
 	}
@@ -506,13 +507,13 @@ func getExpiration(c *gin.Context) time.Duration {
 	return t1.Sub(time.Time{})
 }
 
-func checkHandleHeaders(c *gin.Context, res map[string]interface{}) {
+func handleCreateHeaders(c *gin.Context, res map[string]interface{}) {
 	var err error
-	if desc := c.Request.Header.Get("sDesc"); desc != "" {
+	if desc := c.Request.Header.Get(common.FShortDesc); desc != "" {
 		store.StoreCtx.SetMetaDataMapping(res["short"].(string), store.FieldDesc, desc)
 	}
-	if prvPassTok := c.Request.Header.Get("sPvPT"); prvPassTok != "" {
-		token := c.Request.Header.Get("TID")
+	if prvPassTok := c.Request.Header.Get(common.FPrvPassToken); prvPassTok != "" {
+		token := c.Request.Header.Get(common.FTokenID)
 		err = store.StoreCtx.SetMetaDataMapping(res["short"].(string), store.FieldPrvPassSalt, token)
 		if err != nil {
 			log.Printf("failed keeping prv pass token on short <%s> metadata\n", res["short"])
