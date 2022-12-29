@@ -1085,7 +1085,7 @@ func (h *short) getPrivateInfo(passToken string) (map[string]string, []string, e
 		return nil, nil, err
 	}
 	if passToken != "" {
-		req.Header.Set("sPassTok", passToken)
+		req.Header.Set(webappCommon.FPrvPassToken, passToken)
 	}
 	req.Header.Set("Content-Type", "text/plain")
 	resp, err := client.Do(req)

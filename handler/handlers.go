@@ -323,15 +323,16 @@ func HandleGetShortDataInfo(c *gin.Context) {
 	}
 	log.Printf("data key: %s, short %s\n", string(dataKey), short)
 
-		recvPassToken := c.Request.Header.Get("sPassTok")
-		storedPrvPassTok, e1 := store.StoreCtx.GetMetaDataMapping(string(dataKey), store.FieldPrvPassTok)
+	storedPrvPassTok, e1 := store.StoreCtx.GetMetaDataMapping(string(dataKey), store.FieldPrvPassTok)
+	if e1 == nil && storedPrvPassTok != "" {
 		storedPrvPassSalt, e2 := store.StoreCtx.GetMetaDataMapping(string(dataKey), store.FieldPrvPassSalt)
-		if e1 != nil || e2 != nil {
-			msg := errors.Errorf("no private password on short <%s>", dataKey)
-			log.Printf("%s, e1: %s, e2: %s\n", msg, e1.Error(), e2.Error())
+		if e2 != nil {
+			msg := errors.Errorf("short <%s> is locked but missing salt", dataKey)
+			log.Printf("%s, e2: %s\n", msg, e2.Error())
 			_spawnErr(c, msg)
 			return
 		}
+		recvPassToken := c.Request.Header.Get(common.FPrvPassToken)
 		if recvPassToken != storedPrvPassTok {
 			msg := errors.Errorf("access denied to short <%s>", short)
 			log.Printf("%s (pass tok),  recv <%s>, salt <%s>, stored <%s>\n",
@@ -339,6 +340,8 @@ func HandleGetShortDataInfo(c *gin.Context) {
 			_spawnErrWithCode(c, http.StatusForbidden, msg)
 			return
 		}
+	}
+
 	data, err := store.StoreCtx.LoadDataMappingInfo(string(dataKey))
 	if err != nil {
 		msg := errors.Errorf("there was a problem with short: %s", short)
