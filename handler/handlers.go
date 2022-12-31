@@ -30,17 +30,20 @@ func _spawnErrCond(c *gin.Context, err error, cond bool) {
 	}
 }
 
-var (
-	runningCount = 0
+const (
+	LengthMinShortFree = 3
+	LengthMaxShortFree = 5
+	LengthMinPrivate   = 10
+	LengthMinDelete    = 10
 )
 
-func handleCreateShortModDelete(data string, isUrl bool, expiration time.Duration) (map[string]interface{}, error) {
+func handleCreateShortModDelete(data string, isUrl bool, expiration time.Duration) (map[string]string, error) {
 	var err error
-	res := map[string]interface{}{}
+	res := map[string]string{}
 	shorts := map[string]string{
-		"":  shortener.GenerateShortDataWithStore(data, store.StoreCtx),
-		"d": shortener.GenerateShortDataWithStore(data+"delete", store.StoreCtx),
-		"p": shortener.GenerateShortDataWithStore(data+"private", store.StoreCtx),
+		"":  shortener.GenerateShortDataTweakedWithStore2(data, -1, 0, LengthMinShortFree, LengthMaxShortFree, store.StoreCtx),
+		"d": shortener.GenerateShortDataTweakedWithStore2(data+"delete", -1, 0, LengthMinDelete, 0, store.StoreCtx),
+		"p": shortener.GenerateShortDataTweakedWithStore2(data+"private", -1, 0, LengthMinPrivate, 0, store.StoreCtx),
 	}
 	for _, e := range shorts {
 		if e == "" {
@@ -510,18 +513,18 @@ func getExpiration(c *gin.Context) time.Duration {
 	return t1.Sub(time.Time{})
 }
 
-func handleCreateHeaders(c *gin.Context, res map[string]interface{}) {
+func handleCreateHeaders(c *gin.Context, res map[string]string) {
 	var err error
 	if desc := c.Request.Header.Get(common.FShortDesc); desc != "" {
-		store.StoreCtx.SetMetaDataMapping(res["short"].(string), store.FieldDesc, desc)
+		store.StoreCtx.SetMetaDataMapping(res["short"], store.FieldDesc, desc)
 	}
 	if prvPassTok := c.Request.Header.Get(common.FPrvPassToken); prvPassTok != "" {
 		token := c.Request.Header.Get(common.FTokenID)
-		err = store.StoreCtx.SetMetaDataMapping(res["short"].(string), store.FieldPrvPassSalt, token)
+		err = store.StoreCtx.SetMetaDataMapping(res["short"], store.FieldPrvPassSalt, token)
 		if err != nil {
 			log.Printf("failed keeping prv pass token on short <%s> metadata\n", res["short"])
 		}
-		err = store.StoreCtx.SetMetaDataMapping(res["short"].(string), store.FieldPrvPassTok, prvPassTok)
+		err = store.StoreCtx.SetMetaDataMapping(res["short"], store.FieldPrvPassTok, prvPassTok)
 		if err != nil {
 			log.Printf("failed keeping prv pass on short <%s> metadata\n", res["short"])
 		}

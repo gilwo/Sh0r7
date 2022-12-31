@@ -3,6 +3,7 @@ module github.com/gilwo/Sh0r7
 go 1.18
 
 require (
+	github.com/eknkc/basex v1.0.1
 	github.com/gin-gonic/gin v1.6.3
 	github.com/go-redis/redis/v8 v8.0.0-beta.6
 	github.com/google/uuid v1.3.0
