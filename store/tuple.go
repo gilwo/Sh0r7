@@ -159,6 +159,14 @@ const (
 	FieldPrvPassSalt = "privatePasswordSalt"
 	FieldPrvPassTok  = "privatePasswordToken"
 	IsBLOCKED        = "true"
+	FieldPublic      = "pub"
+	FieldPrivate     = "prv"
+	FieldRemove      = "rem"
+	FieldURL         = "url"
+	SuffixPublic     = "#pub"
+	SuffixPrivate    = "#prv"
+	SuffixRemove     = "#rem"
+	SuffixURL        = "#url"
 )
 
 func (t *stringTuple) Set2Bytes(field string, value []byte, compress bool) error {

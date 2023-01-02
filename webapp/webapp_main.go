@@ -156,9 +156,9 @@ func fixPath(c *gin.Context) bool {
 
 func checkPrivateRedirect(c *gin.Context) bool {
 	privateKey := strings.Trim(c.Request.URL.Path, "/")
-	if dataKey, err := store.StoreCtx.LoadDataMapping(privateKey + "p"); err == nil {
-		if info, err := store.StoreCtx.LoadDataMappingInfo(string(dataKey)); err == nil {
-			if v, ok := info["p"]; ok && v == privateKey {
+	if dataKey, err := store.StoreCtx.LoadDataMapping(privateKey + store.SuffixPrivate); err == nil {
+		if info, err := store.StoreCtx.LoadDataMappingInfo(string(dataKey) + store.SuffixPublic); err == nil {
+			if v, ok := info[store.FieldPrivate]; ok && v == privateKey {
 				redirect := c.Request.URL
 				redirect.Host = c.Request.Host
 				redirect.Scheme = c.Request.URL.Scheme
@@ -180,9 +180,9 @@ func checkPrivateRedirect(c *gin.Context) bool {
 func handlePrivateRedirect(c *gin.Context) bool {
 	if strings.Contains(c.Request.URL.Path, webappCommon.PrivatePath) {
 		if key, ok := c.GetQuery("key"); ok {
-			if dataKey, err := store.StoreCtx.LoadDataMapping(key + "p"); err == nil {
-				if info, err := store.StoreCtx.LoadDataMappingInfo(string(dataKey)); err == nil {
-					if v, ok := info["p"]; ok && v == key {
+			if dataKey, err := store.StoreCtx.LoadDataMapping(key + store.SuffixPrivate); err == nil {
+				if info, err := store.StoreCtx.LoadDataMappingInfo(string(dataKey) + store.SuffixPublic); err == nil {
+					if v, ok := info[store.FieldPrivate]; ok && v == key {
 						log.Printf("!! serving path: <%s>\n", c.Request.RequestURI)
 						sh0r7H.ServeHTTP(c.Writer, c.Request)
 						return true

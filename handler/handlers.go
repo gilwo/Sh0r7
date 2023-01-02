@@ -31,47 +31,56 @@ func _spawnErrCond(c *gin.Context, err error, cond bool) {
 }
 
 const (
-	LengthMinShortFree = 3
-	LengthMaxShortFree = 5
+	LengthMinShortFree = 5
+	LengthMaxShortFree = 9
 	LengthMinPrivate   = 10
+	LengthMaxPrivate   = 15
 	LengthMinDelete    = 10
+	LengthMaxDelete    = 15
 )
 
 func handleCreateShortModDelete(data string, isUrl bool, expiration time.Duration) (map[string]string, error) {
 	var err error
-	res := map[string]string{}
 	shorts := map[string]string{
-		"":  shortener.GenerateShortDataTweakedWithStore2(data, -1, 0, LengthMinShortFree, LengthMaxShortFree, store.StoreCtx),
-		"d": shortener.GenerateShortDataTweakedWithStore2(data+"delete", -1, 0, LengthMinDelete, 0, store.StoreCtx),
-		"p": shortener.GenerateShortDataTweakedWithStore2(data+"private", -1, 0, LengthMinPrivate, 0, store.StoreCtx),
+		store.SuffixPublic: shortener.GenerateShortDataTweakedWithStore2(
+			data+store.SuffixPublic, -1, 0, LengthMinShortFree, LengthMaxShortFree, store.StoreCtx),
+		store.SuffixRemove: shortener.GenerateShortDataTweakedWithStore2(
+			data+store.SuffixRemove, -1, 0, LengthMinDelete, LengthMaxDelete, store.StoreCtx),
+		store.SuffixPrivate: shortener.GenerateShortDataTweakedWithStore2(
+			data+store.SuffixRemove, -1, 0, LengthMinPrivate, LengthMaxPrivate, store.StoreCtx),
 	}
-	for _, e := range shorts {
+	for k, e := range shorts {
 		if e == "" {
+			log.Printf("problem with crating short for <%s>\n", k)
 			return nil, errors.Errorf("there was a problem creating a short")
 		}
 	}
 	mapping := map[string]string{
-		"":  data,
-		"d": shorts[""],
-		"p": shorts[""],
+		store.FieldPublic:  data,
+		store.FieldRemove:  shorts[store.SuffixRemove],
+		store.FieldPrivate: shorts[store.SuffixPrivate],
 	}
 	if isUrl {
-		shorts["url"] = shorts[""]
-		mapping["url"] = shorts[""]
+		shorts[store.SuffixURL] = shorts[store.SuffixPublic]
+		mapping[store.FieldURL] = shorts[store.SuffixPublic]
 	}
 	for k, e := range shorts {
-		err = store.StoreCtx.SaveDataMapping([]byte(mapping[k]), e+k, expiration)
+		if k == store.SuffixPublic {
+			err = store.StoreCtx.SaveDataMapping([]byte(data), e+k, expiration)
+		} else {
+			err = store.StoreCtx.SaveDataMapping([]byte(shorts[store.SuffixPublic]), e+k, expiration)
+		}
 		if err != nil {
+			log.Printf("save data mapping <%s> failed for <%s>\n", e, k)
 			break
 		}
 	}
-	shorts["s"] = shorts[""]
 	if err == nil {
-		for k, e := range shorts {
-			if k == "" {
-				continue
+		for k, e := range mapping {
+			if k == store.FieldPublic {
+				e = shorts[store.SuffixPublic]
 			}
-			err = store.StoreCtx.SetMetaDataMapping(shorts[""], k, e)
+			err = store.StoreCtx.SetMetaDataMapping(shorts[store.SuffixPublic]+store.SuffixPublic, k, e)
 			if err != nil {
 				break
 			}
@@ -79,15 +88,20 @@ func handleCreateShortModDelete(data string, isUrl bool, expiration time.Duratio
 	}
 	if err != nil {
 		for k, e := range shorts {
-			_ = store.StoreCtx.RemoveDataMapping(e + k)
+			errRem := store.StoreCtx.RemoveDataMapping(e + k)
+			if errRem != nil {
+				log.Printf("problem remving key <%s>, err: %s\n", e+k, err.Error())
+			}
 		}
-		return nil, errors.Errorf("there was a problem storing a short")
+		return nil, errors.Errorf("there was a problem storing a short, err: %s", err)
 	}
 
-	res["short"] = shorts[""]
-	res["private"] = shorts["p"]
-	res["delete"] = shorts["d"]
-	return res, nil
+
+	return map[string]string{
+		store.FieldPublic:  shorts[store.SuffixPublic],
+		store.FieldPrivate: shorts[store.SuffixPrivate],
+		store.FieldRemove:  shorts[store.SuffixRemove],
+	}, nil
 }
 func HandleCreateShortData(c *gin.Context) {
 	if !checkToken(c) {
@@ -138,7 +152,7 @@ func HandleUploadFile(c *gin.Context) {
 		log.Printf("err in form file, %s\n", err)
 		return
 	}
-	if file.Size > 1<<20 {
+	if file.Size > 1<<20 { // 1MB
 		err = errors.Errorf("size too big")
 		_spawnErr(c, err)
 		log.Printf("err in file upload, %s\n", err)
@@ -219,12 +233,12 @@ func HandleUpdateShort(c *gin.Context) {
 func updateUrl(c *gin.Context, d []byte) bool {
 	short := c.Param("short")
 
-	mod, err := store.StoreCtx.LoadDataMapping(short + "p")
+	mod, err := store.StoreCtx.LoadDataMapping(short + store.SuffixPrivate)
 	if err != nil {
 		log.Println(err)
 		return false
 	}
-	data, err := store.StoreCtx.LoadDataMapping(string(mod) + "url")
+	data, err := store.StoreCtx.LoadDataMapping(string(mod) + store.SuffixURL)
 	if err != nil {
 		log.Println(err)
 		return false
@@ -253,7 +267,7 @@ func updateUrl(c *gin.Context, d []byte) bool {
 }
 func updateData(c *gin.Context, d []byte) bool {
 	short := c.Param("short")
-	dataKey, err := store.StoreCtx.LoadDataMapping(short + "p")
+	dataKey, err := store.StoreCtx.LoadDataMapping(short + store.SuffixPrivate)
 	if err != nil {
 		log.Println(err)
 		return false
@@ -274,7 +288,7 @@ func tryDelete(c *gin.Context) bool {
 }
 func handleRemove(c *gin.Context, withResponse bool) bool {
 	short := c.Param("short")
-	removeKey := short + "d"
+	removeKey := short + store.SuffixRemove
 	dataKey, err := store.StoreCtx.LoadDataMapping(removeKey)
 	if err != nil {
 		msg := errors.Errorf("there was a problem with short: %s", short)
@@ -282,15 +296,15 @@ func handleRemove(c *gin.Context, withResponse bool) bool {
 		_spawnErrCond(c, msg, withResponse)
 		return false
 	}
-	privateKey, err := store.StoreCtx.GetMetaDataMapping(string(dataKey), "p")
+	privateKey, err := store.StoreCtx.GetMetaDataMapping(string(dataKey)+store.SuffixPublic, store.FieldPrivate)
 	if err != nil {
 		msg := errors.Errorf("there was a problem with short: %s", short)
 		log.Printf("%s, err: %s\n", msg, err)
 		_spawnErrCond(c, msg, withResponse)
 		return false
 	}
-	privateKey += "p"
-	if err := store.StoreCtx.RemoveDataMapping(string(dataKey)); err != nil {
+	privateKey += store.SuffixPrivate
+	if err := store.StoreCtx.RemoveDataMapping(string(dataKey) + store.SuffixPublic); err != nil {
 		msg := errors.Errorf("there was a problem with short: %s", short)
 		log.Printf("%s, err: %s\n", msg, err)
 		_spawnErrCond(c, msg, withResponse)
@@ -308,7 +322,7 @@ func handleRemove(c *gin.Context, withResponse bool) bool {
 		_spawnErrCond(c, msg, withResponse)
 		return false
 	}
-	store.StoreCtx.RemoveDataMapping(string(dataKey) + "url")
+	store.StoreCtx.RemoveDataMapping(string(dataKey) + store.SuffixURL)
 	if withResponse {
 		c.Status(200)
 	}
@@ -317,7 +331,7 @@ func handleRemove(c *gin.Context, withResponse bool) bool {
 
 func HandleGetShortDataInfo(c *gin.Context) {
 	short := c.Param("short")
-	dataKey, err := store.StoreCtx.LoadDataMapping(short + "p")
+	dataKey, err := store.StoreCtx.LoadDataMapping(short + store.SuffixPrivate)
 	if err != nil {
 		msg := errors.Errorf("there was a problem with short: %s", short)
 		log.Printf("%s, err: %s\n", msg, err)
@@ -326,9 +340,9 @@ func HandleGetShortDataInfo(c *gin.Context) {
 	}
 	log.Printf("data key: %s, short %s\n", string(dataKey), short)
 
-	storedPrvPassTok, e1 := store.StoreCtx.GetMetaDataMapping(string(dataKey), store.FieldPrvPassTok)
+	storedPrvPassTok, e1 := store.StoreCtx.GetMetaDataMapping(string(dataKey)+store.SuffixPublic, store.FieldPrvPassTok)
 	if e1 == nil && storedPrvPassTok != "" {
-		storedPrvPassSalt, e2 := store.StoreCtx.GetMetaDataMapping(string(dataKey), store.FieldPrvPassSalt)
+		storedPrvPassSalt, e2 := store.StoreCtx.GetMetaDataMapping(string(dataKey)+store.SuffixPublic, store.FieldPrvPassSalt)
 		if e2 != nil {
 			msg := errors.Errorf("short <%s> is locked but missing salt", dataKey)
 			log.Printf("%s, e2: %s\n", msg, e2.Error())
@@ -345,7 +359,7 @@ func HandleGetShortDataInfo(c *gin.Context) {
 		}
 	}
 
-	data, err := store.StoreCtx.LoadDataMappingInfo(string(dataKey))
+	data, err := store.StoreCtx.LoadDataMappingInfo(string(dataKey) + store.SuffixPublic)
 	if err != nil {
 		msg := errors.Errorf("there was a problem with short: %s", short)
 		log.Printf("%s, err: %s\n", msg, err)
@@ -356,14 +370,14 @@ func HandleGetShortDataInfo(c *gin.Context) {
 }
 func HandleGetOriginData(c *gin.Context) {
 	short := c.Param("short")
-	dataKey, err := store.StoreCtx.LoadDataMapping(short + "p")
+	dataKey, err := store.StoreCtx.LoadDataMapping(short + store.SuffixPrivate)
 	if err != nil {
 		msg := errors.Errorf("there was a problem with short: %s", short)
 		log.Printf("%s, err: %s\n", msg, err)
 		_spawnErr(c, msg)
 		return
 	}
-	data, err := store.StoreCtx.LoadDataMapping(string(dataKey))
+	data, err := store.StoreCtx.LoadDataMapping(string(dataKey) + store.SuffixPublic)
 	if err != nil {
 		msg := errors.Errorf("there was a problem with short: %s", short)
 		log.Printf("%s, err: %s\n", msg, err)
@@ -397,7 +411,7 @@ func HandleShort(c *gin.Context) {
 }
 func getData(c *gin.Context) bool {
 	short := c.Param("short")
-	data, err := store.StoreCtx.LoadDataMapping(short)
+	data, err := store.StoreCtx.LoadDataMapping(short + store.SuffixPublic)
 	if err != nil {
 		// if short fail here, then try to get the data for the full path
 		//  (some elements are stored this way using the storage provider)
@@ -415,13 +429,13 @@ func getData(c *gin.Context) bool {
 }
 func getDataPrivate(c *gin.Context) bool {
 	short := c.Param("short")
-	privateKey, err := store.StoreCtx.LoadDataMapping(short + "p")
+	dataKey, err := store.StoreCtx.LoadDataMapping(short + store.SuffixPrivate)
 	if err != nil {
 		msg := errors.Errorf("there was a problem with short: %s", short)
 		log.Printf("%s, err: %s\n", msg, err)
 		return false
 	}
-	data, err := store.StoreCtx.LoadDataMapping(string(privateKey))
+	data, err := store.StoreCtx.LoadDataMapping(string(dataKey) + store.SuffixPublic)
 	if err != nil {
 		msg := errors.Errorf("there was a problem with short: %s", short)
 		log.Printf("%s, err: %s\n", msg, err)
@@ -432,7 +446,7 @@ func getDataPrivate(c *gin.Context) bool {
 }
 func tryUrl(c *gin.Context) bool {
 	short := c.Param("short")
-	data, err := store.StoreCtx.LoadDataMapping(short + "url")
+	data, err := store.StoreCtx.LoadDataMapping(short + store.SuffixURL)
 	if err != nil {
 		log.Println(err)
 		msg := errors.Errorf("there was a problem with short: %s", short)
@@ -440,7 +454,7 @@ func tryUrl(c *gin.Context) bool {
 		return false
 	}
 
-	data, err = store.StoreCtx.LoadDataMapping(string(data))
+	data, err = store.StoreCtx.LoadDataMapping(string(data) + store.SuffixPublic)
 	if err != nil {
 		msg := errors.Errorf("there was a problem with short: %s", short)
 		log.Printf("load data: %s, err: %s\n", msg, err)
@@ -516,17 +530,17 @@ func getExpiration(c *gin.Context) time.Duration {
 func handleCreateHeaders(c *gin.Context, res map[string]string) {
 	var err error
 	if desc := c.Request.Header.Get(common.FShortDesc); desc != "" {
-		store.StoreCtx.SetMetaDataMapping(res["short"], store.FieldDesc, desc)
+		store.StoreCtx.SetMetaDataMapping(res[store.FieldPublic]+store.SuffixPublic, store.FieldDesc, desc)
 	}
 	if prvPassTok := c.Request.Header.Get(common.FPrvPassToken); prvPassTok != "" {
 		token := c.Request.Header.Get(common.FTokenID)
-		err = store.StoreCtx.SetMetaDataMapping(res["short"], store.FieldPrvPassSalt, token)
+		err = store.StoreCtx.SetMetaDataMapping(res[store.FieldPublic]+store.SuffixPublic, store.FieldPrvPassSalt, token)
 		if err != nil {
-			log.Printf("failed keeping prv pass token on short <%s> metadata\n", res["short"])
+			log.Printf("failed keeping prv pass token on short <%s> metadata\n", res[store.FieldPublic])
 		}
-		err = store.StoreCtx.SetMetaDataMapping(res["short"], store.FieldPrvPassTok, prvPassTok)
+		err = store.StoreCtx.SetMetaDataMapping(res[store.FieldPublic]+store.SuffixPublic, store.FieldPrvPassTok, prvPassTok)
 		if err != nil {
-			log.Printf("failed keeping prv pass on short <%s> metadata\n", res["short"])
+			log.Printf("failed keeping prv pass on short <%s> metadata\n", res[store.FieldPublic])
 		}
 	}
 }

@@ -344,7 +344,7 @@ func (h *short) Render() app.UI {
 															// Styles(map[string]string{
 															// 	"float": "center",
 															// 	"width": "30%"}).
-															Value(h.shortLink("short")),
+															Value(h.shortLink(store.FieldPublic, h.resultMap)),
 														app.Span().
 															Class("input-group-btn").
 															// Styles(map[string]string{
@@ -407,7 +407,7 @@ func (h *short) Render() app.UI {
 															// Styles(map[string]string{
 															// 	"float": "center",
 															// 	"width": "30%"}).
-															Value(h.shortLink("private")),
+															Value(h.shortLink(store.FieldPrivate, h.resultMap)),
 
 														app.Span().
 															Class("input-group-btn").
@@ -455,7 +455,7 @@ func (h *short) Render() app.UI {
 															Class("form-control").
 															Class("syncTextStyle").
 															ReadOnly(true).
-															Value(h.shortLink("delete")),
+															Value(h.shortLink(store.FieldRemove, h.resultMap)),
 														app.Span().
 															Class("input-group-btn").
 															Body(
@@ -971,7 +971,7 @@ func (h *short) createShort() {
 	h.Update()
 }
 
-func (h *short) shortLink(which string) string {
+func (h *short) shortLink(which string, from map[string]string) string {
 	x := app.Window().URL()
 	newURL := url.URL{
 		Scheme: x.Scheme,
@@ -981,11 +981,12 @@ func (h *short) shortLink(which string) string {
 	// app.Logf("!# path: %#+v\n", x)
 	host := newURL.String()
 	switch which {
-	case "private", "short", "delete":
+	case store.FieldPrivate, store.FieldPublic, store.FieldRemove:
 	default:
+		app.Logf("field <%s> not handled\n", which)
 		// error
 	}
-	return host + h.resultMap[which]
+	return host + from[which]
 }
 
 func (h *short) copyToClipboard(from string) {
@@ -1126,15 +1127,15 @@ func (h *short) getPrivateInfo(passToken string) (map[string]string, []string, e
 		// 	r[k] = tup.Get(k)
 		// }
 		switch k2 {
-		case "p":
-			// drop it
-			delete(r, k)
-		case "s":
-			r["short"] = r[k]
-			delete(r, k)
-		case "d":
-			r["delete"] = r[k]
-			delete(r, k)
+		// case "p":
+		// 	// drop it
+		// 	delete(r, k)
+		// case "s":
+		// 	r["short"] = r[k]
+		// 	delete(r, k)
+		// case "d":
+		// 	r["delete"] = r[k]
+		// 	delete(r, k)
 		case store.FieldTime, store.FieldModTime:
 			tc, _ = time.Parse(time.RFC3339, r[k])
 			r[k] = tc.String()
