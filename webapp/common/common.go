@@ -30,4 +30,5 @@ const (
 	FShortDesc        = "sDesc"       // field name for short description
 	FPrvPassToken     = "sPrvPassTok" // field name for short private pass token for access a locked short info
 	FExpiration       = "sExp"        // field name for short expiration
+	FRemove           = "sRem"        // field name for short remove feature
 )

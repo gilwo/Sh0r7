@@ -39,15 +39,17 @@ const (
 	LengthMaxDelete    = 15
 )
 
-func handleCreateShortModDelete(data string, isUrl bool, expiration time.Duration) (map[string]string, error) {
+func handleCreateShortModDelete(data string, isRemove, isUrl bool, expiration time.Duration) (map[string]string, error) {
 	var err error
 	shorts := map[string]string{
 		store.SuffixPublic: shortener.GenerateShortDataTweakedWithStore2(
 			data+store.SuffixPublic, -1, 0, LengthMinShortFree, LengthMaxShortFree, store.StoreCtx),
-		store.SuffixRemove: shortener.GenerateShortDataTweakedWithStore2(
-			data+store.SuffixRemove, -1, 0, LengthMinDelete, LengthMaxDelete, store.StoreCtx),
 		store.SuffixPrivate: shortener.GenerateShortDataTweakedWithStore2(
-			data+store.SuffixRemove, -1, 0, LengthMinPrivate, LengthMaxPrivate, store.StoreCtx),
+			data+store.SuffixPrivate, -1, 0, LengthMinPrivate, LengthMaxPrivate, store.StoreCtx),
+	}
+	if isRemove {
+		shorts[store.SuffixRemove] = shortener.GenerateShortDataTweakedWithStore2(
+			data+store.SuffixRemove, -1, 0, LengthMinDelete, LengthMaxDelete, store.StoreCtx)
 	}
 	for k, e := range shorts {
 		if e == "" {
@@ -57,8 +59,10 @@ func handleCreateShortModDelete(data string, isUrl bool, expiration time.Duratio
 	}
 	mapping := map[string]string{
 		store.FieldPublic:  data,
-		store.FieldRemove:  shorts[store.SuffixRemove],
 		store.FieldPrivate: shorts[store.SuffixPrivate],
+	}
+	if isRemove {
+		mapping[store.FieldRemove] = shorts[store.SuffixRemove]
 	}
 	if isUrl {
 		shorts[store.SuffixURL] = shorts[store.SuffixPublic]
@@ -96,12 +100,14 @@ func handleCreateShortModDelete(data string, isUrl bool, expiration time.Duratio
 		return nil, errors.Errorf("there was a problem storing a short, err: %s", err)
 	}
 
-
-	return map[string]string{
+	res := map[string]string{
 		store.FieldPublic:  shorts[store.SuffixPublic],
 		store.FieldPrivate: shorts[store.SuffixPrivate],
-		store.FieldRemove:  shorts[store.SuffixRemove],
-	}, nil
+	}
+	if isRemove {
+		res[store.FieldRemove] = shorts[store.SuffixRemove]
+	}
+	return res, nil
 }
 func HandleCreateShortData(c *gin.Context) {
 	if !checkToken(c) {
@@ -112,14 +118,23 @@ func HandleCreateShortData(c *gin.Context) {
 		_spawnErr(c, err)
 		return
 	}
-	res, err := handleCreateShortModDelete(string(d), false, getExpiration(c))
+	res, err := handleCreateShortModDelete(string(d),
+		c.Request.Header.Get(common.FRemove) != "false",
+		false, getExpiration(c))
 	if err != nil {
 		_spawnErr(c, err)
 		return
 	}
 	handleCreateHeaders(c, res)
-	log.Printf("res: %#v\n", res)
+	log.Printf("res: %#v\n", verboseShorts(res))
 	c.JSON(200, res)
+}
+
+func verboseShorts(z map[string]string) (r string) {
+	for k, v := range z {
+		r += fmt.Sprintf("%s: <%s>(%d)\n", k, v, len(v))
+	}
+	return
 }
 
 func HandleUploadFile(c *gin.Context) {
@@ -200,13 +215,15 @@ func HandleCreateShortUrl(c *gin.Context) {
 		log.Printf("json field url is missing, %#v\n", mapping)
 		return
 	} else {
-		res, err := handleCreateShortModDelete(url, true, getExpiration(c))
+		res, err := handleCreateShortModDelete(url,
+			c.Request.Header.Get(common.FRemove) != "false",
+			true, getExpiration(c))
 		if err != nil {
 			_spawnErr(c, err)
 			return
 		}
 		handleCreateHeaders(c, res)
-		log.Printf("res: %#v\n", res)
+		log.Printf("res: %v\n", verboseShorts(res))
 		c.JSON(200, res)
 	}
 }

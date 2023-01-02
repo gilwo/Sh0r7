@@ -33,6 +33,7 @@ type short struct {
 	isDescription       bool   // indicate whether the description feature is used when creating short - option 3
 	isPrivatePassword   bool   // indicate whether the private password feature is used when creating short - option 4
 	isPasswordNotHidden bool   // indicate whether the password is shown or hidden - sub option for option 4
+	isOption5           bool   // indicate whether the short remove link feature is used when creating short - option 5
 	isResultLocked      bool   // indicate that the result info is locked
 	privatePassSalt     string // salt like used to create the passwork token
 	passToken           string // the password token used to lock and unlock the short private
@@ -449,50 +450,52 @@ func (h *short) Render() app.UI {
 															),
 													),
 											),
-										app.Div().
-											Class("row").
-											Body(
-												app.Div().
-													Class("form-group").
-													Class("input-group").
-													Body(
-														app.Span().
-															Class("input-group-addon", "fld-title").
-															// Styles(map[string]string{
-															// 	"float": "left",
-															// 	"width": "12%"}).
-															Body(
-																app.Text("delete"),
-															),
-														app.Input().
-															ID("short-delete").
-															Type("text").
-															Class("form-control").
-															Class("syncTextStyle").
-															ReadOnly(true).
-															Value(h.shortLink(store.FieldRemove, h.resultMap)),
-														app.Span().
-															Class("input-group-btn").
-															Body(
-																app.Button().
-																	Title("Copy to clipboard...").
-																	ID("copy-delete").
-																	Class("btn", "btn-warning", "btn-copy").
-																	Type("button").
-																	Body(
-																		app.Text("Copy"),
-																	).OnClick(func(ctx app.Context, e app.Event) {
-																	h.copyToClipboard("short-delete")
-																	elem := app.Window().GetElementByID("copy-delete")
-																	app.Logf("current value: %v\n", elem.Get("body"))
-																	elem.Set("textContent", "Copied")
-																	ctx.After(400*time.Millisecond, func(ctx app.Context) {
-																		elem.Set("textContent", "Copy")
-																	})
-																}),
-															),
-													),
-											),
+										app.If(h.isOption5,
+											app.Div().
+												Class("row").
+												Body(
+													app.Div().
+														Class("form-group").
+														Class("input-group").
+														Body(
+															app.Span().
+																Class("input-group-addon", "fld-title").
+																// Styles(map[string]string{
+																// 	"float": "left",
+																// 	"width": "12%"}).
+																Body(
+																	app.Text("delete"),
+																),
+															app.Input().
+																ID("short-delete").
+																Type("text").
+																Class("form-control").
+																Class("syncTextStyle").
+																ReadOnly(true).
+																Value(h.shortLink(store.FieldRemove, h.resultMap)),
+															app.Span().
+																Class("input-group-btn").
+																Body(
+																	app.Button().
+																		Title("Copy to clipboard...").
+																		ID("copy-delete").
+																		Class("btn", "btn-warning", "btn-copy").
+																		Type("button").
+																		Body(
+																			app.Text("Copy"),
+																		).OnClick(func(ctx app.Context, e app.Event) {
+																		h.copyToClipboard("short-delete")
+																		elem := app.Window().GetElementByID("copy-delete")
+																		app.Logf("current value: %v\n", elem.Get("body"))
+																		elem.Set("textContent", "Copied")
+																		ctx.After(400*time.Millisecond, func(ctx app.Context) {
+																			elem.Set("textContent", "Copy")
+																		})
+																	}),
+																),
+														),
+												),
+										),
 									),
 							),
 						),
@@ -538,10 +541,12 @@ func (h *short) Render() app.UI {
 												h.isDescription = false
 												h.isPrivatePassword = false
 												h.isPasswordNotHidden = false
+												h.isOption5 = false
 												app.Window().GetElementByID("checkboxShortAsData").Set("checked", false)
 												app.Window().GetElementByID("checkboxExpire").Set("checked", false)
 												app.Window().GetElementByID("checkboxDescription").Set("checked", false)
 												app.Window().GetElementByID("checkboxPrivatePassword").Set("checked", false)
+												app.Window().GetElementByID("checkboxOption5").Set("checked", false)
 												h.Update()
 											}),
 									),
@@ -836,6 +841,58 @@ func (h *short) Render() app.UI {
 												),
 										),
 								),
+							app.Div().
+								ID("shortOption5Wrapper").
+								Class("row").
+								Body(
+									app.Div().
+										Class("form-group").
+										Class("col-md-offset-2", "col-md-6", "col-sm-offset-2", "col-sm-6", "col-xs-offset-1", "col-xs-10").
+										Body(
+											app.Div().
+												Class("input-group").
+												Class(func() string {
+													if h.isOption5 {
+														return "has-success"
+													}
+													return "has-warning"
+												}()).
+												Title("Enable short removal link").
+												ID("option5ID").
+												Body(
+													app.Label().
+														Class("input-group-addon").
+														Body(
+															app.Input().
+																ID("checkboxOption5").
+																Type("checkbox").
+																Value("").
+																OnClick(func(ctx app.Context, e app.Event) {
+																	h.isShortAsData = ctx.JSSrc().Get("checked").Bool()
+																}),
+														),
+													app.If(h.isOption5,
+														app.Input().
+															Class("form-control").
+															Class("syncTextStyle").
+															ID("option5True").
+															ReadOnly(true).Value("Enable short removal link").
+															OnClick(func(ctx app.Context, e app.Event) {
+																elem := app.Window().GetElementByID("checkboxOption5")
+																elem.Set("checked", false)
+																h.isOption5 = false
+															}),
+													).Else(
+														app.Input().Class("form-control").ReadOnly(true).Value("No short removal link").
+															OnClick(func(ctx app.Context, e app.Event) {
+																elem := app.Window().GetElementByID("checkboxOption5")
+																elem.Set("checked", true)
+																h.isOption5 = true
+															}),
+													),
+												),
+										),
+								),
 						),
 				),
 			app.Div().
@@ -956,6 +1013,9 @@ func (h *short) createShort() {
 	}
 	if h.expireValue != "" {
 		req.Header.Set(webappCommon.FExpiration, h.expireValue)
+	}
+	if !h.isOption5 {
+		req.Header.Set(webappCommon.FRemove, "false")
 	}
 	req.Header.Set("Content-Type", "text/plain")
 	req.Header.Set(webappCommon.FTokenID, h.token)
