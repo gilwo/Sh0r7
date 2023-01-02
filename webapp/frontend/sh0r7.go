@@ -25,14 +25,14 @@ type short struct {
 	resultMap           map[string]string
 	resultReady         bool
 	token               string
-	isExpireChecked     bool
-	isShortAsData       bool
 	expireValue         string
 	debug               bool
 	isPrivate           bool
-	isDescription       bool   // indicate whether the description feature is enabled when creating short
-	isPrivatePassword   bool   // indicate whether the private password feature enabled when creating short
-	isPasswordNotHidden bool   // indicate showing the password when creating short
+	isShortAsData       bool   // indicate whether the input should be treated as data and not auto identify - option 1
+	isExpireChecked     bool   // indicate whether the expiration feature is used - option 2
+	isDescription       bool   // indicate whether the description feature is used when creating short - option 3
+	isPrivatePassword   bool   // indicate whether the private password feature is used when creating short - option 4
+	isPasswordNotHidden bool   // indicate whether the password is shown or hidden - sub option for option 4
 	isResultLocked      bool   // indicate that the result info is locked
 	privatePassSalt     string // salt like used to create the passwork token
 	passToken           string // the password token used to lock and unlock the short private
@@ -151,6 +151,13 @@ func (h *short) RenderPrivate() app.UI {
 										Body(
 											app.Range(keys).Slice(func(i int) app.UI {
 												s := keys[i]
+												if s == store.FieldDesc {
+													go func() {
+														<-time.After(50 * time.Millisecond)
+														elem := app.Window().GetElementByID("privateTitle")
+														elem.Set("innerText", out[s])
+													}()
+												}
 												return app.Tr().
 													Class().
 													Body(
@@ -205,7 +212,14 @@ func (h *short) RenderPrivate() app.UI {
 																				Body(
 																					app.Input().
 																						Class("form-control", "syncTextStyle").
-																						Value(out[s]).
+																						Value(func() any {
+																							switch s {
+																							case store.FieldPrivate, store.FieldPublic, store.FieldRemove:
+																								return h.shortLink(s, out)
+																							default:
+																								return out[s]
+																							}
+																						}()).
 																						ReadOnly(true),
 																				),
 																		),
@@ -308,6 +322,7 @@ func (h *short) Render() app.UI {
 										app.Textarea().
 											ID("shortInputText").
 											Class("form-control").
+											Class("form-group").
 											Class("syncTextStyle").
 											Style("resize", "none").
 											Rows(5).
@@ -517,6 +532,16 @@ func (h *short) Render() app.UI {
 											OnClick(func(ctx app.Context, e app.Event) {
 												h.result = ""
 												h.resultReady = false
+												// reset the options
+												h.isShortAsData = false
+												h.isExpireChecked = false
+												h.isDescription = false
+												h.isPrivatePassword = false
+												h.isPasswordNotHidden = false
+												app.Window().GetElementByID("checkboxShortAsData").Set("checked", false)
+												app.Window().GetElementByID("checkboxExpire").Set("checked", false)
+												app.Window().GetElementByID("checkboxDescription").Set("checked", false)
+												app.Window().GetElementByID("checkboxPrivatePassword").Set("checked", false)
 												h.Update()
 											}),
 									),
