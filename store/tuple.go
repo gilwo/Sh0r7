@@ -235,3 +235,11 @@ func (t *stringTuple) MustGet(field string) string {
 func (t *stringTuple) FromString(asString string) error {
 	return json.Unmarshal([]byte(asString), &t.tuple)
 }
+
+func (t *stringTuple) ToString() string {
+	r, err := json.Marshal(&t.tuple)
+	if err != nil {
+		return ""
+	}
+	return string(r)
+}

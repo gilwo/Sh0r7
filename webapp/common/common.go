@@ -5,8 +5,10 @@ var (
 	WebappBack        func()
 	ShortPath         = "/"
 	PrivatePath       = ShortPath + "private"
+	PublicPath        = ShortPath + "public"
 	DevShortPath      = "/testapp"
 	DevPrivatePath    = DevShortPath + "/private"
+	DevPublicPath     = DevShortPath + "/public"
 	PasswordProtected = "limitedAccess"
 	devBuild          bool
 )
@@ -15,6 +17,7 @@ func init() {
 	if devBuild {
 		ShortPath = DevShortPath
 		PrivatePath = DevPrivatePath
+		PublicPath = DevPublicPath
 	}
 }
 
@@ -31,4 +34,6 @@ const (
 	FPrvPassToken     = "sPrvPassTok" // field name for short private pass token for access a locked short info
 	FExpiration       = "sExp"        // field name for short expiration
 	FRemove           = "sRem"        // field name for short remove feature
+	FPass             = "pass"        // field name for clear pass for access a locked short
+	// FPass             = "%70%61%73%73" // field name for clear pass for access a locked short
 )

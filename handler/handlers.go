@@ -366,13 +366,32 @@ func HandleGetShortDataInfo(c *gin.Context) {
 			_spawnErr(c, msg)
 			return
 		}
-		recvPassToken := c.Request.Header.Get(common.FPrvPassToken)
-		if recvPassToken != storedPrvPassTok {
-			msg := errors.Errorf("access denied to short <%s>", short)
-			log.Printf("%s (pass tok),  recv <%s>, salt <%s>, stored <%s>\n",
-				msg, recvPassToken, storedPrvPassSalt, storedPrvPassTok)
-			_spawnErrWithCode(c, http.StatusForbidden, msg)
-			return
+		if !c.Request.URL.Query().Has(common.FPass) {
+			recvPassToken := c.Request.Header.Get(common.FPrvPassToken)
+			log.Printf("-- (recv) pass token: <%s>\n", recvPassToken)
+			log.Printf("-- pass token: <%s>\n", storedPrvPassTok)
+			log.Printf("-- pass salt: <%s>\n", storedPrvPassSalt)
+			if recvPassToken != storedPrvPassTok {
+				msg := errors.Errorf("access denied to short <%s>", short)
+				log.Printf("%s (pass tok),  recv <%s>, salt <%s>, stored <%s>\n",
+					msg, recvPassToken, storedPrvPassSalt, storedPrvPassTok)
+				_spawnErrWithCode(c, http.StatusForbidden, msg)
+				return
+			}
+		} else {
+			passTxt := c.Request.URL.Query().Get(common.FPass)
+			calcPassTok := shortener.GenerateTokenTweaked(passTxt+storedPrvPassSalt, 0, 30, 10)
+			log.Printf("-- (recv) pass : <%s>\n", passTxt)
+			log.Printf("-- pass salt: <%s>\n", storedPrvPassSalt)
+			log.Printf("-- pass token: <%s>\n", storedPrvPassTok)
+			log.Printf("-- (calc) pass token: <%s>\n", calcPassTok)
+			if calcPassTok != storedPrvPassTok {
+				msg := errors.Errorf("access denied to short <%s>", short)
+				log.Printf("%s (pass text), txt <%s>, salt <%s>, calc <%s>, stored <%s>\n",
+					msg, passTxt, storedPrvPassSalt, calcPassTok, storedPrvPassTok)
+				_spawnErrWithCode(c, http.StatusForbidden, msg)
+				return
+			}
 		}
 	}
 
@@ -426,8 +445,46 @@ func HandleShort(c *gin.Context) {
 
 	_spawnErr(c, errors.Errorf("short %s not found", short))
 }
+
 func getData(c *gin.Context) bool {
 	short := c.Param("short")
+	storedPrvPassTok, e1 := store.StoreCtx.GetMetaDataMapping(string(short)+store.SuffixPublic, store.FieldPrvPassTok)
+	if e1 == nil && storedPrvPassTok != "" {
+		storedPrvPassSalt, e2 := store.StoreCtx.GetMetaDataMapping(string(short)+store.SuffixPublic, store.FieldPrvPassSalt)
+		if e2 != nil {
+			msg := errors.Errorf("short <%s> is locked but missing salt", short)
+			log.Printf("%s, e2: %s\n", msg, e2.Error())
+			_spawnErr(c, msg)
+			return false
+		}
+		if !c.Request.URL.Query().Has(common.FPass) {
+			recvPassToken := c.Request.Header.Get(common.FPrvPassToken)
+			log.Printf("-- (recv) pass token: <%s>\n", recvPassToken)
+			log.Printf("-- pass token: <%s>\n", storedPrvPassTok)
+			log.Printf("-- pass salt: <%s>\n", storedPrvPassSalt)
+			if recvPassToken != storedPrvPassTok {
+				msg := errors.Errorf("access denied to short <%s>", short)
+				log.Printf("%s (pass tok),  recv <%s>, salt <%s>, stored <%s>\n",
+					msg, recvPassToken, storedPrvPassSalt, storedPrvPassTok)
+				_spawnErrWithCode(c, http.StatusForbidden, msg)
+				return false
+			}
+		} else {
+			passTxt := c.Request.URL.Query().Get(common.FPass)
+			calcPassTok := shortener.GenerateTokenTweaked(passTxt+storedPrvPassSalt, 0, 30, 10)
+			log.Printf("-- (recv) pass : <%s>\n", passTxt)
+			log.Printf("-- pass salt: <%s>\n", storedPrvPassSalt)
+			log.Printf("-- pass token: <%s>\n", storedPrvPassTok)
+			log.Printf("-- (calc) pass token: <%s>\n", calcPassTok)
+			if calcPassTok != storedPrvPassTok {
+				msg := errors.Errorf("access denied to short <%s>", short)
+				log.Printf("%s (pass text), txt <%s>, salt <%s>, calc <%s>, stored <%s>\n",
+					msg, passTxt, storedPrvPassSalt, calcPassTok, storedPrvPassTok)
+				_spawnErrWithCode(c, http.StatusForbidden, msg)
+				return false
+			}
+		}
+	}
 	data, err := store.StoreCtx.LoadDataMapping(short + store.SuffixPublic)
 	if err != nil {
 		// if short fail here, then try to get the data for the full path
@@ -470,6 +527,43 @@ func tryUrl(c *gin.Context) bool {
 		log.Printf("load url: %s, err: %s\n", msg, err)
 		return false
 	}
+	storedPrvPassTok, e1 := store.StoreCtx.GetMetaDataMapping(string(short)+store.SuffixPublic, store.FieldPrvPassTok)
+	if e1 == nil && storedPrvPassTok != "" {
+		storedPrvPassSalt, e2 := store.StoreCtx.GetMetaDataMapping(string(short)+store.SuffixPublic, store.FieldPrvPassSalt)
+		if e2 != nil {
+			msg := errors.Errorf("short <%s> is locked but missing salt", short)
+			log.Printf("%s, e2: %s\n", msg, e2.Error())
+			_spawnErr(c, msg)
+			return false
+		}
+		if !c.Request.URL.Query().Has(common.FPass) {
+			recvPassToken := c.Request.Header.Get(common.FPrvPassToken)
+			log.Printf("-- (recv) pass token: <%s>\n", recvPassToken)
+			log.Printf("-- pass token: <%s>\n", storedPrvPassTok)
+			log.Printf("-- pass salt: <%s>\n", storedPrvPassSalt)
+			if recvPassToken != storedPrvPassTok {
+				msg := errors.Errorf("access denied to short <%s>", short)
+				log.Printf("%s (pass tok),  recv <%s>, salt <%s>, stored <%s>\n",
+					msg, recvPassToken, storedPrvPassSalt, storedPrvPassTok)
+				_spawnErrWithCode(c, http.StatusForbidden, msg)
+				return false
+			}
+		} else {
+			passTxt := c.Request.URL.Query().Get(common.FPass)
+			calcPassTok := shortener.GenerateTokenTweaked(passTxt+storedPrvPassSalt, 0, 30, 10)
+			log.Printf("-- (recv) pass : <%s>\n", passTxt)
+			log.Printf("-- pass salt: <%s>\n", storedPrvPassSalt)
+			log.Printf("-- pass token: <%s>\n", storedPrvPassTok)
+			log.Printf("-- (calc) pass token: <%s>\n", calcPassTok)
+			if calcPassTok != storedPrvPassTok {
+				msg := errors.Errorf("access denied to short <%s>", short)
+				log.Printf("%s (pass text), txt <%s>, salt <%s>, calc <%s>, stored <%s>\n",
+					msg, passTxt, storedPrvPassSalt, calcPassTok, storedPrvPassTok)
+				_spawnErrWithCode(c, http.StatusForbidden, msg)
+				return false
+			}
+		}
+	}
 
 	data, err = store.StoreCtx.LoadDataMapping(string(data) + store.SuffixPublic)
 	if err != nil {
@@ -481,7 +575,14 @@ func tryUrl(c *gin.Context) bool {
 	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
 		url = "http://" + url
 	}
-	c.Redirect(302, url)
+	if c.Request.Header.Get("xRedirect") == "no" {
+		tup := store.NewTuple()
+		tup.Set(store.FieldURL, url)
+		c.String(200, "%s", tup.ToString())
+		// c.JSON(200, map[string]interface{}{store.FieldURL: url})
+	} else {
+		c.Redirect(302, url)
+	}
 	return true
 }
 

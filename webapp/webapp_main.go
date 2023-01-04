@@ -79,6 +79,7 @@ func webappInit() {
 	webappServedPaths = map[string]bool{
 		webappCommon.ShortPath:   true,
 		webappCommon.PrivatePath: true,
+		webappCommon.PublicPath:  true,
 		"/wasm_exec.js":          true,
 		"/app.js":                true,
 		"/manifest.webmanifest":  true,
@@ -121,6 +122,12 @@ func webappgenfunc(args ...interface{}) interface{} {
 			if fixPath(c) {
 				return true
 			}
+			if checkPublicRedirect(c) {
+				return true
+			}
+			if handlePublicRedirect(c) {
+				return true
+			}
 			if checkPrivateRedirect(c) {
 				return true
 			}
@@ -132,6 +139,7 @@ func webappgenfunc(args ...interface{}) interface{} {
 		if path == webappCommon.ShortPath {
 			headerUpdate(c)
 		}
+		log.Printf("serving %s\n", c.Request.URL)
 		sh0r7H.ServeHTTP(c.Writer, c.Request)
 		return true
 	}
@@ -155,18 +163,26 @@ func fixPath(c *gin.Context) bool {
 }
 
 func checkPrivateRedirect(c *gin.Context) bool {
-	privateKey := strings.Trim(c.Request.URL.Path, "/")
+	privateKey := c.Param("short")
 	if dataKey, err := store.StoreCtx.LoadDataMapping(privateKey + store.SuffixPrivate); err == nil {
 		if info, err := store.StoreCtx.LoadDataMappingInfo(string(dataKey) + store.SuffixPublic); err == nil {
 			if v, ok := info[store.FieldPrivate]; ok && v == privateKey {
-				redirect := c.Request.URL
-				redirect.Host = c.Request.Host
-				redirect.Scheme = c.Request.URL.Scheme
-				redirect.Path = webappCommon.PrivatePath
-				redirect.RawQuery = webappCommon.FPrivateKey + "=" + privateKey
+				redirect := &url.URL{
+					Host:     c.Request.Host,
+					Scheme:   c.Request.URL.Scheme,
+					Path:     webappCommon.PrivatePath,
+					RawQuery: webappCommon.FPrivateKey + "=" + privateKey,
+				}
 				if salt, ok := info[store.FieldPrvPassSalt]; ok {
 					redirect.RawQuery += "&" + webappCommon.PasswordProtected + "=" + url.QueryEscape(salt.(string))
 				}
+				if c.Request.Header.Get(webappCommon.FPrvPassToken) != "" {
+					return false
+				}
+				if c.Request.URL.Query().Has(webappCommon.FPass) {
+					return false
+				}
+
 				c.Redirect(http.StatusFound, redirect.String())
 				log.Printf("redirect with private key (%s)\n", redirect)
 				return true
@@ -174,6 +190,40 @@ func checkPrivateRedirect(c *gin.Context) bool {
 		}
 	}
 	log.Printf("path not checked redirected")
+	return false
+}
+
+func checkPublicRedirect(c *gin.Context) bool {
+	publiceKey := c.Param("short")
+	log.Printf("path public check if need redirect <%s>\n", c.Request.URL)
+	if info, err := store.StoreCtx.LoadDataMappingInfo(string(publiceKey) + store.SuffixPublic); err == nil {
+		if v, ok := info[store.FieldPublic]; ok && v == publiceKey {
+			log.Printf("original url: %+#v\n", c.Request.URL)
+			redirect, err := url.ParseRequestURI(c.Request.RequestURI)
+			if err != nil {
+				log.Printf("failed to parse request uri: %s\n", err)
+				return false
+			}
+			redirect.Path = webappCommon.PublicPath
+			redirect.RawQuery = webappCommon.FPrivateKey + "=" + publiceKey
+			log.Printf("redirect url: %+#v\n", c.Request.URL)
+
+			if c.Request.Header.Get(webappCommon.FPrvPassToken) != "" {
+				return false
+			}
+			if c.Request.URL.Query().Has(webappCommon.FPass) {
+				return false
+			}
+
+			if salt, ok := info[store.FieldPrvPassSalt]; ok {
+				redirect.RawQuery += "&" + webappCommon.PasswordProtected + "=" + url.QueryEscape(salt.(string))
+				c.Redirect(http.StatusFound, redirect.String())
+				log.Printf("redirect with public key (%s)\n", redirect)
+				return true
+			}
+		}
+	}
+	log.Printf("path public not redirected <%s>\n", c.Request.URL)
 	return false
 }
 
@@ -187,6 +237,22 @@ func handlePrivateRedirect(c *gin.Context) bool {
 						sh0r7H.ServeHTTP(c.Writer, c.Request)
 						return true
 					}
+				}
+			}
+		}
+	}
+	log.Printf("!! path not served: <%s>\n", c.Request.URL)
+	return false
+}
+
+func handlePublicRedirect(c *gin.Context) bool {
+	if strings.Contains(c.Request.URL.Path, webappCommon.PublicPath) {
+		if key, ok := c.GetQuery("key"); ok {
+			if info, err := store.StoreCtx.LoadDataMappingInfo(string(key) + store.SuffixPublic); err == nil {
+				if v, ok := info[store.FieldPublic]; ok && v == key {
+					log.Printf("!! serving path: <%s>\n", c.Request.RequestURI)
+					sh0r7H.ServeHTTP(c.Writer, c.Request)
+					return true
 				}
 			}
 		}
