@@ -118,7 +118,7 @@ div#lockedPassword { /*Password {*/
 }
 
 div#lockedPassword:after {
-    content: "info is locked";
+    content: "Locked access";
     text-transform:capitalize ;
     position: absolute;
     top: 15px;

@@ -21,24 +21,24 @@ import (
 
 type short struct {
 	app.Compo
-	result              string
-	resultMap           map[string]string
-	resultReady         bool
-	token               string
-	expireValue         string
-	debug               bool
-	isPrivate           bool
-	isPublic            bool
-	isShortAsData       bool   // indicate whether the input should be treated as data and not auto identify - option 1
-	isExpireChecked     bool   // indicate whether the expiration feature is used - option 2
-	isDescription       bool   // indicate whether the description feature is used when creating short - option 3
-	isPrivatePassword   bool   // indicate whether the private password feature is used when creating short - option 4
-	isPasswordNotHidden bool   // indicate whether the password is shown or hidden - sub option for option 4
-	isOption5           bool   // indicate whether the short remove link feature is used when creating short - option 5
-	isResultLocked      bool   // indicate that the result info is locked
-	privatePassSalt     string // salt used for password token - for private link
-	publicPassSalt      string // salt used for password token - for public link
-	passToken           string // the password token used to lock and unlock the short private
+	result                 string
+	resultMap              map[string]string
+	resultReady            bool
+	sessionToken           string // token used for the loaded session - life time of <SH0R7_WEBAPP_TOKEN_EXPIRATION_SHORT_LIVE>
+	expireValue            string
+	debug                  bool
+	isPrivate              bool   // indicate short url is private
+	isPublic               bool   // indicate short url is public
+	isShortAsData          bool   // indicate whether the input should be treated as data and not auto identify - option 1
+	isExpireChecked        bool   // indicate whether the expiration feature is used - option 2
+	isDescription          bool   // indicate whether the description feature is used when creating short - option 3
+	isPrivatePassword      bool   // indicate whether the private password feature is used when creating short - option 4
+	isPrivatePasswordShown bool   // indicate whether the private password is shown or hidden - sub option for option 4
+	isOption5              bool   // indicate whether the short remove link feature is used when creating short - option 5
+	isResultLocked         bool   // indicate that the requested short is password locked
+	privatePassSalt        string // salt used for password token - for private link
+	publicPassSalt         string // salt used for password token - for public link
+	passToken              string // the password token used to lock and unlock the short private
 }
 
 const (
@@ -605,7 +605,7 @@ func (h *short) Render() app.UI {
 												h.isExpireChecked = false
 												h.isDescription = false
 												h.isPrivatePassword = false
-												h.isPasswordNotHidden = false
+												h.isPrivatePasswordShown = false
 												h.isOption5 = false
 												app.Window().GetElementByID("checkboxShortAsData").Set("checked", false)
 												app.Window().GetElementByID("checkboxExpire").Set("checked", false)
@@ -878,19 +878,19 @@ func (h *short) Render() app.UI {
 															return app.Label().Class("input-group-addon").
 																Body(
 																	app.Span().
-																		ID("passwordReveal").
+																		ID("privatePasswordReveal").
 																		Class(classIcon),
 																).
 																OnClick(func(ctx app.Context, e app.Event) {
-																	h.isPasswordNotHidden = !h.isPasswordNotHidden
+																	h.isPrivatePasswordShown = !h.isPrivatePasswordShown
 																	inputType := "password"
-																	if h.isPasswordNotHidden {
+																	if h.isPrivatePasswordShown {
 																		inputType = "text"
 																		classIcon = "glyphicon glyphicon-eye-open"
 																	}
 																	el := app.Window().GetElementByID("privatePasswordText")
 																	el.Set("type", inputType)
-																	jui := app.Window().GetElementByID("passwordReveal")
+																	jui := app.Window().GetElementByID("privatePasswordReveal")
 																	attrs := jui.Get("attributes")
 																	attrs.Set("class", classIcon)
 																})
@@ -1079,7 +1079,7 @@ func (h *short) createShort() {
 	}
 	if ePrvPass := app.Window().GetElementByID("privatePasswordText"); !ePrvPass.IsNull() {
 		if prvPass := ePrvPass.Get("value").String(); prvPass != "" {
-			req.Header.Set(webappCommon.FPrvPassToken, shortener.GenerateTokenTweaked(prvPass+h.token, 0, 30, 10))
+			req.Header.Set(webappCommon.FPrvPassToken, shortener.GenerateTokenTweaked(prvPass+h.sessionToken, 0, 30, 10))
 		}
 	}
 	if h.expireValue != "" {
@@ -1089,7 +1089,7 @@ func (h *short) createShort() {
 		req.Header.Set(webappCommon.FRemove, "false")
 	}
 	req.Header.Set("Content-Type", "text/plain")
-	req.Header.Set(webappCommon.FTokenID, h.token)
+	req.Header.Set(webappCommon.FTokenID, h.sessionToken)
 	resp, err := client.Do(req)
 	if err != nil {
 		errElem.Set("value", fmt.Sprintf("request invoke: error occurred: %s", err))
@@ -1213,7 +1213,7 @@ func (h *short) getStID() {
 		app.Logf("problem with token generation\n")
 		return
 	}
-	h.token = token
+	h.sessionToken = token
 
 	if resp.Header.Get("debug") == "on" {
 		h.debug = true

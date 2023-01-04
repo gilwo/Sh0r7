@@ -163,6 +163,9 @@ func fixPath(c *gin.Context) bool {
 }
 
 func checkPrivateRedirect(c *gin.Context) bool {
+	if c.Param("ext") != "" {
+		return false
+	}
 	privateKey := c.Param("short")
 	if dataKey, err := store.StoreCtx.LoadDataMapping(privateKey + store.SuffixPrivate); err == nil {
 		if info, err := store.StoreCtx.LoadDataMappingInfo(string(dataKey) + store.SuffixPublic); err == nil {
@@ -175,6 +178,9 @@ func checkPrivateRedirect(c *gin.Context) bool {
 				}
 				if salt, ok := info[store.FieldPrvPassSalt]; ok {
 					redirect.RawQuery += "&" + webappCommon.PasswordProtected + "=" + url.QueryEscape(salt.(string))
+				}
+				if strings.HasSuffix(c.Request.Referer(), redirect.String()) {
+					return false
 				}
 				if c.Request.Header.Get(webappCommon.FPrvPassToken) != "" {
 					return false
@@ -194,6 +200,9 @@ func checkPrivateRedirect(c *gin.Context) bool {
 }
 
 func checkPublicRedirect(c *gin.Context) bool {
+	if c.Param("ext") != "" {
+		return false
+	}
 	publiceKey := c.Param("short")
 	log.Printf("path public check if need redirect <%s>\n", c.Request.URL)
 	if info, err := store.StoreCtx.LoadDataMappingInfo(string(publiceKey) + store.SuffixPublic); err == nil {
@@ -208,6 +217,9 @@ func checkPublicRedirect(c *gin.Context) bool {
 			redirect.RawQuery = webappCommon.FPrivateKey + "=" + publiceKey
 			log.Printf("redirect url: %+#v\n", c.Request.URL)
 
+			if strings.HasSuffix(c.Request.Referer(), redirect.String()) {
+				return false
+			}
 			if c.Request.Header.Get(webappCommon.FPrvPassToken) != "" {
 				return false
 			}
