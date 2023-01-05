@@ -158,6 +158,8 @@ const (
 	FieldDesc        = "description"
 	FieldPrvPassSalt = "privatePasswordSalt"
 	FieldPrvPassTok  = "privatePasswordToken"
+	FieldPubPassSalt = "publicPasswordSalt"
+	FieldPubPassTok  = "publicPasswordToken"
 	IsBLOCKED        = "true"
 	FieldPublic      = "pub"
 	FieldPrivate     = "prv"

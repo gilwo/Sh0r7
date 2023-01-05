@@ -35,6 +35,8 @@ type short struct {
 	isPrivatePassword      bool   // indicate whether the private password feature is used when creating short - option 4
 	isPrivatePasswordShown bool   // indicate whether the private password is shown or hidden - sub option for option 4
 	isOption5              bool   // indicate whether the short remove link feature is used when creating short - option 5
+	isPublicPassword       bool   // indicate whether the public password feature is used when creating short - option 6
+	isPublicPasswordShown  bool   // indicate whether the public password is shown or hidden - sub option for option 6
 	isResultLocked         bool   // indicate that the requested short is password locked
 	privatePassSalt        string // salt used for password token - for private link
 	publicPassSalt         string // salt used for password token - for public link
@@ -831,80 +833,13 @@ func (h *short) Render() app.UI {
 								ID("shortOption4Wrapper").
 								Class("row").
 								Body(
-									app.Div().
-										Class("form-group").
-										Class("col-md-offset-2", "col-md-6", "col-sm-offset-2", "col-sm-6", "col-xs-offset-1", "col-xs-10").
-										Body(
-											app.Div().
-												Class("input-group").
-												Class(func() string {
-													if h.isPrivatePassword {
-														return "has-success"
-													}
-													return "has-warning"
-												}()).
-												Title("limit access to private link with password").
-												ID("privateAccessPassword").
-												Body(
-													app.Label().
-														Class("input-group-addon").
-														Body(
-															app.Input().
-																Type("checkbox").
-																ID("checkboxPrivatePassword").
-																Value("").
-																OnClick(func(ctx app.Context, e app.Event) {
-																	h.isPrivatePassword = ctx.JSSrc().Get("checked").Bool()
-																}),
-														),
-													app.If(h.isPrivatePassword,
-														app.Div().Class("input-group-addon").Body(
-															app.Label().Body(
-																app.Text("Private password"),
-															).OnClick(func(ctx app.Context, e app.Event) {
-																elem := app.Window().GetElementByID("checkboxPrivatePassword")
-																elem.Set("checked", false)
-																h.isPrivatePassword = false
-															}),
-														),
-														app.Input().
-															Class("form-control").
-															Class("syncTextStyle").
-															ID("privatePasswordText").
-															Value("").
-															ReadOnly(false).Type("password"),
-														func() app.UI {
-															classIcon := "glyphicon glyphicon-eye-close"
-															return app.Label().Class("input-group-addon").
-																Body(
-																	app.Span().
-																		ID("privatePasswordReveal").
-																		Class(classIcon),
-																).
-																OnClick(func(ctx app.Context, e app.Event) {
-																	h.isPrivatePasswordShown = !h.isPrivatePasswordShown
-																	inputType := "password"
-																	if h.isPrivatePasswordShown {
-																		inputType = "text"
-																		classIcon = "glyphicon glyphicon-eye-open"
-																	}
-																	el := app.Window().GetElementByID("privatePasswordText")
-																	el.Set("type", inputType)
-																	jui := app.Window().GetElementByID("privatePasswordReveal")
-																	attrs := jui.Get("attributes")
-																	attrs.Set("class", classIcon)
-																})
-														}(),
-													).Else(
-														app.Input().Class("form-control").ReadOnly(true).Value("No password on private link").
-															OnClick(func(ctx app.Context, e app.Event) {
-																elem := app.Window().GetElementByID("checkboxPrivatePassword")
-																elem.Set("checked", true)
-																h.isPrivatePassword = true
-															}),
-													),
-												),
-										),
+									passwordOption(&h.isPrivatePassword, &h.isPrivatePasswordShown, "private"),
+								),
+							app.Div().
+								ID("shortOption6Wrapper").
+								Class("row").
+								Body(
+									passwordOption(&h.isPublicPassword, &h.isPublicPasswordShown, "public"),
 								),
 							app.Div().
 								ID("shortOption5Wrapper").
@@ -1082,6 +1017,11 @@ func (h *short) createShort() {
 			req.Header.Set(webappCommon.FPrvPassToken, shortener.GenerateTokenTweaked(prvPass+h.sessionToken, 0, 30, 10))
 		}
 	}
+	if ePubPass := app.Window().GetElementByID("publicPasswordText"); !ePubPass.IsNull() {
+		if pubPass := ePubPass.Get("value").String(); pubPass != "" {
+			req.Header.Set(webappCommon.FPubPassToken, shortener.GenerateTokenTweaked(pubPass+h.sessionToken, 0, 30, 10))
+		}
+	}
 	if h.expireValue != "" {
 		req.Header.Set(webappCommon.FExpiration, h.expireValue)
 	}
@@ -1242,7 +1182,7 @@ func (h *short) getPublicShort(passToken string) (map[string]string, []string, e
 		return nil, nil, err
 	}
 	if passToken != "" {
-		req.Header.Set(webappCommon.FPrvPassToken, passToken)
+		req.Header.Set(webappCommon.FPubPassToken, passToken)
 	}
 	req.Header.Set("Content-Type", "text/plain")
 	req.Header.Set("xRedirect", "no")
@@ -1411,6 +1351,83 @@ func (h *short) getTitleHeader() app.UI {
 								),
 							app.Text(" only URLs!"),
 						),
+				),
+		)
+}
+
+func passwordOption(isPassword, isPasswordShown *bool, which string) app.HTMLDiv {
+	return app.Div().
+		Class("form-group").
+		Class("col-md-offset-2", "col-md-6", "col-sm-offset-2", "col-sm-6", "col-xs-offset-1", "col-xs-10").
+		Body(
+			app.Div().
+				Class("input-group").
+				Class(func() string {
+					if *isPassword {
+						return "has-success"
+					}
+					return "has-warning"
+				}()).
+				Title("limit access to "+which+" link with password").
+				ID(which+"AccessPassword").
+				Body(
+					app.Label().
+						Class("input-group-addon").
+						Body(
+							app.Input().
+								Type("checkbox").
+								ID("checkbox"+strings.Title(which)+"Password").
+								Value("").
+								OnClick(func(ctx app.Context, e app.Event) {
+									*isPassword = ctx.JSSrc().Get("checked").Bool()
+								}),
+						),
+					app.If(*isPassword,
+						app.Div().Class("input-group-addon").Body(
+							app.Label().Body(
+								app.Text(strings.Title(which)+" password"),
+							).OnClick(func(ctx app.Context, e app.Event) {
+								elem := app.Window().GetElementByID("checkbox" + strings.Title(which) + "Password")
+								elem.Set("checked", false)
+								*isPassword = false
+							}),
+						),
+						app.Input().
+							Class("form-control").
+							Class("syncTextStyle").
+							ID(which+"PasswordText").
+							Value("").
+							ReadOnly(false).Type("password"),
+						func() app.UI {
+							classIcon := "glyphicon glyphicon-eye-close"
+							return app.Label().Class("input-group-addon").
+								Body(
+									app.Span().
+										ID(which + "PasswordReveal").
+										Class(classIcon),
+								).
+								OnClick(func(ctx app.Context, e app.Event) {
+									*isPasswordShown = !*isPasswordShown
+									inputType := "password"
+									if *isPasswordShown {
+										inputType = "text"
+										classIcon = "glyphicon glyphicon-eye-open"
+									}
+									el := app.Window().GetElementByID(which + "PasswordText")
+									el.Set("type", inputType)
+									jui := app.Window().GetElementByID(which + "PasswordReveal")
+									attrs := jui.Get("attributes")
+									attrs.Set("class", classIcon)
+								})
+						}(),
+					).Else(
+						app.Input().Class("form-control").ReadOnly(true).Value("No password on "+which+" link").
+							OnClick(func(ctx app.Context, e app.Event) {
+								elem := app.Window().GetElementByID("checkbox" + strings.Title(which) + "Password")
+								elem.Set("checked", true)
+								*isPassword = true
+							}),
+					),
 				),
 		)
 }

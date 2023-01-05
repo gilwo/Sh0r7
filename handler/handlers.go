@@ -446,44 +446,53 @@ func HandleShort(c *gin.Context) {
 	_spawnErr(c, errors.Errorf("short %s not found", short))
 }
 
-func getData(c *gin.Context) bool {
-	short := c.Param("short")
-	storedPrvPassTok, e1 := store.StoreCtx.GetMetaDataMapping(string(short)+store.SuffixPublic, store.FieldPrvPassTok)
-	if e1 == nil && storedPrvPassTok != "" {
-		storedPrvPassSalt, e2 := store.StoreCtx.GetMetaDataMapping(string(short)+store.SuffixPublic, store.FieldPrvPassSalt)
+func isAccessToShortAllowed(c *gin.Context, short string) (r *bool) {
+	True := true
+	False := false
+	storedPubPassTok, e1 := store.StoreCtx.GetMetaDataMapping(string(short)+store.SuffixPublic, store.FieldPubPassTok)
+	if e1 == nil && storedPubPassTok != "" {
+		storedPubPassSalt, e2 := store.StoreCtx.GetMetaDataMapping(string(short)+store.SuffixPublic, store.FieldPubPassSalt)
 		if e2 != nil {
 			msg := errors.Errorf("short <%s> is locked but missing salt", short)
 			log.Printf("%s, e2: %s\n", msg, e2.Error())
 			_spawnErr(c, msg)
-			return false
+			return &False
 		}
 		if !c.Request.URL.Query().Has(common.FPass) {
-			recvPassToken := c.Request.Header.Get(common.FPrvPassToken)
+			recvPassToken := c.Request.Header.Get(common.FPubPassToken)
 			log.Printf("-- (recv) pass token: <%s>\n", recvPassToken)
-			log.Printf("-- pass token: <%s>\n", storedPrvPassTok)
-			log.Printf("-- pass salt: <%s>\n", storedPrvPassSalt)
-			if recvPassToken != storedPrvPassTok {
+			log.Printf("-- pass token: <%s>\n", storedPubPassTok)
+			log.Printf("-- pass salt: <%s>\n", storedPubPassSalt)
+			if recvPassToken != storedPubPassTok {
 				msg := errors.Errorf("access denied to short <%s>", short)
 				log.Printf("%s (pass tok),  recv <%s>, salt <%s>, stored <%s>\n",
-					msg, recvPassToken, storedPrvPassSalt, storedPrvPassTok)
+					msg, recvPassToken, storedPubPassSalt, storedPubPassTok)
 				_spawnErrWithCode(c, http.StatusForbidden, msg)
-				return false
+				return &False
 			}
 		} else {
 			passTxt := c.Request.URL.Query().Get(common.FPass)
-			calcPassTok := shortener.GenerateTokenTweaked(passTxt+storedPrvPassSalt, 0, 30, 10)
+			calcPassTok := shortener.GenerateTokenTweaked(passTxt+storedPubPassSalt, 0, 30, 10)
 			log.Printf("-- (recv) pass : <%s>\n", passTxt)
-			log.Printf("-- pass salt: <%s>\n", storedPrvPassSalt)
-			log.Printf("-- pass token: <%s>\n", storedPrvPassTok)
+			log.Printf("-- pass salt: <%s>\n", storedPubPassSalt)
+			log.Printf("-- pass token: <%s>\n", storedPubPassTok)
 			log.Printf("-- (calc) pass token: <%s>\n", calcPassTok)
-			if calcPassTok != storedPrvPassTok {
+			if calcPassTok != storedPubPassTok {
 				msg := errors.Errorf("access denied to short <%s>", short)
 				log.Printf("%s (pass text), txt <%s>, salt <%s>, calc <%s>, stored <%s>\n",
-					msg, passTxt, storedPrvPassSalt, calcPassTok, storedPrvPassTok)
+					msg, passTxt, storedPubPassSalt, calcPassTok, storedPubPassTok)
 				_spawnErrWithCode(c, http.StatusForbidden, msg)
-				return false
+				return &False
 			}
 		}
+		return &True
+	}
+	return
+}
+func getData(c *gin.Context) bool {
+	short := c.Param("short")
+	if r := isAccessToShortAllowed(c, short); r != nil && !*r {
+		return *r
 	}
 	data, err := store.StoreCtx.LoadDataMapping(short + store.SuffixPublic)
 	if err != nil {
@@ -527,44 +536,9 @@ func tryUrl(c *gin.Context) bool {
 		log.Printf("load url: %s, err: %s\n", msg, err)
 		return false
 	}
-	storedPrvPassTok, e1 := store.StoreCtx.GetMetaDataMapping(string(short)+store.SuffixPublic, store.FieldPrvPassTok)
-	if e1 == nil && storedPrvPassTok != "" {
-		storedPrvPassSalt, e2 := store.StoreCtx.GetMetaDataMapping(string(short)+store.SuffixPublic, store.FieldPrvPassSalt)
-		if e2 != nil {
-			msg := errors.Errorf("short <%s> is locked but missing salt", short)
-			log.Printf("%s, e2: %s\n", msg, e2.Error())
-			_spawnErr(c, msg)
-			return false
-		}
-		if !c.Request.URL.Query().Has(common.FPass) {
-			recvPassToken := c.Request.Header.Get(common.FPrvPassToken)
-			log.Printf("-- (recv) pass token: <%s>\n", recvPassToken)
-			log.Printf("-- pass token: <%s>\n", storedPrvPassTok)
-			log.Printf("-- pass salt: <%s>\n", storedPrvPassSalt)
-			if recvPassToken != storedPrvPassTok {
-				msg := errors.Errorf("access denied to short <%s>", short)
-				log.Printf("%s (pass tok),  recv <%s>, salt <%s>, stored <%s>\n",
-					msg, recvPassToken, storedPrvPassSalt, storedPrvPassTok)
-				_spawnErrWithCode(c, http.StatusForbidden, msg)
-				return false
-			}
-		} else {
-			passTxt := c.Request.URL.Query().Get(common.FPass)
-			calcPassTok := shortener.GenerateTokenTweaked(passTxt+storedPrvPassSalt, 0, 30, 10)
-			log.Printf("-- (recv) pass : <%s>\n", passTxt)
-			log.Printf("-- pass salt: <%s>\n", storedPrvPassSalt)
-			log.Printf("-- pass token: <%s>\n", storedPrvPassTok)
-			log.Printf("-- (calc) pass token: <%s>\n", calcPassTok)
-			if calcPassTok != storedPrvPassTok {
-				msg := errors.Errorf("access denied to short <%s>", short)
-				log.Printf("%s (pass text), txt <%s>, salt <%s>, calc <%s>, stored <%s>\n",
-					msg, passTxt, storedPrvPassSalt, calcPassTok, storedPrvPassTok)
-				_spawnErrWithCode(c, http.StatusForbidden, msg)
-				return false
-			}
-		}
+	if r := isAccessToShortAllowed(c, string(data)); r != nil && !*r {
+		return *r
 	}
-
 	data, err = store.StoreCtx.LoadDataMapping(string(data) + store.SuffixPublic)
 	if err != nil {
 		msg := errors.Errorf("there was a problem with short: %s", short)
@@ -659,6 +633,17 @@ func handleCreateHeaders(c *gin.Context, res map[string]string) {
 		err = store.StoreCtx.SetMetaDataMapping(res[store.FieldPublic]+store.SuffixPublic, store.FieldPrvPassTok, prvPassTok)
 		if err != nil {
 			log.Printf("failed keeping prv pass on short <%s> metadata\n", res[store.FieldPublic])
+		}
+	}
+	if pubPassTok := c.Request.Header.Get(common.FPubPassToken); pubPassTok != "" {
+		token := c.Request.Header.Get(common.FTokenID)
+		err = store.StoreCtx.SetMetaDataMapping(res[store.FieldPublic]+store.SuffixPublic, store.FieldPubPassSalt, token)
+		if err != nil {
+			log.Printf("failed keeping pub pass token on short <%s> metadata\n", res[store.FieldPublic])
+		}
+		err = store.StoreCtx.SetMetaDataMapping(res[store.FieldPublic]+store.SuffixPublic, store.FieldPubPassTok, pubPassTok)
+		if err != nil {
+			log.Printf("failed keeping pub pass on short <%s> metadata\n", res[store.FieldPublic])
 		}
 	}
 }
