@@ -129,3 +129,13 @@ div#lockedPassword:after {
     color: rgb(205, 209, 213);
     letter-spacing: 2px;
 }
+
+div#updateApp {
+    position: absolute; top: 55%; left: 50%;
+    transform: translate(-50%, -50%);
+    color: rgb(119, 182, 182); background: rgb(65, 87, 20);
+    padding: 50px;
+    text-align: center;
+    z-index: 1;
+    border-radius: 10px;
+}
