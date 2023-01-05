@@ -41,6 +41,7 @@ type short struct {
 	privatePassSalt        string // salt used for password token - for private link
 	publicPassSalt         string // salt used for password token - for public link
 	passToken              string // the password token used to lock and unlock the short private
+	updateAvailable        bool   // new version available
 }
 
 const (
@@ -322,6 +323,9 @@ func (h *short) RenderPublic() app.UI {
 }
 
 func (h *short) Render() app.UI {
+	if h.updateAvailable {
+		return h.RenderUpdate()
+	}
 	if h.isPrivate {
 		return h.RenderPrivate()
 	}
@@ -953,8 +957,9 @@ func (h *short) OnNav() {
 func (h *short) OnUpdate() {
 	app.Logf("******************************* update")
 }
-func (h *short) OnAppUpdate() {
+func (h *short) OnAppUpdate(ctx app.Context) {
 	app.Logf("******************************* app update")
+	h.updateAvailable = ctx.AppUpdateAvailable()
 }
 
 func urlCheck(s string) (string, bool) {
@@ -1428,6 +1433,34 @@ func passwordOption(isPassword, isPasswordShown *bool, which string) app.HTMLDiv
 								*isPassword = true
 							}),
 					),
+				),
+		)
+}
+
+func (h *short) RenderUpdate() app.UI {
+	return app.Div().
+		Class("container").
+		Body(
+			app.Div().
+				ID("updateApp").
+				Class().
+				Body(
+					app.Form().
+						Class("form-inline").
+						Body(
+							app.Button().
+								Title("Update webapp").
+								ID("updateAppBtn").
+								Class("btn", "btn-default").
+								Type("button").
+								Body(
+									app.Text("Update"),
+								).
+								OnClick(func(ctx app.Context, e app.Event) {
+									// Reloads the page to display the modifications.
+									ctx.Reload()
+								}),
+						),
 				),
 		)
 }
