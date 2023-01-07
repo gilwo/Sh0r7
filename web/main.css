@@ -65,7 +65,7 @@ input.form-control.syncTextStyle, .form-control.syncTextStyle, .syncTextStyle, .
     background-color: #dff0d8;
     /* background-color: brown; */
 }
-input.form-control.syncTextStyle#treatData {
+input.form-control.syncTextStyle.onlyText {
     font-weight: bold;
     color: #3c763d;
 }
