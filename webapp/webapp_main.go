@@ -316,6 +316,15 @@ func queryUpdate(c *gin.Context) bool {
 		log.Printf("path already has the token seed, no need to add it...")
 		return false
 	}
+	refererUrl, err := url.Parse(c.Request.Referer())
+	if err != nil {
+		log.Printf("skip redirect for url parse failed for referrer... <%s>", c.Request.Referer())
+		return false
+	}
+	if strings.HasSuffix(refererUrl.Path, "app-worker.js") {
+		log.Printf("skip redirect for referrer url <%s>", c.Request.Referer())
+		return false
+	}
 	seedLen, tokenLen := 32, 40
 	seed, token := generateSeedAndToken(c.Request.Header.Get("User-Agent"), seedLen, tokenLen)
 	log.Println("/*/*/*/*/*/*/*/*/*/*/*/*/")

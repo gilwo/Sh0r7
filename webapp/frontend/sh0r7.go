@@ -690,6 +690,7 @@ func (h *short) Render() app.UI {
 														app.Input().
 															Class("form-control").
 															Class("syncTextStyle").
+															Class("onlyText").
 															ID("treatData").
 															ReadOnly(true).Value("Input treated as data").
 															OnClick(func(ctx app.Context, e app.Event) {
@@ -884,6 +885,7 @@ func (h *short) Render() app.UI {
 														app.Input().
 															Class("form-control").
 															Class("syncTextStyle").
+															Class("onlyText").
 															ID("option5True").
 															ReadOnly(true).Value("Enable short removal link").
 															OnClick(func(ctx app.Context, e app.Event) {
