@@ -118,6 +118,16 @@ func webappgenfunc(args ...interface{}) interface{} {
 		// log.Printf("*********\n%#+v\n*********\n", c.Request)
 		path := c.Request.URL.Path
 		log.Printf("webappgenfunc: handling path: %s\n", path)
+
+		// redirect path when we in dev build
+		if path == "/" && webappCommon.ShortPath == webappCommon.DevShortPath {
+			redirect, err := url.ParseRequestURI(c.Request.RequestURI)
+			redirect.Path = webappCommon.ShortPath
+			if err == nil {
+				c.Redirect(http.StatusFound, redirect.String())
+				return true
+			}
+		}
 		if _, ok := webappServedPaths[path]; !ok {
 			if fixPath(c) {
 				return true
@@ -140,6 +150,9 @@ func webappgenfunc(args ...interface{}) interface{} {
 			headerUpdate(c)
 		}
 		log.Printf("serving %s\n", c.Request.URL)
+		if path == webappCommon.ShortPath && queryUpdate(c) {
+			return true
+		}
 		sh0r7H.ServeHTTP(c.Writer, c.Request)
 		return true
 	}
@@ -220,14 +233,14 @@ func checkPublicRedirect(c *gin.Context) bool {
 			if strings.HasSuffix(c.Request.Referer(), redirect.String()) {
 				return false
 			}
-			if c.Request.Header.Get(webappCommon.FPrvPassToken) != "" {
+			if c.Request.Header.Get(webappCommon.FPubPassToken) != "" {
 				return false
 			}
 			if c.Request.URL.Query().Has(webappCommon.FPass) {
 				return false
 			}
 
-			if salt, ok := info[store.FieldPrvPassSalt]; ok {
+			if salt, ok := info[store.FieldPubPassSalt]; ok {
 				redirect.RawQuery += "&" + webappCommon.PasswordProtected + "=" + url.QueryEscape(salt.(string))
 				c.Redirect(http.StatusFound, redirect.String())
 				log.Printf("redirect with public key (%s)\n", redirect)
@@ -298,6 +311,33 @@ func headerUpdate(c *gin.Context) {
 	c.Writer.Header().Add(webappCommon.FSaltTokenID, "0")                         // token start pos
 	log.Println("===========================================")
 }
+func queryUpdate(c *gin.Context) bool {
+	if c.Request.URL.Query().Has(webappCommon.FSaltTokenID) {
+		log.Printf("path already has the token seed, no need to add it...")
+		return false
+	}
+	seedLen, tokenLen := 32, 40
+	seed, token := generateSeedAndToken(c.Request.Header.Get("User-Agent"), seedLen, tokenLen)
+	log.Println("/*/*/*/*/*/*/*/*/*/*/*/*/")
+	log.Printf("seed: <%s> (%d)\n", seed, seedLen)
+	log.Printf("token: <%s> (%d)\n", token, tokenLen)
+	log.Println("/*/*/*/*/*/*/*/*/*/*/*/*/")
+	redirect, err := url.ParseRequestURI(c.Request.RequestURI)
+	if err != nil {
+		log.Printf("failed to parse request uri: %s\n", err)
+		return false
+	}
+	redirect.Path = webappCommon.ShortPath
+	q := redirect.Query()
+	q.Add(webappCommon.FSaltTokenID, seed)
+	q.Add(webappCommon.FSaltTokenID, fmt.Sprintf("%d", tokenLen))
+	q.Add(webappCommon.FSaltTokenID, "0")
+	redirect.RawQuery = q.Encode()
+	c.Redirect(http.StatusFound, redirect.String())
+	log.Printf("redirect with token seed (%s)\n", redirect)
+	return true
+}
+
 func generateSeedAndToken(input string, seedLen, tokenLen int) (string, string) {
 	var seed, token string
 	c := 0
