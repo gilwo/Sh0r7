@@ -32,11 +32,14 @@ type short struct {
 	isShortAsData          bool   // indicate whether the input should be treated as data and not auto identify - option 1
 	isExpireChecked        bool   // indicate whether the expiration feature is used - option 2
 	isDescription          bool   // indicate whether the description feature is used when creating short - option 3
+	isOption8              bool   // indicate whether the short private link feature is used when creating short - option 8
 	isPrivatePassword      bool   // indicate whether the private password feature is used when creating short - option 4
 	isPrivatePasswordShown bool   // indicate whether the private password is shown or hidden - sub option for option 4
 	isOption5              bool   // indicate whether the short remove link feature is used when creating short - option 5
 	isPublicPassword       bool   // indicate whether the public password feature is used when creating short - option 6
 	isPublicPasswordShown  bool   // indicate whether the public password is shown or hidden - sub option for option 6
+	isRemovePassword       bool   // indicate whether the remove password feature is used when creating short - option 7 (applicable after option 5 is enabled)
+	isRemovePasswordShown  bool   // indicate whether the remove password is shown or hidden - sub option for option 7 (applicable after option 5 is enabled)
 	isResultLocked         bool   // indicate that the requested short is password locked
 	privatePassSalt        string // salt used for password token - for private link
 	publicPassSalt         string // salt used for password token - for public link
@@ -472,57 +475,59 @@ func (h *short) Render() app.UI {
 															),
 													),
 											),
-										app.Div().
-											Class("row").
-											Body(
-												app.Div().
-													Class("form-group").
-													Class("input-group").
-													Body(
-														app.Span().
-															Class("input-group-addon", "fld-title").
-															// Styles(map[string]string{
-															// 	"float": "left",
-															// 	"width": "12%"}).
-															Body(
-																app.Text("private"),
-															),
-														app.Input().
-															ID("short-private").
-															Type("text").
-															Class("form-control").
-															Class("syncTextStyle").
-															ReadOnly(true).
-															// Styles(map[string]string{
-															// 	"float": "center",
-															// 	"width": "30%"}).
-															Value(h.shortLink(store.FieldPrivate, h.resultMap)),
+										app.If(h.isOption8,
+											app.Div().
+												Class("row").
+												Body(
+													app.Div().
+														Class("form-group").
+														Class("input-group").
+														Body(
+															app.Span().
+																Class("input-group-addon", "fld-title").
+																// Styles(map[string]string{
+																// 	"float": "left",
+																// 	"width": "12%"}).
+																Body(
+																	app.Text("private"),
+																),
+															app.Input().
+																ID("short-private").
+																Type("text").
+																Class("form-control").
+																Class("syncTextStyle").
+																ReadOnly(true).
+																// Styles(map[string]string{
+																// 	"float": "center",
+																// 	"width": "30%"}).
+																Value(h.shortLink(store.FieldPrivate, h.resultMap)),
 
-														app.Span().
-															Class("input-group-btn").
-															// Styles(map[string]string{
-															// 	"float": "center",
-															// 	"width": "10%"}).
-															Body(
-																app.Button().
-																	Title("Copy to clipboard...").
-																	ID("copy-private").
-																	Class("btn", "btn-warning", "btn-copy").
-																	Type("button").
-																	Body(
-																		app.Text("Copy"),
-																	).OnClick(func(ctx app.Context, e app.Event) {
-																	h.copyToClipboard("short-private")
-																	elem := app.Window().GetElementByID("copy-private")
-																	app.Logf("current value: %v\n", elem.Get("body"))
-																	elem.Set("textContent", "Copied")
-																	ctx.After(400*time.Millisecond, func(ctx app.Context) {
-																		elem.Set("textContent", "Copy")
-																	})
-																}),
-															),
-													),
-											),
+															app.Span().
+																Class("input-group-btn").
+																// Styles(map[string]string{
+																// 	"float": "center",
+																// 	"width": "10%"}).
+																Body(
+																	app.Button().
+																		Title("Copy to clipboard...").
+																		ID("copy-private").
+																		Class("btn", "btn-warning", "btn-copy").
+																		Type("button").
+																		Body(
+																			app.Text("Copy"),
+																		).OnClick(func(ctx app.Context, e app.Event) {
+																		h.copyToClipboard("short-private")
+																		elem := app.Window().GetElementByID("copy-private")
+																		app.Logf("current value: %v\n", elem.Get("body"))
+																		elem.Set("textContent", "Copied")
+																		ctx.After(400*time.Millisecond, func(ctx app.Context) {
+																			elem.Set("textContent", "Copy")
+																		})
+																	}),
+																),
+														),
+												),
+										),
 										app.If(h.isOption5,
 											app.Div().
 												Class("row").
@@ -614,15 +619,24 @@ func (h *short) Render() app.UI {
 												h.isDescription = false
 												h.isPrivatePassword = false
 												h.isPrivatePasswordShown = false
-												h.isOption5 = false
 												h.isPublicPassword = false
 												h.isPublicPasswordShown = false
+												h.isRemovePassword = false
+												h.isRemovePasswordShown = false
 												app.Window().GetElementByID("checkboxShortAsData").Set("checked", false)
 												app.Window().GetElementByID("checkboxExpire").Set("checked", false)
 												app.Window().GetElementByID("checkboxDescription").Set("checked", false)
-												app.Window().GetElementByID("checkboxPrivatePassword").Set("checked", false)
-												app.Window().GetElementByID("checkboxOption5").Set("checked", false)
+												if h.isOption8 {
+													app.Window().GetElementByID("checkboxPrivatePassword").Set("checked", false)
+													app.Window().GetElementByID("checkboxOption8").Set("checked", false)
+													h.isOption8 = false
+												}
 												app.Window().GetElementByID("checkboxPublicPassword").Set("checked", false)
+												if h.isOption5 {
+													app.Window().GetElementByID("checkboxRemovePassword").Set("checked", false)
+													app.Window().GetElementByID("checkboxOption5").Set("checked", false)
+													h.isOption5 = false
+												}
 												h.Update()
 											}),
 									),
@@ -840,11 +854,66 @@ func (h *short) Render() app.UI {
 										),
 								),
 							app.Div().
-								ID("shortOption4Wrapper").
+								ID("shortOption8Wrapper").
 								Class("row").
 								Body(
-									passwordOption(&h.isPrivatePassword, &h.isPrivatePasswordShown, "private"),
+									app.Div().
+										Class("form-group").
+										Class("col-md-offset-2", "col-md-6", "col-sm-offset-2", "col-sm-6", "col-xs-offset-1", "col-xs-10").
+										Body(
+											app.Div().
+												Class("input-group").
+												Class(func() string {
+													if h.isOption8 {
+														return "has-success"
+													}
+													return "has-warning"
+												}()).
+												Title("Enable short private link").
+												ID("option8ID").
+												Body(
+													app.Label().
+														Class("input-group-addon").
+														Body(
+															app.Input().
+																ID("checkboxOption8").
+																Type("checkbox").
+																Value("").
+																OnClick(func(ctx app.Context, e app.Event) {
+																	h.isOption8 = ctx.JSSrc().Get("checked").Bool()
+																}),
+														),
+													app.If(h.isOption8,
+														app.Input().
+															Class("form-control").
+															Class("syncTextStyle").
+															Class("onlyText").
+															ID("option8True").
+															ReadOnly(true).Value("Enable short private link").
+															OnClick(func(ctx app.Context, e app.Event) {
+																elem := app.Window().GetElementByID("checkboxOption8")
+																elem.Set("checked", false)
+																h.isOption8 = false
+															}),
+													).Else(
+														app.Input().Class("form-control").ReadOnly(true).Value("No short private link").
+															OnClick(func(ctx app.Context, e app.Event) {
+																elem := app.Window().GetElementByID("checkboxOption8")
+																elem.Set("checked", true)
+																h.isOption8 = true
+															}),
+													),
+												),
+										),
 								),
+							app.If(h.isOption8,
+								app.Div().
+									ID("shortOption4Wrapper").
+									Class("row").
+									Body(
+										passwordOption(&h.isPrivatePassword, &h.isPrivatePasswordShown, "private"),
+									),
+							),
 							app.Div().
 								ID("shortOption6Wrapper").
 								Class("row").
@@ -878,7 +947,7 @@ func (h *short) Render() app.UI {
 																Type("checkbox").
 																Value("").
 																OnClick(func(ctx app.Context, e app.Event) {
-																	h.isShortAsData = ctx.JSSrc().Get("checked").Bool()
+																	h.isOption5 = ctx.JSSrc().Get("checked").Bool()
 																}),
 														),
 													app.If(h.isOption5,
@@ -904,6 +973,14 @@ func (h *short) Render() app.UI {
 												),
 										),
 								),
+							app.If(h.isOption5,
+								app.Div().
+									ID("shortOption7Wrapper").
+									Class("row").
+									Body(
+										passwordOption(&h.isRemovePassword, &h.isRemovePasswordShown, "remove"),
+									),
+							),
 						),
 				),
 			app.Div().
@@ -1091,8 +1168,16 @@ func (h *short) createShort() {
 			req.Header.Set(webappCommon.FPubPassToken, shortener.GenerateTokenTweaked(pubPass+h.sessionToken, 0, 30, 10))
 		}
 	}
+	if eRemPass := app.Window().GetElementByID("removePasswordText"); !eRemPass.IsNull() {
+		if remPass := eRemPass.Get("value").String(); remPass != "" {
+			req.Header.Set(webappCommon.FRemPassToken, shortener.GenerateTokenTweaked(remPass+h.sessionToken, 0, 30, 10))
+		}
+	}
 	if h.expireValue != "" {
 		req.Header.Set(webappCommon.FExpiration, h.expireValue)
+	}
+	if !h.isOption8 {
+		req.Header.Set(webappCommon.FPrivate, "false")
 	}
 	if !h.isOption5 {
 		req.Header.Set(webappCommon.FRemove, "false")

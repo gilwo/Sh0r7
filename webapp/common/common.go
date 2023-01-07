@@ -33,8 +33,10 @@ const (
 	FShortDesc        = "sDesc"       // field name for short description
 	FPrvPassToken     = "sPrvPassTok" // field name for short private pass token for access a locked short
 	FPubPassToken     = "sPubPassTok" // field name for short public pass token for access a locked short
+	FRemPassToken     = "sRemPassTok" // field name for short remove pass token for access a locked short
 	FExpiration       = "sExp"        // field name for short expiration
 	FRemove           = "sRem"        // field name for short remove feature
+	FPrivate          = "sPrv"        // field name for short private feature
 	FPass             = "pass"        // field name for clear pass for access a locked short
 	// FPass             = "%70%61%73%73" // field name for clear pass for access a locked short
 )
