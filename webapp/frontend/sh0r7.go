@@ -51,6 +51,8 @@ const (
 var (
 	ImgSource = "/web/logo.jpg"
 	// imgSource: "logoL.png",
+	BuildVer  string = "dev"
+	BuildTime string = "now"
 )
 
 func (h *short) RenderPrivate() app.UI {
@@ -332,7 +334,7 @@ func (h *short) Render() app.UI {
 	if h.isPublic {
 		return h.RenderPublic()
 	}
-	return app.Div().
+	return app.Main().Body(app.Div().
 		ID("mainWrapper").
 		Class("container").
 		Body(
@@ -613,11 +615,14 @@ func (h *short) Render() app.UI {
 												h.isPrivatePassword = false
 												h.isPrivatePasswordShown = false
 												h.isOption5 = false
+												h.isPublicPassword = false
+												h.isPublicPasswordShown = false
 												app.Window().GetElementByID("checkboxShortAsData").Set("checked", false)
 												app.Window().GetElementByID("checkboxExpire").Set("checked", false)
 												app.Window().GetElementByID("checkboxDescription").Set("checked", false)
 												app.Window().GetElementByID("checkboxPrivatePassword").Set("checked", false)
 												app.Window().GetElementByID("checkboxOption5").Set("checked", false)
+												app.Window().GetElementByID("checkboxPublicPassword").Set("checked", false)
 												h.Update()
 											}),
 									),
@@ -915,14 +920,14 @@ func (h *short) Render() app.UI {
 								ID("footerText"),
 						),
 				),
-		)
+		))
 }
 
 func newShort() *short {
 	return &short{}
 }
 
-func (h *short) OnInit() {
+func (h *short) load() {
 	lurl := app.Window().URL()
 	app.Logf("url: %#+v\n", lurl)
 	if strings.Contains(lurl.Path, webappCommon.PrivatePath) && lurl.Query().Has("key") {
@@ -942,7 +947,59 @@ func (h *short) OnInit() {
 	}
 	app.Logf("******************************* init")
 }
-func (h *short) OnPreRender() {
+func (h *short) load2() {
+	lurl := app.Window().URL()
+	app.Logf("url: %#+v\n", lurl)
+	if strings.Contains(lurl.Path, webappCommon.PrivatePath) && lurl.Query().Has("key") {
+		h.isPrivate = true
+		if lurl.Query().Has(webappCommon.PasswordProtected) {
+			h.privatePassSalt = lurl.Query().Get(webappCommon.PasswordProtected)
+			h.isResultLocked = true
+		}
+	} else if strings.Contains(lurl.Path, webappCommon.PublicPath) && lurl.Query().Has("key") {
+		h.isPublic = true
+		if lurl.Query().Has(webappCommon.PasswordProtected) {
+			h.publicPassSalt = lurl.Query().Get(webappCommon.PasswordProtected)
+			h.isResultLocked = true
+		}
+	} else {
+		if lurl.Query().Has(webappCommon.FSaltTokenID) {
+			qVals := lurl.Query()
+			stid, ok := qVals[webappCommon.FSaltTokenID]
+			if !ok {
+				app.Logf("problem with stid: %#v\n", stid)
+				return
+			}
+			seed := stid[0]
+			tokenLen, err := strconv.Atoi(stid[1])
+			if err != nil {
+				app.Logf("problem with number convertion: %s\n", err)
+				return
+			}
+			tokenStartPos, err := strconv.Atoi(stid[2])
+			if err != nil {
+				app.Logf("problem with number convertion: %s\n", err)
+				return
+			}
+
+			ua := app.Window().Get("navigator").Get("userAgent").String()
+
+			token := shortener.GenerateTokenTweaked(ua+seed, tokenStartPos, tokenLen, 0)
+			if token == "" {
+				app.Logf("problem with token generation\n")
+				return
+			}
+			h.sessionToken = token
+		}
+	}
+	app.Logf("load2....\n")
+}
+func (h *short) OnInit() {
+	h.load2()
+	app.Logf("******************************* init - build ver :<%s>, time: <%s>\n", BuildVer, BuildTime)
+}
+func (h *short) OnPreRender(ctx app.Context) {
+	h.load()
 	app.Logf("******************************* prerender")
 }
 func (h *short) OnDisMount() {
@@ -952,14 +1009,19 @@ func (h *short) OnMount() {
 	app.Logf("******************************* mount")
 }
 func (h *short) OnNav() {
+	h.load()
 	app.Logf("******************************* nav")
+}
+func (h *short) OnResize() {
+	h.ResizeContent()
+	app.Logf("******************************* update")
 }
 func (h *short) OnUpdate() {
 	app.Logf("******************************* update")
 }
 func (h *short) OnAppUpdate(ctx app.Context) {
-	app.Logf("******************************* app update")
 	h.updateAvailable = ctx.AppUpdateAvailable()
+	app.Logf("******************************* app update: %v\n", h.updateAvailable)
 }
 
 func urlCheck(s string) (string, bool) {
@@ -1327,6 +1389,7 @@ func (h *short) getTitleHeader() app.UI {
 						OnClick(func(ctx app.Context, e app.Event) {
 							url := app.Window().URL()
 							url.Path = webappCommon.ShortPath
+							url.RawQuery = ""
 							app.Window().Get("location").Set("href", url.String())
 						}),
 				),
@@ -1341,6 +1404,7 @@ func (h *short) getTitleHeader() app.UI {
 						OnClick(func(ctx app.Context, e app.Event) {
 							url := app.Window().URL()
 							url.Path = webappCommon.ShortPath
+							url.RawQuery = ""
 							app.Window().Get("location").Set("href", url.String())
 						}),
 					app.H2().
