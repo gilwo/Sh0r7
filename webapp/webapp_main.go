@@ -80,6 +80,7 @@ func webappInit() {
 		webappCommon.ShortPath:   true,
 		webappCommon.PrivatePath: true,
 		webappCommon.PublicPath:  true,
+		webappCommon.RemovePath:  true,
 		"/wasm_exec.js":          true,
 		"/app.js":                true,
 		"/manifest.webmanifest":  true,
@@ -142,6 +143,12 @@ func webappgenfunc(args ...interface{}) interface{} {
 				return true
 			}
 			if handlePrivateRedirect(c) {
+				return true
+			}
+			if checkRemoveRedirect(c) {
+				return true
+			}
+			if handleRemoveRedirect(c) {
 				return true
 			}
 			return false
@@ -252,6 +259,50 @@ func checkPublicRedirect(c *gin.Context) bool {
 	return false
 }
 
+func checkRemoveRedirect(c *gin.Context) bool {
+	if c.Param("ext") != "" {
+		return false
+	}
+	removeKey := c.Param("short")
+
+	log.Printf("path remove check if need redirect <%s>\n", c.Request.URL)
+	if dataKey, err := store.StoreCtx.LoadDataMapping(removeKey + store.SuffixRemove); err == nil {
+		if info, err := store.StoreCtx.LoadDataMappingInfo(string(dataKey) + store.SuffixPublic); err == nil {
+			if v, ok := info[store.FieldRemove]; ok && v == removeKey {
+
+				log.Printf("original url: %+#v\n", c.Request.URL)
+				redirect, err := url.ParseRequestURI(c.Request.RequestURI)
+				if err != nil {
+					log.Printf("failed to parse request uri: %s\n", err)
+					return false
+				}
+				redirect.Path = webappCommon.RemovePath
+				redirect.RawQuery = webappCommon.FPrivateKey + "=" + removeKey
+				log.Printf("redirect url: %+#v\n", c.Request.URL)
+
+				if strings.HasSuffix(c.Request.Referer(), redirect.String()) {
+					return false
+				}
+				if c.Request.Header.Get(webappCommon.FRemPassToken) != "" {
+					return false
+				}
+				if c.Request.URL.Query().Has(webappCommon.FPass) {
+					return false
+				}
+
+				if salt, ok := info[store.FieldRemPassSalt]; ok {
+					redirect.RawQuery += "&" + webappCommon.PasswordProtected + "=" + url.QueryEscape(salt.(string))
+					c.Redirect(http.StatusFound, redirect.String())
+					log.Printf("redirect with remove key (%s)\n", redirect)
+					return true
+				}
+			}
+		}
+	}
+	log.Printf("path remove not redirected <%s>\n", c.Request.URL)
+	return false
+}
+
 func handlePrivateRedirect(c *gin.Context) bool {
 	if strings.Contains(c.Request.URL.Path, webappCommon.PrivatePath) {
 		if key, ok := c.GetQuery("key"); ok {
@@ -285,6 +336,24 @@ func handlePublicRedirect(c *gin.Context) bool {
 	log.Printf("!! path not served: <%s>\n", c.Request.URL)
 	return false
 
+}
+
+func handleRemoveRedirect(c *gin.Context) bool {
+	if strings.Contains(c.Request.URL.Path, webappCommon.RemovePath) {
+		if key, ok := c.GetQuery("key"); ok {
+			if dataKey, err := store.StoreCtx.LoadDataMapping(key + store.SuffixRemove); err == nil {
+				if info, err := store.StoreCtx.LoadDataMappingInfo(string(dataKey) + store.SuffixPublic); err == nil {
+					if v, ok := info[store.FieldRemove]; ok && v == key {
+						log.Printf("!! serving path: <%s>\n", c.Request.RequestURI)
+						sh0r7H.ServeHTTP(c.Writer, c.Request)
+						return true
+					}
+				}
+			}
+		}
+	}
+	log.Printf("!! path not served: <%s>\n", c.Request.URL)
+	return false
 }
 
 func headerUpdate(c *gin.Context) {

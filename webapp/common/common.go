@@ -6,9 +6,11 @@ var (
 	ShortPath         = "/"
 	PrivatePath       = ShortPath + "private"
 	PublicPath        = ShortPath + "public"
+	RemovePath        = ShortPath + "remove"
 	DevShortPath      = "/testapp"
 	DevPrivatePath    = DevShortPath + "/private"
 	DevPublicPath     = DevShortPath + "/public"
+	DevRemovePath     = DevShortPath + "/remove"
 	PasswordProtected = "limitedAccess"
 	devBuild          bool
 )
@@ -18,6 +20,7 @@ func init() {
 		ShortPath = DevShortPath
 		PrivatePath = DevPrivatePath
 		PublicPath = DevPublicPath
+		RemovePath = DevRemovePath
 	}
 }
 
