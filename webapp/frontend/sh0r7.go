@@ -17,6 +17,8 @@ import (
 	webappCommon "github.com/gilwo/Sh0r7/webapp/common"
 	"github.com/google/uuid"
 	"github.com/maxence-charriere/go-app/v9/pkg/app"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 type short struct {
@@ -678,12 +680,8 @@ func (h *short) Render() app.UI {
 												h.isShortAsData = false
 												h.isExpireChecked = false
 												h.isDescription = false
-												h.isPrivatePassword = false
-												h.isPrivatePasswordShown = false
 												h.isPublicPassword = false
 												h.isPublicPasswordShown = false
-												h.isRemovePassword = false
-												h.isRemovePasswordShown = false
 												app.Window().GetElementByID("checkboxShortAsData").Set("checked", false)
 												app.Window().GetElementByID("checkboxExpire").Set("checked", false)
 												app.Window().GetElementByID("checkboxDescription").Set("checked", false)
@@ -691,12 +689,16 @@ func (h *short) Render() app.UI {
 													app.Window().GetElementByID("checkboxPrivatePassword").Set("checked", false)
 													app.Window().GetElementByID("checkboxOption8").Set("checked", false)
 													h.isOption8 = false
+													h.isPrivatePassword = false
+													h.isPrivatePasswordShown = false
 												}
 												app.Window().GetElementByID("checkboxPublicPassword").Set("checked", false)
 												if h.isOption5 {
 													app.Window().GetElementByID("checkboxRemovePassword").Set("checked", false)
 													app.Window().GetElementByID("checkboxOption5").Set("checked", false)
 													h.isOption5 = false
+													h.isRemovePassword = false
+													h.isRemovePasswordShown = false
 												}
 												h.Update()
 											}),
@@ -915,6 +917,12 @@ func (h *short) Render() app.UI {
 										),
 								),
 							app.Div().
+								ID("shortOption6Wrapper").
+								Class("row").
+								Body(
+									passwordOption(&h.isPublicPassword, &h.isPublicPasswordShown, "public"),
+								),
+							app.Div().
 								ID("shortOption8Wrapper").
 								Class("row").
 								Body(
@@ -975,12 +983,6 @@ func (h *short) Render() app.UI {
 										passwordOption(&h.isPrivatePassword, &h.isPrivatePasswordShown, "private"),
 									),
 							),
-							app.Div().
-								ID("shortOption6Wrapper").
-								Class("row").
-								Body(
-									passwordOption(&h.isPublicPassword, &h.isPublicPasswordShown, "public"),
-								),
 							app.Div().
 								ID("shortOption5Wrapper").
 								Class("row").
@@ -1613,6 +1615,7 @@ func (h *short) getTitleHeader() app.UI {
 }
 
 func passwordOption(isPassword, isPasswordShown *bool, which string) app.HTMLDiv {
+	whichTitle := cases.Title(language.English).String(which)
 	return app.Div().
 		Class("form-group").
 		Class("col-md-offset-2", "col-md-6", "col-sm-offset-2", "col-sm-6", "col-xs-offset-1", "col-xs-10").
@@ -1633,20 +1636,24 @@ func passwordOption(isPassword, isPasswordShown *bool, which string) app.HTMLDiv
 						Body(
 							app.Input().
 								Type("checkbox").
-								ID("checkbox"+strings.Title(which)+"Password").
+								ID("checkbox"+whichTitle+"Password").
 								Value("").
 								OnClick(func(ctx app.Context, e app.Event) {
+									elem := ctx.JSSrc()
+									app.Logf("checkbox element: <%s>\n", elem.Get("id").String())
 									*isPassword = ctx.JSSrc().Get("checked").Bool()
+									app.Logf("chkbox: setting %s to %v\n", which, *isPassword)
 								}),
 						),
 					app.If(*isPassword,
 						app.Div().Class("input-group-addon").Body(
 							app.Label().Body(
-								app.Text(strings.Title(which)+" password"),
+								app.Text(whichTitle+" password"),
 							).OnClick(func(ctx app.Context, e app.Event) {
-								elem := app.Window().GetElementByID("checkbox" + strings.Title(which) + "Password")
+								elem := app.Window().GetElementByID("checkbox" + whichTitle + "Password")
 								elem.Set("checked", false)
 								*isPassword = false
+								app.Logf("password addon: setting %s to %v\n", which, *isPassword)
 							}),
 						),
 						app.Input().
@@ -1680,9 +1687,10 @@ func passwordOption(isPassword, isPasswordShown *bool, which string) app.HTMLDiv
 					).Else(
 						app.Input().Class("form-control").ReadOnly(true).Value("No password on "+which+" link").
 							OnClick(func(ctx app.Context, e app.Event) {
-								elem := app.Window().GetElementByID("checkbox" + strings.Title(which) + "Password")
+								elem := app.Window().GetElementByID("checkbox" + whichTitle + "Password")
 								elem.Set("checked", true)
 								*isPassword = true
+								app.Logf("no password: setting %s to %v\n", which, *isPassword)
 							}),
 					),
 				),
