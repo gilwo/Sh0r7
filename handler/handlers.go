@@ -40,13 +40,15 @@ const (
 	LengthMaxDelete    = 15
 )
 
-func handleCreateShortModDelete(data string, isRemove, isUrl bool, expiration time.Duration) (map[string]string, error) {
+func handleCreateShortModDelete(data string, isPrivate, isRemove, isUrl bool, expiration time.Duration) (map[string]string, error) {
 	var err error
 	shorts := map[string]string{
 		store.SuffixPublic: shortener.GenerateShortDataTweakedWithStore2(
 			data+store.SuffixPublic, -1, 0, LengthMinShortFree, LengthMaxShortFree, store.StoreCtx),
-		store.SuffixPrivate: shortener.GenerateShortDataTweakedWithStore2(
-			data+store.SuffixPrivate, -1, 0, LengthMinPrivate, LengthMaxPrivate, store.StoreCtx),
+	}
+	if isPrivate {
+		shorts[store.SuffixPrivate] = shortener.GenerateShortDataTweakedWithStore2(
+			data+store.SuffixPrivate, -1, 0, LengthMinPrivate, LengthMaxPrivate, store.StoreCtx)
 	}
 	if isRemove {
 		shorts[store.SuffixRemove] = shortener.GenerateShortDataTweakedWithStore2(
@@ -59,8 +61,10 @@ func handleCreateShortModDelete(data string, isRemove, isUrl bool, expiration ti
 		}
 	}
 	mapping := map[string]string{
-		store.FieldPublic:  data,
-		store.FieldPrivate: shorts[store.SuffixPrivate],
+		store.FieldPublic: data,
+	}
+	if isPrivate {
+		mapping[store.FieldPrivate] = shorts[store.SuffixPrivate]
 	}
 	if isRemove {
 		mapping[store.FieldRemove] = shorts[store.SuffixRemove]
@@ -102,8 +106,10 @@ func handleCreateShortModDelete(data string, isRemove, isUrl bool, expiration ti
 	}
 
 	res := map[string]string{
-		store.FieldPublic:  shorts[store.SuffixPublic],
-		store.FieldPrivate: shorts[store.SuffixPrivate],
+		store.FieldPublic: shorts[store.SuffixPublic],
+	}
+	if isPrivate {
+		res[store.FieldPrivate] = shorts[store.SuffixPrivate]
 	}
 	if isRemove {
 		res[store.FieldRemove] = shorts[store.SuffixRemove]
@@ -120,6 +126,7 @@ func HandleCreateShortData(c *gin.Context) {
 		return
 	}
 	res, err := handleCreateShortModDelete(string(d),
+		c.Request.Header.Get(common.FPrivate) != "false",
 		c.Request.Header.Get(common.FRemove) != "false",
 		false, getExpiration(c))
 	if err != nil {
@@ -217,6 +224,7 @@ func HandleCreateShortUrl(c *gin.Context) {
 		return
 	} else {
 		res, err := handleCreateShortModDelete(url,
+			c.Request.Header.Get(common.FPrivate) != "false",
 			c.Request.Header.Get(common.FRemove) != "false",
 			true, getExpiration(c))
 		if err != nil {
@@ -314,35 +322,50 @@ func handleRemove(c *gin.Context, withResponse bool) bool {
 		_spawnErrCond(c, msg, withResponse)
 		return false
 	}
-	privateKey, err := store.StoreCtx.GetMetaDataMapping(string(dataKey)+store.SuffixPublic, store.FieldPrivate)
+	if r := isAccessToRemoveAllowed(c, string(dataKey)); r != nil && !*r {
+		return *r
+	}
+	info, err := store.StoreCtx.LoadDataMappingInfo(string(dataKey) + store.SuffixPublic)
 	if err != nil {
-		msg := errors.Errorf("there was a problem with short: %s", short)
-		log.Printf("%s, err: %s\n", msg, err)
-		_spawnErrCond(c, msg, withResponse)
+		log.Printf("failed to get info for token: <%s>\n", dataKey)
+		_spawnErrWithCode(c, http.StatusPreconditionFailed, errors.Errorf("invalid token"))
 		return false
 	}
-	privateKey += store.SuffixPrivate
-	if err := store.StoreCtx.RemoveDataMapping(string(dataKey) + store.SuffixPublic); err != nil {
-		msg := errors.Errorf("there was a problem with short: %s", short)
-		log.Printf("%s, err: %s\n", msg, err)
-		_spawnErrCond(c, msg, withResponse)
-		return false
+	if val, ok := info[store.FieldRemove]; ok { // we know its here alread as we arrived from it ... but for the generic flow logic - need to optimize ...
+		removeKey := val.(string) + store.SuffixRemove
+		if err := store.StoreCtx.RemoveDataMapping(removeKey); err != nil {
+			msg := errors.Errorf("there was a problem with short: %s", short)
+			log.Printf("%s - remove, err: %s\n", msg, err)
+			_spawnErrCond(c, msg, withResponse)
+			return false
+		}
 	}
-	if err := store.StoreCtx.RemoveDataMapping(privateKey); err != nil {
-		msg := errors.Errorf("there was a problem with short: %s", short)
-		log.Printf("%s, err: %s\n", msg, err)
-		_spawnErrCond(c, msg, withResponse)
-		return false
+	if val, ok := info[store.FieldPublic]; ok {
+		publicKey := val.(string) + store.SuffixPublic
+		if err := store.StoreCtx.RemoveDataMapping(publicKey); err != nil {
+			msg := errors.Errorf("there was a problem with short: %s", short)
+			log.Printf("%s - public, err: %s\n", msg, err)
+			_spawnErrCond(c, msg, withResponse)
+			return false
+		}
 	}
-	if err := store.StoreCtx.RemoveDataMapping(removeKey); err != nil {
-		msg := errors.Errorf("there was a problem with short: %s", short)
-		log.Printf("%s, err: %s\n", msg, err)
-		_spawnErrCond(c, msg, withResponse)
-		return false
+	if val, ok := info[store.FieldPrivate]; ok {
+		privateKey := val.(string) + store.SuffixPrivate
+		if err := store.StoreCtx.RemoveDataMapping(privateKey); err != nil {
+			msg := errors.Errorf("there was a problem with short: %s", short)
+			log.Printf("%s - private, err: %s\n", msg, err)
+			_spawnErrCond(c, msg, withResponse)
+			return false
+		}
 	}
-	store.StoreCtx.RemoveDataMapping(string(dataKey) + store.SuffixURL)
-	if withResponse {
-		c.Status(200)
+	if val, ok := info[store.FieldURL]; ok {
+		urlKey := val.(string) + store.SuffixURL
+		if err := store.StoreCtx.RemoveDataMapping(urlKey); err != nil {
+			msg := errors.Errorf("there was a problem with short: %s", short)
+			log.Printf("%s - url, err: %s\n", msg, err)
+			_spawnErrCond(c, msg, withResponse)
+			return false
+		}
 	}
 	return true
 }
@@ -490,6 +513,49 @@ func isAccessToShortAllowed(c *gin.Context, short string) (r *bool) {
 	}
 	return
 }
+func isAccessToRemoveAllowed(c *gin.Context, short string) (r *bool) {
+	True := true
+	False := false
+	storedRemPassTok, e1 := store.StoreCtx.GetMetaDataMapping(string(short)+store.SuffixPublic, store.FieldRemPassTok)
+	if e1 == nil && storedRemPassTok != "" {
+		storedRemPassSalt, e2 := store.StoreCtx.GetMetaDataMapping(string(short)+store.SuffixPublic, store.FieldRemPassSalt)
+		if e2 != nil {
+			msg := errors.Errorf("short <%s> is locked but missing salt", short)
+			log.Printf("%s, e2: %s\n", msg, e2.Error())
+			_spawnErr(c, msg)
+			return &False
+		}
+		if !c.Request.URL.Query().Has(common.FPass) {
+			recvPassToken := c.Request.Header.Get(common.FRemPassToken)
+			log.Printf("-- (recv) pass token: <%s>\n", recvPassToken)
+			log.Printf("-- pass token: <%s>\n", storedRemPassTok)
+			log.Printf("-- pass salt: <%s>\n", storedRemPassSalt)
+			if recvPassToken != storedRemPassTok {
+				msg := errors.Errorf("access denied to short <%s>", short)
+				log.Printf("%s (pass tok),  recv <%s>, salt <%s>, stored <%s>\n",
+					msg, recvPassToken, storedRemPassSalt, storedRemPassTok)
+				_spawnErrWithCode(c, http.StatusForbidden, msg)
+				return &False
+			}
+		} else {
+			passTxt := c.Request.URL.Query().Get(common.FPass)
+			calcPassTok := shortener.GenerateTokenTweaked(passTxt+storedRemPassSalt, 0, 30, 10)
+			log.Printf("-- (recv) pass : <%s>\n", passTxt)
+			log.Printf("-- pass salt: <%s>\n", storedRemPassSalt)
+			log.Printf("-- pass token: <%s>\n", storedRemPassTok)
+			log.Printf("-- (calc) pass token: <%s>\n", calcPassTok)
+			if calcPassTok != storedRemPassTok {
+				msg := errors.Errorf("access denied to short <%s>", short)
+				log.Printf("%s (pass text), txt <%s>, salt <%s>, calc <%s>, stored <%s>\n",
+					msg, passTxt, storedRemPassSalt, calcPassTok, storedRemPassTok)
+				_spawnErrWithCode(c, http.StatusForbidden, msg)
+				return &False
+			}
+		}
+		return &True
+	}
+	return
+}
 func getData(c *gin.Context) bool {
 	short := c.Param("short")
 	if r := isAccessToShortAllowed(c, short); r != nil && !*r {
@@ -571,7 +637,7 @@ func checkToken(c *gin.Context) bool {
 		return false
 	}
 
-	v, ok := info["created"]
+	v, ok := info[store.FieldTime]
 	if !ok {
 		log.Printf("failed to get created time value for on token: <%s>\n", token)
 		_spawnErrWithCode(c, http.StatusPreconditionFailed, errors.Errorf("invalid token"))
@@ -586,7 +652,7 @@ func checkToken(c *gin.Context) bool {
 		return false
 	}
 	log.Printf("created time for key: <%s> : before parse [%s], after parse [%s]\n", token, when, t)
-	v, ok = info["ttl"]
+	v, ok = info[store.FieldTTL]
 	if !ok {
 		log.Printf("failed to get ttl value for on token: <%s>\n", token)
 		_spawnErrWithCode(c, http.StatusPreconditionFailed, errors.Errorf("invalid token"))
@@ -645,6 +711,17 @@ func handleCreateHeaders(c *gin.Context, res map[string]string) {
 		err = store.StoreCtx.SetMetaDataMapping(res[store.FieldPublic]+store.SuffixPublic, store.FieldPubPassTok, pubPassTok)
 		if err != nil {
 			log.Printf("failed keeping pub pass on short <%s> metadata\n", res[store.FieldPublic])
+		}
+	}
+	if remPassTok := c.Request.Header.Get(common.FRemPassToken); remPassTok != "" {
+		token := c.Request.Header.Get(common.FTokenID)
+		err = store.StoreCtx.SetMetaDataMapping(res[store.FieldPublic]+store.SuffixPublic, store.FieldRemPassSalt, token)
+		if err != nil {
+			log.Printf("failed keeping rem pass token on short <%s> metadata\n", res[store.FieldPublic])
+		}
+		err = store.StoreCtx.SetMetaDataMapping(res[store.FieldPublic]+store.SuffixPublic, store.FieldRemPassTok, remPassTok)
+		if err != nil {
+			log.Printf("failed keeping rem pass on short <%s> metadata\n", res[store.FieldPublic])
 		}
 	}
 }

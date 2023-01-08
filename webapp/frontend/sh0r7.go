@@ -29,6 +29,7 @@ type short struct {
 	debug                  bool
 	isPrivate              bool   // indicate short url is private
 	isPublic               bool   // indicate short url is public
+	isRemove               bool   // indicate short url is remove
 	isShortAsData          bool   // indicate whether the input should be treated as data and not auto identify - option 1
 	isExpireChecked        bool   // indicate whether the expiration feature is used - option 2
 	isDescription          bool   // indicate whether the description feature is used when creating short - option 3
@@ -43,6 +44,7 @@ type short struct {
 	isResultLocked         bool   // indicate that the requested short is password locked
 	privatePassSalt        string // salt used for password token - for private link
 	publicPassSalt         string // salt used for password token - for public link
+	removePassSalt         string // salt used for password token - for remove link
 	passToken              string // the password token used to lock and unlock the short private
 	updateAvailable        bool   // new version available
 }
@@ -327,12 +329,71 @@ func (h *short) RenderPublic() app.UI {
 		)
 }
 
+func (h *short) RenderRemove() app.UI {
+	if !h.isResultLocked {
+		app.Logf("triggering getRemoveShort with passtoekn : <%s>\n", h.passToken)
+		out, _, err := h.getRemoveShort(h.passToken)
+		app.Logf("getRemoveshort result: <%v>\n", out)
+		if err != nil {
+			app.Logf("error getting remove data (%s)\n", err)
+		} else {
+			return app.Div().
+				Body(
+					app.Text("short removed"),
+				)
+		}
+	}
+	return app.Div().
+		Class("container").
+		Body(
+			app.If(h.isResultLocked,
+				app.Div().
+					ID("lockedPassword").
+					Class().
+					Body(
+						app.Form().
+							Class("form-inline").
+							Body(
+								app.Div().
+									Class("form-group").
+									Body(
+										app.Input().
+											ID("resultUserPassword").
+											Class("form-control").
+											Type("password").
+											Placeholder("Password"),
+									),
+
+								app.Button().
+									Title("Unlock the remove short").
+									ID("unlockButton").
+									Class("btn", "btn-default").
+									Type("button").
+									Body(
+										app.Text("Unlock"),
+									).
+									OnClick(func(ctx app.Context, e app.Event) {
+										elem := app.Window().GetElementByID("resultUserPassword")
+										v := elem.Get("value").String()
+										h.passToken = shortener.GenerateTokenTweaked(v+h.removePassSalt, 0, 30, 10)
+										h.isResultLocked = false
+										h.Update()
+									}),
+							),
+					),
+			),
+		)
+}
+
 func (h *short) Render() app.UI {
 	if h.updateAvailable {
 		return h.RenderUpdate()
 	}
 	if h.isPrivate {
 		return h.RenderPrivate()
+	}
+	if h.isRemove {
+		return h.RenderRemove()
 	}
 	if h.isPublic {
 		return h.RenderPublic()
@@ -1035,6 +1096,12 @@ func (h *short) load2() {
 			h.privatePassSalt = lurl.Query().Get(webappCommon.PasswordProtected)
 			h.isResultLocked = true
 		}
+	} else if strings.Contains(lurl.Path, webappCommon.RemovePath) && lurl.Query().Has("key") {
+		h.isRemove = true
+		if lurl.Query().Has(webappCommon.PasswordProtected) {
+			h.removePassSalt = lurl.Query().Get(webappCommon.PasswordProtected)
+			h.isResultLocked = true
+		}
 	} else if strings.Contains(lurl.Path, webappCommon.PublicPath) && lurl.Query().Has("key") {
 		h.isPublic = true
 		if lurl.Query().Has(webappCommon.PasswordProtected) {
@@ -1368,6 +1435,40 @@ func (h *short) getPublicShort(passToken string) (map[string]string, []string, e
 	return map[string]string{
 		store.FieldURL: tup.Get(store.FieldURL),
 	}, []string{store.FieldURL}, nil
+}
+func (h *short) getRemoveShort(passToken string) (map[string]string, []string, error) {
+
+	var err error
+	url := app.Window().URL()
+	url.Path = "/" + url.Query().Get(webappCommon.FPrivateKey)
+	url.RawQuery = ""
+
+	client := http.Client{
+		Timeout: time.Duration(5 * time.Second),
+	}
+	req, err := http.NewRequest(http.MethodGet, url.String(), nil)
+	if err != nil {
+		app.Logf("failed to create new request: %s\n", err)
+		return nil, nil, err
+	}
+	if passToken != "" {
+		req.Header.Set(webappCommon.FRemPassToken, passToken)
+	}
+	req.Header.Set("Content-Type", "text/plain")
+	req.Header.Set("xRedirect", "no")
+	app.Logf("invoking request: %+#v\n", req)
+	resp, err := client.Do(req)
+	if err != nil {
+		app.Logf("failed to invoke request: %s\n", err)
+		return nil, nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		app.Logf("response not ok: %v\n", resp.StatusCode)
+		return nil, nil, fmt.Errorf("status: %v", resp.StatusCode)
+	}
+
+	return nil, nil, nil
 }
 
 func (h *short) getPrivateInfo(passToken string) (map[string]string, []string, error) {
