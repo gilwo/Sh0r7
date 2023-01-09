@@ -234,9 +234,6 @@ func GinInit() *gin.Engine {
 		// 		return
 		// 	}
 		// }
-		if common.WebappGenFunc != nil && common.WebappGenFunc("SERVE", c).(bool) {
-			return
-		}
 
 		if paramShort == "hc" {
 			triggerMaintainence()
@@ -247,6 +244,8 @@ func GinInit() *gin.Engine {
 			handler.HandleGetShortDataInfo(c)
 		} else if paramExt == "data" {
 			handler.HandleGetOriginData(c)
+		} else if common.WebappGenFunc != nil && common.WebappGenFunc("SERVE", c).(bool) {
+			return
 		} else {
 			handler.HandleShort(c)
 		}
