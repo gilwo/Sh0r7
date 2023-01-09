@@ -281,6 +281,7 @@ func (h *short) RenderPublic() app.UI {
 		} else {
 			if _, ok := out[store.FieldURL]; ok {
 				app.Window().Get("location").Set("href", out[store.FieldURL])
+				return app.Main().Body(app.Div().Class().Body(app.Text("...")))
 			} else {
 				return app.Div().
 					Body(
@@ -326,6 +327,26 @@ func (h *short) RenderPublic() app.UI {
 										h.Update()
 									}),
 							),
+					),
+			).Else(
+				app.Div().
+					Class("passwordError").
+					Body(
+						app.Text("Unlock failed"),
+						app.Button().
+							Title("Retry").
+							ID("").
+							Class("btn", "btn-default").
+							Type("button").
+							Body(
+								app.Text("Retry"),
+							).
+							OnClick(func(ctx app.Context, e app.Event) {
+								retryUrl, _ := url.ParseRequestURI(app.Window().URL().String())
+								retryUrl.Path = retryUrl.Query().Get(webappCommon.FPrivateKey)
+								retryUrl.RawQuery = ""
+								app.Window().Get("location").Set("href", retryUrl.String())
+							}),
 					),
 			),
 		)
@@ -382,6 +403,26 @@ func (h *short) RenderRemove() app.UI {
 										h.Update()
 									}),
 							),
+					),
+			).Else(
+				app.Div().
+					Class("passwordError").
+					Body(
+						app.Text("Unlock failed"),
+						app.Button().
+							Title("Retry").
+							ID("").
+							Class("btn", "btn-default").
+							Type("button").
+							Body(
+								app.Text("Retry"),
+							).
+							OnClick(func(ctx app.Context, e app.Event) {
+								retryUrl, _ := url.ParseRequestURI(app.Window().URL().String())
+								retryUrl.Path = retryUrl.Query().Get(webappCommon.FPrivateKey)
+								retryUrl.RawQuery = ""
+								app.Window().Get("location").Set("href", retryUrl.String())
+							}),
 					),
 			),
 		)
@@ -1076,6 +1117,12 @@ func (h *short) load() {
 		h.isPrivate = true
 		if lurl.Query().Has(webappCommon.PasswordProtected) {
 			h.privatePassSalt = lurl.Query().Get(webappCommon.PasswordProtected)
+			h.isResultLocked = true
+		}
+	} else if strings.Contains(lurl.Path, webappCommon.RemovePath) && lurl.Query().Has("key") {
+		h.isRemove = true
+		if lurl.Query().Has(webappCommon.PasswordProtected) {
+			h.removePassSalt = lurl.Query().Get(webappCommon.PasswordProtected)
 			h.isResultLocked = true
 		}
 	} else if strings.Contains(lurl.Path, webappCommon.PublicPath) && lurl.Query().Has("key") {

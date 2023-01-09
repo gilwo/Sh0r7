@@ -130,9 +130,6 @@ func webappgenfunc(args ...interface{}) interface{} {
 			}
 		}
 		if _, ok := webappServedPaths[path]; !ok {
-			if fixPath(c) {
-				return true
-			}
 			if checkPublicRedirect(c) {
 				return true
 			}
