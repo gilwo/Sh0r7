@@ -1,6 +1,181 @@
 package frontend
 
-import "github.com/maxence-charriere/go-app/v9/pkg/app"
+import (
+	"time"
+
+	"github.com/gilwo/Sh0r7/store"
+	"github.com/maxence-charriere/go-app/v9/pkg/app"
+)
+
+func (h *short) shortCreationOutput() app.UI {
+	return app.Div().
+		Class("container-fluid").
+		Class("shortOutput").
+		Body(
+			app.Div().
+				Class("row").
+				Body(
+					app.Div().
+						Class("form-group").
+						Class("input-group").
+						Body(
+							app.Span().
+								Class("input-group-addon", "fld-title").
+								// Styles(map[string]string{
+								// 	"float": "left",
+								// 	"width": "12%"}).
+								Body(
+									app.Text("public"),
+								),
+							app.Input().
+								ID("short-public").
+								Type("text").
+								Class("form-control").
+								Class("syncTextStyle").
+								ReadOnly(true).
+								// Styles(map[string]string{
+								// 	"float": "center",
+								// 	"width": "30%"}).
+								Value(h.shortLink(store.FieldPublic, h.resultMap)),
+							app.Span().
+								Class("input-group-btn").
+								// Styles(map[string]string{
+								// 	"float": "center",
+								// 	"width": "10%"}).
+								Body(
+									app.Button().
+										Title("Copy to clipboard...").
+										ID("copy-public").
+										Class("btn", "btn-warning", "btn-copy").
+										Type("button").
+										Body(
+											app.Text("Copy"),
+										).
+										OnClick(func(ctx app.Context, e app.Event) {
+											h.copyToClipboard("short-public")
+											elem := app.Window().GetElementByID("copy-public")
+											app.Logf("current value: %v\n", elem.Get("body"))
+											elem.Set("textContent", "Copied")
+											ctx.After(400*time.Millisecond, func(ctx app.Context) {
+												elem.Set("textContent", "Copy")
+											})
+										}).
+										OnMouseOver(func(ctx app.Context, e app.Event) {
+											if h.debug {
+												elem := app.Window().GetElementByID("messages")
+												elem.Set("innerText", "copy to clipboard")
+											}
+										}).
+										OnMouseOut(func(ctx app.Context, e app.Event) {
+											if h.debug {
+												elem := app.Window().GetElementByID("messages")
+												elem.Set("innerText", "")
+											}
+										}),
+								),
+						),
+				),
+			app.If(h.isOptionPrivate,
+				app.Div().
+					Class("row").
+					Body(
+						app.Div().
+							Class("form-group").
+							Class("input-group").
+							Body(
+								app.Span().
+									Class("input-group-addon", "fld-title").
+									// Styles(map[string]string{
+									// 	"float": "left",
+									// 	"width": "12%"}).
+									Body(
+										app.Text("private"),
+									),
+								app.Input().
+									ID("short-private").
+									Type("text").
+									Class("form-control").
+									Class("syncTextStyle").
+									ReadOnly(true).
+									// Styles(map[string]string{
+									// 	"float": "center",
+									// 	"width": "30%"}).
+									Value(h.shortLink(store.FieldPrivate, h.resultMap)),
+
+								app.Span().
+									Class("input-group-btn").
+									// Styles(map[string]string{
+									// 	"float": "center",
+									// 	"width": "10%"}).
+									Body(
+										app.Button().
+											Title("Copy to clipboard...").
+											ID("copy-private").
+											Class("btn", "btn-warning", "btn-copy").
+											Type("button").
+											Body(
+												app.Text("Copy"),
+											).OnClick(func(ctx app.Context, e app.Event) {
+											h.copyToClipboard("short-private")
+											elem := app.Window().GetElementByID("copy-private")
+											app.Logf("current value: %v\n", elem.Get("body"))
+											elem.Set("textContent", "Copied")
+											ctx.After(400*time.Millisecond, func(ctx app.Context) {
+												elem.Set("textContent", "Copy")
+											})
+										}),
+									),
+							),
+					),
+			),
+			app.If(h.isOptionRemove,
+				app.Div().
+					Class("row").
+					Body(
+						app.Div().
+							Class("form-group").
+							Class("input-group").
+							Body(
+								app.Span().
+									Class("input-group-addon", "fld-title").
+									// Styles(map[string]string{
+									// 	"float": "left",
+									// 	"width": "12%"}).
+									Body(
+										app.Text("delete"),
+									),
+								app.Input().
+									ID("short-delete").
+									Type("text").
+									Class("form-control").
+									Class("syncTextStyle").
+									ReadOnly(true).
+									Value(h.shortLink(store.FieldRemove, h.resultMap)),
+								app.Span().
+									Class("input-group-btn").
+									Body(
+										app.Button().
+											Title("Copy to clipboard...").
+											ID("copy-delete").
+											Class("btn", "btn-warning", "btn-copy").
+											Type("button").
+											Body(
+												app.Text("Copy"),
+											).OnClick(func(ctx app.Context, e app.Event) {
+											h.copyToClipboard("short-delete")
+											elem := app.Window().GetElementByID("copy-delete")
+											app.Logf("current value: %v\n", elem.Get("body"))
+											elem.Set("textContent", "Copied")
+											ctx.After(400*time.Millisecond, func(ctx app.Context) {
+												elem.Set("textContent", "Copy")
+											})
+										}),
+									),
+							),
+					),
+			),
+		)
+}
 
 func (h *short) OptionsTitle() app.UI {
 	return app.Div().
@@ -45,6 +220,7 @@ func (h *short) OptionShortAsData() app.UI {
 										ID("checkboxShortAsData").
 										Type("checkbox").
 										Value("").
+										Checked(false).
 										OnClick(func(ctx app.Context, e app.Event) {
 											h.isShortAsData = ctx.JSSrc().Get("checked").Bool()
 										}),
@@ -101,6 +277,7 @@ func (h *short) OptionExpire() app.UI {
 										Type("checkbox").
 										ID("checkboxExpire").
 										Value("").
+										Checked(false).
 										OnClick(func(ctx app.Context, e app.Event) {
 											h.isExpireChecked = ctx.JSSrc().Get("checked").Bool()
 										}),
@@ -179,6 +356,7 @@ func (h *short) OptionDescription() app.UI {
 										Type("checkbox").
 										ID("checkboxDescription").
 										Value("").
+										Checked(false).
 										OnClick(func(ctx app.Context, e app.Event) {
 											h.isDescription = ctx.JSSrc().Get("checked").Bool()
 										}),
@@ -219,134 +397,135 @@ func (h *short) OptionPublic() app.UI {
 		)
 }
 
-func (h *short) OptionPrivate() []app.UI {
-	return []app.UI{
-		app.Div().
-			ID("shortOption8Wrapper").
-			Class("row").
-			Body(
-				app.Div().
-					Class("form-group").
-					Class("col-md-offset-2", "col-md-6", "col-sm-offset-2", "col-sm-6", "col-xs-offset-1", "col-xs-10").
-					Body(
-						app.Div().
-							Class("input-group").
-							Class(func() string {
-								if h.isOption8 {
-									return "has-success"
-								}
-								return "has-warning"
-							}()).
-							Title("Enable short private link").
-							ID("option8ID").
-							Body(
-								app.Label().
-									Class("input-group-addon").
-									Body(
-										app.Input().
-											ID("checkboxOption8").
-											Type("checkbox").
-											Value("").
-											OnClick(func(ctx app.Context, e app.Event) {
-												h.isOption8 = ctx.JSSrc().Get("checked").Bool()
-											}),
-									),
-								app.If(h.isOption8,
+func (h *short) OptionPrivate() app.UI {
+	return app.Div().
+		ID("shortOption8Wrapper").
+		Class("row").
+		Body(
+			app.Div().
+				Class("form-group").
+				Class("col-md-offset-2", "col-md-6", "col-sm-offset-2", "col-sm-6", "col-xs-offset-1", "col-xs-10").
+				Body(
+					app.Div().
+						Class("input-group").
+						Class(func() string {
+							if h.isOptionPrivate {
+								return "has-success"
+							}
+							return "has-warning"
+						}()).
+						Title("Enable short private link").
+						ID("optionPrivateID").
+						Body(
+							app.Label().
+								Class("input-group-addon").
+								Body(
 									app.Input().
-										Class("form-control").
-										Class("syncTextStyle").
-										Class("onlyText").
-										ID("option8True").
-										ReadOnly(true).Value("Enable short private link").
+										ID("checkboxOptionPrivate").
+										Type("checkbox").
+										Value("").
+										Checked(false).
 										OnClick(func(ctx app.Context, e app.Event) {
-											elem := app.Window().GetElementByID("checkboxOption8")
-											elem.Set("checked", false)
-											h.isOption8 = false
-										}),
-								).Else(
-									app.Input().Class("form-control").ReadOnly(true).Value("No short private link").
-										OnClick(func(ctx app.Context, e app.Event) {
-											elem := app.Window().GetElementByID("checkboxOption8")
-											elem.Set("checked", true)
-											h.isOption8 = true
+											app.Logf("checkbox ID click: %s\n", ctx.JSSrc().Get("id").String())
+											h.isOptionPrivate = ctx.JSSrc().Get("checked").Bool()
+											if !h.isOptionPrivate {
+												h.isPrivatePassword = false
+												h.isPrivatePasswordShown = false
+											}
 										}),
 								),
+							app.If(h.isOptionPrivate,
+								app.Input().
+									Class("form-control").
+									Class("syncTextStyle").
+									Class("onlyText").
+									ID("optionPrivateTrue").
+									ReadOnly(true).Value("Enable short private link").
+									OnClick(func(ctx app.Context, e app.Event) {
+										elem := app.Window().GetElementByID("checkboxOptionPrivate")
+										elem.Set("checked", false)
+										h.isOptionPrivate = false
+										h.isPrivatePassword = false
+										h.isPrivatePasswordShown = false
+									}),
+							).Else(
+								app.Input().Class("form-control").ReadOnly(true).Value("No short private link").
+									OnClick(func(ctx app.Context, e app.Event) {
+										elem := app.Window().GetElementByID("checkboxOptionPrivate")
+										elem.Set("checked", true)
+										h.isOptionPrivate = true
+									}),
 							),
-					),
-			),
-		app.If(h.isOption8,
-			app.Div().
-				ID("shortOption4Wrapper").
-				Class("row").
-				Body(
-					h.passwordOption(&h.isPrivatePassword, &h.isPrivatePasswordShown, "private"),
+						),
 				),
-		),
-	}
+			app.If(h.isOptionPrivate,
+				h.passwordOption(&h.isPrivatePassword, &h.isPrivatePasswordShown, "private"),
+			),
+		)
 }
 
-func (h *short) OptionRemove() []app.UI {
-	return []app.UI{
-		app.Div().
-			ID("shortOption5Wrapper").
-			Class("row").
-			Body(
-				app.Div().
-					Class("form-group").
-					Class("col-md-offset-2", "col-md-6", "col-sm-offset-2", "col-sm-6", "col-xs-offset-1", "col-xs-10").
-					Body(
-						app.Div().
-							Class("input-group").
-							Class(func() string {
-								if h.isOption5 {
-									return "has-success"
-								}
-								return "has-warning"
-							}()).
-							Title("Enable short removal link").
-							ID("option5ID").
-							Body(
-								app.Label().
-									Class("input-group-addon").
-									Body(
-										app.Input().
-											ID("checkboxOption5").
-											Type("checkbox").
-											Value("").
-											OnClick(func(ctx app.Context, e app.Event) {
-												h.isOption5 = ctx.JSSrc().Get("checked").Bool()
-											}),
-									),
-								app.If(h.isOption5,
+func (h *short) OptionRemove() app.UI {
+	return app.Div().
+		ID("shortOption5Wrapper").
+		Class("row").
+		Body(
+			app.Div().
+				Class("form-group").
+				Class("col-md-offset-2", "col-md-6", "col-sm-offset-2", "col-sm-6", "col-xs-offset-1", "col-xs-10").
+				Body(
+					app.Div().
+						Class("input-group").
+						Class(func() string {
+							if h.isOptionRemove {
+								return "has-success"
+							}
+							return "has-warning"
+						}()).
+						Title("Enable short removal link").
+						ID("optionRemoveID").
+						Body(
+							app.Label().
+								Class("input-group-addon").
+								Body(
 									app.Input().
-										Class("form-control").
-										Class("syncTextStyle").
-										Class("onlyText").
-										ID("option5True").
-										ReadOnly(true).Value("Enable short removal link").
+										ID("checkboxOptionRemove").
+										Type("checkbox").
+										Value("").
+										Checked(false).
 										OnClick(func(ctx app.Context, e app.Event) {
-											elem := app.Window().GetElementByID("checkboxOption5")
-											elem.Set("checked", false)
-											h.isOption5 = false
-										}),
-								).Else(
-									app.Input().Class("form-control").ReadOnly(true).Value("No short removal link").
-										OnClick(func(ctx app.Context, e app.Event) {
-											elem := app.Window().GetElementByID("checkboxOption5")
-											elem.Set("checked", true)
-											h.isOption5 = true
+											h.isOptionRemove = ctx.JSSrc().Get("checked").Bool()
+											if !h.isOptionRemove {
+												h.isRemovePassword = false
+												h.isRemovePasswordShown = false
+											}
 										}),
 								),
+							app.If(h.isOptionRemove,
+								app.Input().
+									Class("form-control").
+									Class("syncTextStyle").
+									Class("onlyText").
+									ID("optionRemoveTrue").
+									ReadOnly(true).Value("Enable short removal link").
+									OnClick(func(ctx app.Context, e app.Event) {
+										elem := app.Window().GetElementByID("checkboxOptionRemove")
+										elem.Set("checked", false)
+										h.isOptionRemove = false
+										h.isRemovePassword = false
+										h.isRemovePasswordShown = false
+									}),
+							).Else(
+								app.Input().Class("form-control").ReadOnly(true).Value("No short removal link").
+									OnClick(func(ctx app.Context, e app.Event) {
+										elem := app.Window().GetElementByID("checkboxOptionRemove")
+										elem.Set("checked", true)
+										h.isOptionRemove = true
+									}),
 							),
-					),
-			),
-		app.If(h.isOption5,
-			app.Div().
-				ID("shortOption7Wrapper").
-				Class("row").
-				Body(
-					h.passwordOption(&h.isRemovePassword, &h.isRemovePasswordShown, "remove"),
+						),
 				),
-		),
-	}
+			app.If(h.isOptionRemove,
+				h.passwordOption(&h.isRemovePassword, &h.isRemovePasswordShown, "remove"),
+			),
+		)
 }
