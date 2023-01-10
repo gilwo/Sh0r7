@@ -571,7 +571,7 @@ func (h *short) Render() app.UI {
 												if h.isOptionRemove {
 													app.Window().GetElementByID("checkboxRemovePassword").Set("checked", false)
 													app.Window().GetElementByID("checkboxOptionRemove").Set("checked", false)
-													h.isRemove = false
+													h.isOptionRemove = false
 													h.isRemovePassword = false
 													h.isRemovePasswordShown = false
 												}
