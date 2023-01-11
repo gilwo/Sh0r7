@@ -611,14 +611,37 @@ func (h *short) Render() app.UI {
 			app.Div().
 				Class("row").
 				Class("footer").
+				Class("container").
 				Body(
 					app.Div().
-						Class("col-xs-8 col-xs-offset-2").
+						Class("row").
 						Body(
-							app.Textarea().
-								Class("syncTextStyle").
-								ID("footerText"),
+							app.Div().
+								Class("col-xs-6 col-xs-offset-3").
+								Class("text-center").
+								Body(
+									app.P().
+										Body(
+											app.Strong().Text("For more information "),
+											app.Br(),
+											app.A().
+												Style("color", "lightgreen").
+												Href("mailto:info@sh0r7.me").
+												Body(
+													app.Text("Contact us"),
+												),
+										),
+								),
 						),
+					app.If(h.debug,
+						app.Div().
+							Class("col-xs-8 col-xs-offset-2").
+							Body(
+								app.Textarea().
+									Class("syncTextStyle").
+									ID("footerText"),
+							),
+					),
 				),
 		))
 }
