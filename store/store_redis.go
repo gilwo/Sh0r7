@@ -1,4 +1,4 @@
-// go:build redis
+//go:build redis
 
 package store
 
