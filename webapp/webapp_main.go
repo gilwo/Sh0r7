@@ -399,6 +399,12 @@ func checkSaltTokenStillValid(c *gin.Context) bool {
 		log.Printf("not field %s\n", webappCommon.FSaltTokenID)
 		return false
 	}
+	x, err := shortener.Base64SE.Decode(stid[0])
+	if err != nil {
+		app.Logf("problem with stid : %s\n", err)
+		return false
+	}
+	stid = strings.Split(string(x), "$")
 	seed := stid[0]
 	tokenLen, err := strconv.Atoi(stid[1])
 	if err != nil {
@@ -484,9 +490,10 @@ func queryUpdate(c *gin.Context) bool {
 	redirect.Path = webappCommon.ShortPath
 	redirect.RawQuery = ""
 	q := redirect.Query()
-	q.Add(webappCommon.FSaltTokenID, seed)
-	q.Add(webappCommon.FSaltTokenID, fmt.Sprintf("%d", tokenLen))
-	q.Add(webappCommon.FSaltTokenID, "0")
+	// q.Add(webappCommon.FSaltTokenID, seed)
+	// q.Add(webappCommon.FSaltTokenID, fmt.Sprintf("%d", tokenLen))
+	// q.Add(webappCommon.FSaltTokenID, "0")
+	q.Add(webappCommon.FSaltTokenID, shortener.Base64SE.Encode([]byte(fmt.Sprintf("%s$%d$%d", seed, tokenLen, 0))))
 	redirect.RawQuery = q.Encode()
 	c.Redirect(http.StatusFound, redirect.String())
 	log.Printf("redirect with token seed (%s)\n", redirect)

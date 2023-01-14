@@ -707,6 +707,12 @@ func (h *short) load2() {
 				app.Logf("problem with stid: %#v\n", stid)
 				return
 			}
+			x, err := shortener.Base64SE.Decode(stid[0])
+			if err != nil {
+				app.Logf("problem with stid : %s\n", err)
+				return
+			}
+			stid = strings.Split(string(x), "$")
 			seed := stid[0]
 			tokenLen, err := strconv.Atoi(stid[1])
 			if err != nil {
