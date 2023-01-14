@@ -151,6 +151,11 @@ div.passwordError {
     z-index: 1;
     border-radius: 10px;
 }
+
+.clickLinkAble {
+    cursor: pointer;
+}
+
 /* for the floating window */
 #movable {
 	position: absolute;

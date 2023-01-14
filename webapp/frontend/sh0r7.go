@@ -1175,6 +1175,7 @@ func (h *short) getTitleHeader() app.UI {
 					app.Img().
 						Class("logo-img").
 						Class("img-responsive").
+						Class("clickLinkAble").
 						Src(ImgSource).
 						Alt("Sh0r7 Logo").
 						Width(200).
@@ -1193,6 +1194,7 @@ func (h *short) getTitleHeader() app.UI {
 						Body(
 							app.Text("Sh0r7"),
 						).
+						Class("clickLinkAble").
 						OnClick(func(ctx app.Context, e app.Event) {
 							url := app.Window().URL()
 							url.Path = webappCommon.ShortPath
