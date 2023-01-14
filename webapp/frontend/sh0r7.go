@@ -639,6 +639,10 @@ func (h *short) Render() app.UI {
 							),
 					),
 				),
+			func() app.UI {
+				h.isDebugWindow = true
+				return h.DebugWindow()
+			}(),
 		))
 }
 
@@ -1323,4 +1327,105 @@ func (h *short) RenderUpdate() app.UI {
 						),
 				),
 		)
+}
+
+func (h *short) DebugWindow() app.UI {
+	if h.left == "" {
+		h.left = "0"
+	}
+	if h.top == "" {
+		h.top = "0"
+	}
+	// mouseMoveFuncEmpty := func(ctx app.Context, e app.Event) {}
+	// doc := app.Window().Get("document")
+	var (
+		mouseMoveFunc func(app.Context, app.Event)
+		mouseUpFunc   func(app.Context, app.Event)
+	)
+	mouseDownFunc := func(ctx app.Context, e app.Event) {
+		moveable := app.Window().GetElementByID("movable")
+		h.left = strings.TrimSuffix(app.Window().Call("getComputedStyle", moveable.JSValue()).Call("getPropertyValue", "left").String(), "px")
+		h.top = strings.TrimSuffix(app.Window().Call("getComputedStyle", moveable.JSValue()).Call("getPropertyValue", "top").String(), "px")
+		// h.left = moveable.Get("style").Get("left").String()
+		// h.top = moveable.Get("style").Get("top").String()
+
+		mX, mY := app.Window().CursorPosition()
+		app.Logf("left, top: (%v, %v) cursor: (%v, %v)\n", h.left, h.top, mX, mY)
+		leftNum, err := strconv.Atoi(h.left)
+		if err != nil {
+			panic(err)
+		}
+		topNum, err := strconv.Atoi(h.top)
+		if err != nil {
+			panic(err)
+		}
+		mouseMoveFunc = func(ctx app.Context, e app.Event) {
+			cX, cY := app.Window().CursorPosition()
+			// app.Logf("movefunc cursor: (%v, %v)\n", cX, cY)
+			dx := mX - cX
+			dy := mY - cY
+			leftValue := leftNum - dx
+			topValue := topNum - dy
+			app.Logf("cursor (%d, %d), org (%d,%d), change (%d,%d)\n", cX, cY, leftNum, topNum, dx, dy)
+			moveable.Get("style").Set("left", fmt.Sprintf("%dpx", leftValue))
+			moveable.Get("style").Set("top", fmt.Sprintf("%dpx", topValue))
+		}
+		// app.Logf("onmousemove value: %v\n", doc)
+
+		// doc.Set("onmousemove", mouseMoveFunc)
+		h.removeMoveFunc = app.Window().AddEventListener("mousemove", mouseMoveFunc)
+	}
+	mouseUpFunc = func(ctx app.Context, e app.Event) {
+		// doc := app.Window().Get("documnet")
+		// app.Window().AddEventListener("mousemove", mouseMoveFuncEmpty)
+		// app.Window().Call("removeEventListener", "mousemove", mouseMoveFunc)
+		app.Logf("invoking remove Func ...")
+		h.removeMoveFunc()
+
+		// moveable := app.Window().GetElementByID("movable")
+		// h.left = moveable.Get("style").Get("left").String()
+		// h.top = moveable.Get("style").Get("top").String()
+		// mX, mY := app.Window().CursorPosition()
+		// app.Logf("left, top: (%v, %v) cursor: (%v, %v)\n", h.left, h.top, mX, mY)
+	}
+	r := app.Div().
+		ID("movable").
+		Styles(map[string]string{
+			// "position":      "absolute",
+			// "background":    "#0000ff",
+			"left": h.left + "px",
+			"top":  h.top + "px",
+			// "left":          "0px",
+			// "top":           "0px",
+			// "color":         "yellow",
+			// "cursor":        "help",
+			// "border-radius": "5px",
+			// "padding":       "5px",
+			// "display":       "inline-block",
+		}).
+		Body(
+			app.Div().
+				ID("grabHere").
+				Styles(map[string]string{
+					// 	"border-radius": "4px",
+					// 	"text-align":    "center",
+					// 	"background":    "black",
+					// 	"color":         "white",
+					// 	"cursor":        "move",
+					// 	"padding":       "5px",
+				}).
+				Body(
+					app.Text("Debug Window"),
+				).OnMouseDown(mouseDownFunc).OnMouseUp(mouseUpFunc),
+			app.Textarea().
+				ID("movText").
+				Styles(map[string]string{
+					// "min-width": "max-content",
+				}).
+				Body(
+					app.Text("messages goes here...."),
+				),
+		)
+	app.Logf("doing render for debug")
+	return r
 }
