@@ -151,3 +151,30 @@ div.passwordError {
     z-index: 1;
     border-radius: 10px;
 }
+/* for the floating window */
+#movable {
+	position: absolute;
+	background: #0000ff;
+	left: 0px;
+	top: 0px;
+	color: yellow;
+	cursor: help;
+	border-radius: 5px;
+	padding: 5px;
+	display: inline-block;
+}
+
+#grabHere {
+	border-radius:4px;
+	text-align: center;
+	background: black;
+	color: white;
+	cursor: move;
+	padding: 5px;
+}
+
+#movText {
+	min-width: max-content;
+    background-color:rgb(178, 109, 218) ;
+    color: white;
+}

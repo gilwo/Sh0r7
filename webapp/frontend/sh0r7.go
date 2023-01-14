@@ -50,6 +50,8 @@ type short struct {
 	removePassSalt         string // salt used for password token - for remove link
 	passToken              string // the password token used to lock and unlock the short private
 	updateAvailable        bool   // new version available
+
+	isDebugWindow bool
 }
 
 const (
@@ -771,6 +773,15 @@ func urlCheck(s string) (string, bool) {
 	}
 	return u.String(), true
 }
+
+func (h *short) handleError(msg string, err error) {
+	errElem := app.Window().GetElementByID("movText")
+	app.Logf("handle error: %s : %v\n", msg, err)
+	if !errElem.IsNull() {
+		errElem.Set("value", fmt.Sprintf("%s: error occurred: %v", msg, err))
+	}
+}
+
 func (h *short) createShort() {
 	var err error
 	app.Logf("!!URL: %+#v\n", app.Window().URL())
@@ -781,7 +792,6 @@ func (h *short) createShort() {
 	}
 	elem := app.Window().GetElementByID("shortInputText")
 	data := elem.Get("value").String()
-	errElem := app.Window().GetElementByID("footerText")
 	destCreate := dest.String()
 	app.Logf("!!! new dest: %s\n", destCreate)
 	payload := []byte(data)
@@ -793,7 +803,7 @@ func (h *short) createShort() {
 			"url": url,
 		})
 		if err != nil {
-			errElem.Set("value", fmt.Sprintf("url problem: error occurred: %s", err))
+			h.handleError("url problem", err)
 			return
 		}
 	} else {
@@ -806,7 +816,7 @@ func (h *short) createShort() {
 	// app.Logf("app %#v\n", app.)
 	req, err := http.NewRequest(http.MethodPost, destCreate, bytes.NewBuffer(payload))
 	if err != nil {
-		errElem.Set("value", fmt.Sprintf("new request: error occurred: %s", err))
+		h.handleError("new request", err)
 		return
 	}
 	if eDesc := app.Window().GetElementByID("shortDescription"); !eDesc.IsNull() {
@@ -847,30 +857,30 @@ func (h *short) createShort() {
 	req.Header.Set(webappCommon.FTokenID, h.sessionToken)
 	resp, err := client.Do(req)
 	if err != nil {
-		errElem.Set("value", fmt.Sprintf("request invoke: error occurred: %s", err))
+		h.handleError("request invokes", err)
 		return
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		errElem.Set("value", fmt.Sprintf("response read: error occurred: %s", err))
+		h.handleError("response reads", err)
 		return
 	}
 	if resp.StatusCode != http.StatusOK {
-		errElem.Set("value", fmt.Sprintf("response status: : %v", resp.StatusCode))
+		h.handleError(fmt.Sprintf("response status: : %v", resp.StatusCode), nil)
 		return
 	}
 
 	// elem := app.Window().GetElementByID("in-out")
 	err = json.Unmarshal(body, &h.resultMap)
 	if err != nil {
-		errElem.Set("value", fmt.Sprintf("response read: error occurred: %s", err))
+		h.handleError("response read", err)
 		return
 	}
 
 	r, err := json.MarshalIndent(h.resultMap, "", "\t")
 	if err != nil {
-		errElem.Set("value", fmt.Sprintf("response read: error occurred: %s", err))
+		h.handleError("response read", err)
 		return
 	}
 	h.result = string(r)
@@ -1330,102 +1340,43 @@ func (h *short) RenderUpdate() app.UI {
 }
 
 func (h *short) DebugWindow() app.UI {
-	if h.left == "" {
-		h.left = "0"
+	panerr := func(err error) {
+		if err != nil {
+			panic(err)
+		}
 	}
-	if h.top == "" {
-		h.top = "0"
-	}
-	// mouseMoveFuncEmpty := func(ctx app.Context, e app.Event) {}
-	// doc := app.Window().Get("document")
-	var (
-		mouseMoveFunc func(app.Context, app.Event)
-		mouseUpFunc   func(app.Context, app.Event)
-	)
+	var removeMoveFunc func()
 	mouseDownFunc := func(ctx app.Context, e app.Event) {
 		moveable := app.Window().GetElementByID("movable")
-		h.left = strings.TrimSuffix(app.Window().Call("getComputedStyle", moveable.JSValue()).Call("getPropertyValue", "left").String(), "px")
-		h.top = strings.TrimSuffix(app.Window().Call("getComputedStyle", moveable.JSValue()).Call("getPropertyValue", "top").String(), "px")
-		// h.left = moveable.Get("style").Get("left").String()
-		// h.top = moveable.Get("style").Get("top").String()
-
+		left := strings.TrimSuffix(app.Window().Call("getComputedStyle", moveable.JSValue()).Call("getPropertyValue", "left").String(), "px")
+		top := strings.TrimSuffix(app.Window().Call("getComputedStyle", moveable.JSValue()).Call("getPropertyValue", "top").String(), "px")
 		mX, mY := app.Window().CursorPosition()
-		app.Logf("left, top: (%v, %v) cursor: (%v, %v)\n", h.left, h.top, mX, mY)
-		leftNum, err := strconv.Atoi(h.left)
-		if err != nil {
-			panic(err)
-		}
-		topNum, err := strconv.Atoi(h.top)
-		if err != nil {
-			panic(err)
-		}
-		mouseMoveFunc = func(ctx app.Context, e app.Event) {
+		leftNum, err := strconv.Atoi(left)
+		panerr(err)
+		topNum, err := strconv.Atoi(top)
+		panerr(err)
+		mouseMoveFunc := func(ctx app.Context, e app.Event) {
 			cX, cY := app.Window().CursorPosition()
-			// app.Logf("movefunc cursor: (%v, %v)\n", cX, cY)
 			dx := mX - cX
 			dy := mY - cY
 			leftValue := leftNum - dx
 			topValue := topNum - dy
-			app.Logf("cursor (%d, %d), org (%d,%d), change (%d,%d)\n", cX, cY, leftNum, topNum, dx, dy)
 			moveable.Get("style").Set("left", fmt.Sprintf("%dpx", leftValue))
 			moveable.Get("style").Set("top", fmt.Sprintf("%dpx", topValue))
 		}
-		// app.Logf("onmousemove value: %v\n", doc)
-
-		// doc.Set("onmousemove", mouseMoveFunc)
-		h.removeMoveFunc = app.Window().AddEventListener("mousemove", mouseMoveFunc)
+		removeMoveFunc = app.Window().AddEventListener("mousemove", mouseMoveFunc)
 	}
-	mouseUpFunc = func(ctx app.Context, e app.Event) {
-		// doc := app.Window().Get("documnet")
-		// app.Window().AddEventListener("mousemove", mouseMoveFuncEmpty)
-		// app.Window().Call("removeEventListener", "mousemove", mouseMoveFunc)
-		app.Logf("invoking remove Func ...")
-		h.removeMoveFunc()
-
-		// moveable := app.Window().GetElementByID("movable")
-		// h.left = moveable.Get("style").Get("left").String()
-		// h.top = moveable.Get("style").Get("top").String()
-		// mX, mY := app.Window().CursorPosition()
-		// app.Logf("left, top: (%v, %v) cursor: (%v, %v)\n", h.left, h.top, mX, mY)
-	}
+	mouseUpFunc := func(ctx app.Context, e app.Event) { removeMoveFunc() }
 	r := app.Div().
 		ID("movable").
-		Styles(map[string]string{
-			// "position":      "absolute",
-			// "background":    "#0000ff",
-			"left": h.left + "px",
-			"top":  h.top + "px",
-			// "left":          "0px",
-			// "top":           "0px",
-			// "color":         "yellow",
-			// "cursor":        "help",
-			// "border-radius": "5px",
-			// "padding":       "5px",
-			// "display":       "inline-block",
-		}).
 		Body(
 			app.Div().
 				ID("grabHere").
-				Styles(map[string]string{
-					// 	"border-radius": "4px",
-					// 	"text-align":    "center",
-					// 	"background":    "black",
-					// 	"color":         "white",
-					// 	"cursor":        "move",
-					// 	"padding":       "5px",
-				}).
-				Body(
-					app.Text("Debug Window"),
-				).OnMouseDown(mouseDownFunc).OnMouseUp(mouseUpFunc),
+				Body(app.Text("Debug Window")).
+				OnMouseDown(mouseDownFunc).OnMouseUp(mouseUpFunc),
 			app.Textarea().
 				ID("movText").
-				Styles(map[string]string{
-					// "min-width": "max-content",
-				}).
-				Body(
-					app.Text("messages goes here...."),
-				),
+				Body(app.Text("messages goes here...")),
 		)
-	app.Logf("doing render for debug")
 	return r
 }
