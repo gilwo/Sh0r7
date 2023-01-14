@@ -43,6 +43,7 @@ type short struct {
 	isOptionRemove         bool   // indicate whether the short remove link feature is used when creating short - option 5
 	isRemovePassword       bool   // indicate whether the remove password feature is used when creating short - option 7 (applicable after option 5 is enabled)
 	isRemovePasswordShown  bool   // indicate whether the remove password is shown or hidden - sub option for option 7 (applicable after option 5 is enabled)
+	isNamedPublic          bool   // indicate whether the named public feature is used when creating short - option 9
 	isResultLocked         bool   // indicate that the requested short is password locked
 	privatePassSalt        string // salt used for password token - for private link
 	publicPassSalt         string // salt used for password token - for public link
@@ -555,27 +556,19 @@ func (h *short) Render() app.UI {
 												h.isShortAsData = false
 												h.isExpireChecked = false
 												h.isDescription = false
+												h.isNamedPublic = false
 												h.isPublicPassword = false
 												h.isPublicPasswordShown = false
-												app.Window().GetElementByID("checkboxShortAsData").Set("checked", false)
-												app.Window().GetElementByID("checkboxExpire").Set("checked", false)
-												app.Window().GetElementByID("checkboxDescription").Set("checked", false)
 												if h.isOptionPrivate {
-													app.Window().GetElementByID("checkboxPrivatePassword").Set("checked", false)
-													app.Window().GetElementByID("checkboxOptionPrivate").Set("checked", false)
 													h.isOptionPrivate = false
 													h.isPrivatePassword = false
 													h.isPrivatePasswordShown = false
 												}
-												app.Window().GetElementByID("checkboxPublicPassword").Set("checked", false)
 												if h.isOptionRemove {
-													app.Window().GetElementByID("checkboxRemovePassword").Set("checked", false)
-													app.Window().GetElementByID("checkboxOptionRemove").Set("checked", false)
 													h.isOptionRemove = false
 													h.isRemovePassword = false
 													h.isRemovePasswordShown = false
 												}
-												h.Update()
 											}),
 									),
 								),
@@ -587,23 +580,26 @@ func (h *short) Render() app.UI {
 				Class("row").
 				Class("marker").
 				ID("mainOptions"),
-			app.Div().
-				Class("row").
-				Class("shortOptionsWrapper").
-				Body(
-					app.Div().
-						Class("container-fluid").
-						Class("shortOptions").
-						Body(
-							h.OptionsTitle(),
-							h.OptionShortAsData(),
-							h.OptionExpire(),
-							h.OptionDescription(),
-							h.OptionPublic(),
-							h.OptionPrivate(),
-							h.OptionRemove(),
-						),
-				),
+			app.If(!h.resultReady,
+				app.Div().
+					Class("row").
+					Class("shortOptionsWrapper").
+					Body(
+						app.Div().
+							Class("container-fluid").
+							Class("shortOptions").
+							Body(
+								h.OptionsTitle(),
+								h.OptionShortAsData(),
+								h.OptionExpire(),
+								h.OptionDescription(),
+								h.OptionPublic(),
+								h.OptionPrivate(),
+								h.OptionRemove(),
+								// h.OptionNamedPublicShort(),
+							),
+					),
+			),
 			app.Div().
 				Class("row").
 				Class("marker").
@@ -633,7 +629,7 @@ func (h *short) Render() app.UI {
 										),
 								),
 						),
-					app.If(h.debug,
+					app.If(true, //h.debug, // FIXME - problem with where to show message from POST to createshort
 						app.Div().
 							Class("col-xs-8 col-xs-offset-2").
 							Body(
@@ -812,6 +808,11 @@ func (h *short) createShort() {
 	if eDesc := app.Window().GetElementByID("shortDescription"); !eDesc.IsNull() {
 		if desc := eDesc.Get("value").String(); desc != "" {
 			req.Header.Set(webappCommon.FShortDesc, desc)
+		}
+	}
+	if eNamed := app.Window().GetElementByID("shortNamedPublicShort"); !eNamed.IsNull() {
+		if name := eNamed.Get("value").String(); name != "" {
+			req.Header.Set(webappCommon.FNamedPublic, shortener.Base64SE.Encode([]byte(name)))
 		}
 	}
 	if ePrvPass := app.Window().GetElementByID("privatePasswordText"); !ePrvPass.IsNull() {

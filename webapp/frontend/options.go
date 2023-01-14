@@ -329,6 +329,65 @@ func (h *short) OptionExpire() app.UI {
 		)
 }
 
+func (h *short) OptionNamedPublicShort() app.UI {
+	return app.Div().
+		ID("shortOption9Wrapper").
+		Class("row").
+		Body(
+			app.Div().
+				Class("form-group").
+				Class("col-md-offset-2", "col-md-6", "col-sm-offset-2", "col-sm-6", "col-xs-offset-1", "col-xs-10").
+				Body(
+					app.Div().
+						Class("input-group").
+						Class(func() string {
+							if h.isNamedPublic {
+								return "has-success"
+							}
+							return "has-warning"
+						}()).
+						Title("Use own name for this short (public only)").
+						ID("shortNamedPublicShortWrapper").
+						Body(
+							app.Label().
+								Class("input-group-addon").
+								Body(
+									app.Input().
+										Type("checkbox").
+										ID("checkboxNamedPublicShort").
+										Value("").
+										Checked(false).
+										OnClick(func(ctx app.Context, e app.Event) {
+											h.isNamedPublic = ctx.JSSrc().Get("checked").Bool()
+										}),
+								),
+							app.If(h.isNamedPublic,
+								app.Div().Class("input-group-addon").Body(
+									app.Label().Body(
+										app.Text("Named public"),
+									).OnClick(func(ctx app.Context, e app.Event) {
+										elem := app.Window().GetElementByID("checkboxNamedPublicShort")
+										elem.Set("checked", false)
+										h.isNamedPublic = false
+									}),
+								),
+								app.Input().
+									Class("form-control").
+									Class("syncTextStyle").
+									ID("shortNamedPublicShort").
+									ReadOnly(false).Placeholder("my named short..."),
+							).Else(
+								app.Input().Class("form-control").ReadOnly(true).Value("Random public").OnClick(func(ctx app.Context, e app.Event) {
+									elem := app.Window().GetElementByID("checkboxNamedPublicShort")
+									elem.Set("checked", true)
+									h.isNamedPublic = true
+								}),
+							),
+						),
+				),
+		)
+}
+
 func (h *short) OptionDescription() app.UI {
 	return app.Div().
 		ID("shortOption3Wrapper").

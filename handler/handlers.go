@@ -32,19 +32,32 @@ func _spawnErrCond(c *gin.Context, err error, cond bool) {
 }
 
 const (
-	LengthMinShortFree = 5
-	LengthMaxShortFree = 9
-	LengthMinPrivate   = 10
-	LengthMaxPrivate   = 15
-	LengthMinDelete    = 10
-	LengthMaxDelete    = 15
+	LengthMinShortFree      = 6
+	LengthMaxShortFree      = 10
+	LengthMinPrivate        = 10
+	LengthMaxPrivate        = 15
+	LengthMinDelete         = 10
+	LengthMaxDelete         = 15
+	LengthNamedMinShortFree = 10
 )
 
-func handleCreateShortModDelete(data string, isPrivate, isRemove, isUrl bool, expiration time.Duration) (map[string]string, error) {
+func handleCreateShortModDelete(data, namedPublic string, isPrivate, isRemove, isUrl bool, expiration time.Duration) (map[string]string, error) {
 	var err error
 	shorts := map[string]string{
 		store.SuffixPublic: shortener.GenerateShortDataTweakedWithStore2(
 			data+store.SuffixPublic, -1, 0, LengthMinShortFree, LengthMaxShortFree, store.StoreCtx),
+	}
+	if namedPublic != "" {
+		decodedNamedPublic, err := shortener.Base64SE.Decode(namedPublic)
+		if err != nil {
+			return nil, errors.Errorf("decode of named public <%s> failed: %s", namedPublic, err)
+		}
+		namedPublic = string(decodedNamedPublic)
+		if len(namedPublic) < LengthNamedMinShortFree {
+			return nil, errors.Errorf("named short is too short")
+		}
+		shorts[store.SuffixPublic] = shortener.GenerateShortDataTweakedWithStore2NotRandom(
+			namedPublic+store.SuffixPublic, 0, common.HashLengthNamedFixedSize, 0, 0, store.StoreCtx)
 	}
 	if isPrivate {
 		shorts[store.SuffixPrivate] = shortener.GenerateShortDataTweakedWithStore2(
@@ -108,6 +121,9 @@ func handleCreateShortModDelete(data string, isPrivate, isRemove, isUrl bool, ex
 	res := map[string]string{
 		store.FieldPublic: shorts[store.SuffixPublic],
 	}
+	if namedPublic != "" {
+		res[store.FieldPublic] = namedPublic
+	}
 	if isPrivate {
 		res[store.FieldPrivate] = shorts[store.SuffixPrivate]
 	}
@@ -126,6 +142,7 @@ func HandleCreateShortData(c *gin.Context) {
 		return
 	}
 	res, err := handleCreateShortModDelete(string(d),
+		c.Request.Header.Get(common.FNamedPublic),
 		c.Request.Header.Get(common.FPrivate) != "false",
 		c.Request.Header.Get(common.FRemove) != "false",
 		false, getExpiration(c))
@@ -224,6 +241,7 @@ func HandleCreateShortUrl(c *gin.Context) {
 		return
 	} else {
 		res, err := handleCreateShortModDelete(url,
+			c.Request.Header.Get(common.FNamedPublic),
 			c.Request.Header.Get(common.FPrivate) != "false",
 			c.Request.Header.Get(common.FRemove) != "false",
 			true, getExpiration(c))
@@ -558,6 +576,16 @@ func isAccessToRemoveAllowed(c *gin.Context, short string) (r *bool) {
 }
 func getData(c *gin.Context) bool {
 	short := c.Param("short")
+	if !store.StoreCtx.CheckExistShortDataMapping(short + store.SuffixPublic) {
+		shortNamed := shortener.GenerateShortDataTweakedWithStore2NotRandom(short+store.SuffixPublic, 0, common.HashLengthNamedFixedSize, 0, 0, store.StoreCtx)
+		data, err := store.StoreCtx.LoadDataMapping(shortNamed + store.SuffixPublic)
+		if err != nil {
+			msg := errors.Errorf("there was a problem with short: %s", short)
+			log.Printf("%s, not found when getting data - also for named public option (%s), err: %s\n", msg, shortNamed, err)
+			return false
+		}
+		short = string(data)
+	}
 	if r := isAccessToShortAllowed(c, short); r != nil && !*r {
 		return *r
 	}
@@ -594,14 +622,19 @@ func getDataPrivate(c *gin.Context) bool {
 	c.String(200, "%s", data)
 	return true
 }
+
 func tryUrl(c *gin.Context) bool {
 	short := c.Param("short")
 	data, err := store.StoreCtx.LoadDataMapping(short + store.SuffixURL)
 	if err != nil {
-		log.Println(err)
-		msg := errors.Errorf("there was a problem with short: %s", short)
-		log.Printf("load url: %s, err: %s\n", msg, err)
-		return false
+		shortNamed := shortener.GenerateShortDataTweakedWithStore2NotRandom(short+store.SuffixPublic, 0, common.HashLengthNamedFixedSize, 0, 0, store.StoreCtx)
+		data, err = store.StoreCtx.LoadDataMapping(shortNamed + store.SuffixURL)
+		if err != nil {
+			log.Println(err)
+			msg := errors.Errorf("there was a problem with short: %s", short)
+			log.Printf("load url: %s, err: %s\n", msg, err)
+			return false
+		}
 	}
 	if r := isAccessToShortAllowed(c, string(data)); r != nil && !*r {
 		return *r

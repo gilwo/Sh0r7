@@ -126,6 +126,9 @@ func GenerateShortDataTweakedWithStore(data string, startOffset, sizeFixed, size
 func GenerateShortDataTweakedWithStore2(data string, startOffset, sizeFixed, sizeMin, sizeMax int, checkInStore store.Store) string {
 	return GenericShort(Base58.Encode(sha3Of(data+uuid.NewString())), startOffset, sizeFixed, sizeMin, sizeMax, checkInStore)
 }
+func GenerateShortDataTweakedWithStore2NotRandom(data string, startOffset, sizeFixed, sizeMin, sizeMax int, checkInStore store.Store) string {
+	return GenericShort(Base58.Encode(sha3Of(data)), startOffset, sizeFixed, sizeMin, sizeMax, checkInStore)
+}
 
 // GenericShort use original as input (which can be long) as a base for short string
 // startOffset - offset from the start of the input source, -1 stand for random offset

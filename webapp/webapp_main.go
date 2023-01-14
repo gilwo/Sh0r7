@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -215,6 +216,17 @@ func checkPrivateRedirect(c *gin.Context) bool {
 	log.Printf("path not checked redirected")
 	return false
 }
+func getPublicInfo(publiceKey string) map[string]interface{} {
+	if info, err := store.StoreCtx.LoadDataMappingInfo(string(publiceKey) + store.SuffixPublic); err == nil {
+		return info
+	}
+	// try get the named hash ... ?
+	hashedName := shortener.GenerateShortDataTweakedWithStore2NotRandom(publiceKey+store.SuffixPublic, 0, webappCommon.HashLengthNamedFixedSize, 0, 0, store.StoreCtx)
+	if info, err := store.StoreCtx.LoadDataMappingInfo(string(hashedName) + store.SuffixPublic); err == nil {
+		return info
+	}
+	return nil
+}
 
 func checkPublicRedirect(c *gin.Context) bool {
 	if c.Param("ext") != "" {
@@ -222,7 +234,7 @@ func checkPublicRedirect(c *gin.Context) bool {
 	}
 	publiceKey := c.Param("short")
 	log.Printf("path public check if need redirect <%s>\n", c.Request.URL)
-	if info, err := store.StoreCtx.LoadDataMappingInfo(string(publiceKey) + store.SuffixPublic); err == nil {
+	if info := getPublicInfo(publiceKey); info != nil {
 		if v, ok := info[store.FieldPublic]; ok && v == publiceKey {
 			log.Printf("original url: %+#v\n", c.Request.URL)
 			redirect, err := url.ParseRequestURI(c.Request.RequestURI)
@@ -321,7 +333,7 @@ func handlePrivateRedirect(c *gin.Context) bool {
 func handlePublicRedirect(c *gin.Context) bool {
 	if strings.Contains(c.Request.URL.Path, webappCommon.PublicPath) {
 		if key, ok := c.GetQuery("key"); ok {
-			if info, err := store.StoreCtx.LoadDataMappingInfo(string(key) + store.SuffixPublic); err == nil {
+			if info := getPublicInfo(key); info != nil {
 				if v, ok := info[store.FieldPublic]; ok && v == key {
 					log.Printf("!! serving path: <%s>\n", c.Request.RequestURI)
 					sh0r7H.ServeHTTP(c.Writer, c.Request)
@@ -377,10 +389,77 @@ func headerUpdate(c *gin.Context) {
 	c.Writer.Header().Add(webappCommon.FSaltTokenID, "0")                         // token start pos
 	log.Println("===========================================")
 }
+func checkSaltTokenStillValid(c *gin.Context) bool {
+	qVals := c.Request.URL.Query()
+	if len(qVals) < 1 { // all values under the same field
+		return false
+	}
+	stid, ok := qVals[webappCommon.FSaltTokenID]
+	if !ok {
+		log.Printf("not field %s\n", webappCommon.FSaltTokenID)
+		return false
+	}
+	seed := stid[0]
+	tokenLen, err := strconv.Atoi(stid[1])
+	if err != nil {
+		log.Printf("problem with number convertion: %s\n", err)
+		return false
+	}
+	tokenStartPos, err := strconv.Atoi(stid[2])
+	if err != nil {
+		log.Printf("problem with number convertion: %s\n", err)
+		return false
+	}
+
+	// calculate the token
+	ua := c.Request.UserAgent()
+	token := shortener.GenerateTokenTweaked(ua+seed, tokenStartPos, tokenLen, 0)
+
+	// now check the validity of the token
+	info, err := store.StoreCtx.LoadDataMappingInfo(token)
+	if err != nil {
+		log.Printf("failed to get info for token: <%s>\n", token)
+		return false
+	}
+
+	v, ok := info[store.FieldTime]
+	if !ok {
+		log.Printf("failed to get created time value for on token: <%s>\n", token)
+		return false
+	}
+	when := v.(string)
+	// if time.Parse(when)
+	t, err := time.Parse(time.RFC3339, when)
+	if err != nil {
+		log.Printf("failed to get parsed created time (%s) value for on token: <%s>\n", when, token)
+		return false
+	}
+	log.Printf("created time for key: <%s> : before parse [%s], after parse [%s]\n", token, when, t)
+	v, ok = info[store.FieldTTL]
+	if !ok {
+		log.Printf("failed to get ttl value for on token: <%s>\n", token)
+		return false
+	}
+	ttl, err := time.ParseDuration(v.(string))
+	if err != nil {
+		log.Printf("failed to get parsed duration time (%s) value for on token: <%s>\n", v, token)
+		return false
+	}
+
+	if time.Since(t) > ttl {
+		log.Printf("token (%s) expired : created <%s> ttl <%s>\n", token, t, ttl)
+		return false
+	}
+	return true
+}
+
 func queryUpdate(c *gin.Context) bool {
 	if c.Request.URL.Query().Has(webappCommon.FSaltTokenID) {
-		log.Printf("path already has the token seed, no need to add it...")
-		return false
+		if checkSaltTokenStillValid(c) {
+			log.Printf("path already has the token seed and it is valid, no need to add it...")
+			return false
+		}
+		log.Printf("path token is invalid redirect with new token")
 	}
 	refererUrl, err := url.Parse(c.Request.Referer())
 	if err != nil {
@@ -403,6 +482,7 @@ func queryUpdate(c *gin.Context) bool {
 		return false
 	}
 	redirect.Path = webappCommon.ShortPath
+	redirect.RawQuery = ""
 	q := redirect.Query()
 	q.Add(webappCommon.FSaltTokenID, seed)
 	q.Add(webappCommon.FSaltTokenID, fmt.Sprintf("%d", tokenLen))
