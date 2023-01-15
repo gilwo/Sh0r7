@@ -192,7 +192,7 @@ func checkPrivateRedirect(c *gin.Context) bool {
 					Host:     c.Request.Host,
 					Scheme:   c.Request.URL.Scheme,
 					Path:     webappCommon.PrivatePath,
-					RawQuery: webappCommon.FPrivateKey + "=" + privateKey,
+					RawQuery: webappCommon.FShortKey + "=" + privateKey,
 				}
 				if salt, ok := info[store.FieldPrvPassSalt]; ok {
 					redirect.RawQuery += "&" + webappCommon.PasswordProtected + "=" + url.QueryEscape(salt.(string))
@@ -243,7 +243,7 @@ func checkPublicRedirect(c *gin.Context) bool {
 				return false
 			}
 			redirect.Path = webappCommon.PublicPath
-			redirect.RawQuery = webappCommon.FPrivateKey + "=" + publiceKey
+			redirect.RawQuery = webappCommon.FShortKey + "=" + publiceKey
 			log.Printf("redirect url: %+#v\n", c.Request.URL)
 
 			if strings.HasSuffix(c.Request.Referer(), redirect.String()) {
@@ -286,7 +286,7 @@ func checkRemoveRedirect(c *gin.Context) bool {
 					return false
 				}
 				redirect.Path = webappCommon.RemovePath
-				redirect.RawQuery = webappCommon.FPrivateKey + "=" + removeKey
+				redirect.RawQuery = webappCommon.FShortKey + "=" + removeKey
 				log.Printf("redirect url: %+#v\n", c.Request.URL)
 
 				if strings.HasSuffix(c.Request.Referer(), redirect.String()) {

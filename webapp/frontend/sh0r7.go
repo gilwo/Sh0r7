@@ -115,7 +115,7 @@ func (h *short) RenderPrivate() app.UI {
 								ID("privateTitle").
 								Body(
 									// app.Text("using private for "+app.Window().URL().String()),
-									app.Text(app.Window().URL().Query().Get(webappCommon.FPrivateKey)),
+									app.Text(app.Window().URL().Query().Get(webappCommon.FShortKey)),
 								),
 							app.Br(),
 						),
@@ -347,7 +347,7 @@ func (h *short) RenderPublic() app.UI {
 							).
 							OnClick(func(ctx app.Context, e app.Event) {
 								retryUrl, _ := url.ParseRequestURI(app.Window().URL().String())
-								retryUrl.Path = retryUrl.Query().Get(webappCommon.FPrivateKey)
+								retryUrl.Path = retryUrl.Query().Get(webappCommon.FShortKey)
 								retryUrl.RawQuery = ""
 								app.Window().Get("location").Set("href", retryUrl.String())
 							}),
@@ -423,7 +423,7 @@ func (h *short) RenderRemove() app.UI {
 							).
 							OnClick(func(ctx app.Context, e app.Event) {
 								retryUrl, _ := url.ParseRequestURI(app.Window().URL().String())
-								retryUrl.Path = retryUrl.Query().Get(webappCommon.FPrivateKey)
+								retryUrl.Path = retryUrl.Query().Get(webappCommon.FShortKey)
 								retryUrl.RawQuery = ""
 								app.Window().Get("location").Set("href", retryUrl.String())
 							}),
@@ -660,19 +660,19 @@ func newShort() *short {
 func (h *short) load() {
 	lurl := app.Window().URL()
 	app.Logf("url: %#+v\n", lurl)
-	if strings.Contains(lurl.Path, webappCommon.PrivatePath) && lurl.Query().Has("key") {
+	if strings.Contains(lurl.Path, webappCommon.PrivatePath) && lurl.Query().Has(webappCommon.FShortKey) {
 		h.isPrivate = true
 		if lurl.Query().Has(webappCommon.PasswordProtected) {
 			h.privatePassSalt = lurl.Query().Get(webappCommon.PasswordProtected)
 			h.isResultLocked = true
 		}
-	} else if strings.Contains(lurl.Path, webappCommon.RemovePath) && lurl.Query().Has("key") {
+	} else if strings.Contains(lurl.Path, webappCommon.RemovePath) && lurl.Query().Has(webappCommon.FShortKey) {
 		h.isRemove = true
 		if lurl.Query().Has(webappCommon.PasswordProtected) {
 			h.removePassSalt = lurl.Query().Get(webappCommon.PasswordProtected)
 			h.isResultLocked = true
 		}
-	} else if strings.Contains(lurl.Path, webappCommon.PublicPath) && lurl.Query().Has("key") {
+	} else if strings.Contains(lurl.Path, webappCommon.PublicPath) && lurl.Query().Has(webappCommon.FShortKey) {
 		h.isPublic = true
 		if lurl.Query().Has(webappCommon.PasswordProtected) {
 			h.publicPassSalt = lurl.Query().Get(webappCommon.PasswordProtected)
@@ -686,19 +686,19 @@ func (h *short) load() {
 func (h *short) load2() {
 	lurl := app.Window().URL()
 	app.Logf("url: %#+v\n", lurl)
-	if strings.Contains(lurl.Path, webappCommon.PrivatePath) && lurl.Query().Has("key") {
+	if strings.Contains(lurl.Path, webappCommon.PrivatePath) && lurl.Query().Has(webappCommon.FShortKey) {
 		h.isPrivate = true
 		if lurl.Query().Has(webappCommon.PasswordProtected) {
 			h.privatePassSalt = lurl.Query().Get(webappCommon.PasswordProtected)
 			h.isResultLocked = true
 		}
-	} else if strings.Contains(lurl.Path, webappCommon.RemovePath) && lurl.Query().Has("key") {
+	} else if strings.Contains(lurl.Path, webappCommon.RemovePath) && lurl.Query().Has(webappCommon.FShortKey) {
 		h.isRemove = true
 		if lurl.Query().Has(webappCommon.PasswordProtected) {
 			h.removePassSalt = lurl.Query().Get(webappCommon.PasswordProtected)
 			h.isResultLocked = true
 		}
-	} else if strings.Contains(lurl.Path, webappCommon.PublicPath) && lurl.Query().Has("key") {
+	} else if strings.Contains(lurl.Path, webappCommon.PublicPath) && lurl.Query().Has(webappCommon.FShortKey) {
 		h.isPublic = true
 		if lurl.Query().Has(webappCommon.PasswordProtected) {
 			h.publicPassSalt = lurl.Query().Get(webappCommon.PasswordProtected)
@@ -1009,7 +1009,7 @@ func (h *short) getPublicShort(passToken string) (map[string]string, []string, e
 
 	var err error
 	url := app.Window().URL()
-	url.Path = "/" + url.Query().Get(webappCommon.FPrivateKey)
+	url.Path = "/" + url.Query().Get(webappCommon.FShortKey)
 	url.RawQuery = ""
 
 	client := http.Client{
@@ -1058,7 +1058,7 @@ func (h *short) getRemoveShort(passToken string) (map[string]string, []string, e
 
 	var err error
 	url := app.Window().URL()
-	url.Path = "/" + url.Query().Get(webappCommon.FPrivateKey)
+	url.Path = "/" + url.Query().Get(webappCommon.FShortKey)
 	url.RawQuery = ""
 
 	client := http.Client{
@@ -1093,7 +1093,7 @@ func (h *short) getPrivateInfo(passToken string) (map[string]string, []string, e
 
 	var err error
 	url := app.Window().URL()
-	url.Path = "/" + url.Query().Get(webappCommon.FPrivateKey) + "/info"
+	url.Path = "/" + url.Query().Get(webappCommon.FShortKey) + "/info"
 	url.RawQuery = ""
 
 	client := http.Client{
