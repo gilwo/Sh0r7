@@ -235,7 +235,9 @@ func checkPublicRedirect(c *gin.Context) bool {
 	publiceKey := c.Param("short")
 	log.Printf("path public check if need redirect <%s>\n", c.Request.URL)
 	if info := getPublicInfo(publiceKey); info != nil {
-		if v, ok := info[store.FieldPublic]; ok && v == publiceKey {
+		v, ok := info[store.FieldPublic]
+		v2, ok2 := info[store.FieldNamedPublic]
+		if (ok && v == publiceKey) || (ok2 && v2 == publiceKey) {
 			log.Printf("original url: %+#v\n", c.Request.URL)
 			redirect, err := url.ParseRequestURI(c.Request.RequestURI)
 			if err != nil {

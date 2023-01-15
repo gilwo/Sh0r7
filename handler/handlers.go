@@ -91,6 +91,9 @@ func handleCreateShortModDelete(data, namedPublic string, isPrivate, isRemove, i
 		shorts[store.SuffixURL] = shorts[store.SuffixPublic]
 		mapping[store.FieldURL] = shorts[store.SuffixPublic]
 	}
+	if namedPublic != "" {
+		mapping[store.FieldNamedPublic] = namedPublic
+	}
 	for k, e := range shorts {
 		if k == store.SuffixPublic {
 			err = store.StoreCtx.SaveDataMapping([]byte(data), e+k, expiration)
@@ -155,7 +158,11 @@ func HandleCreateShortData(c *gin.Context) {
 		_spawnErr(c, err)
 		return
 	}
-	handleCreateHeaders(c, res)
+	err = handleCreateHeaders(c, res)
+	if err != nil {
+		_spawnErr(c, err)
+		return
+	}
 	log.Printf("res: %#v\n", verboseShorts(res))
 	c.JSON(200, res)
 }
@@ -254,7 +261,11 @@ func HandleCreateShortUrl(c *gin.Context) {
 			_spawnErr(c, err)
 			return
 		}
-		handleCreateHeaders(c, res)
+		err = handleCreateHeaders(c, res)
+		if err != nil {
+			_spawnErr(c, err)
+			return
+		}
 		log.Printf("res: %v\n", verboseShorts(res))
 		c.JSON(200, res)
 	}
@@ -583,13 +594,12 @@ func getData(c *gin.Context) bool {
 	short := c.Param("short")
 	if !store.StoreCtx.CheckExistShortDataMapping(short + store.SuffixPublic) {
 		shortNamed := shortener.GenerateShortDataTweakedWithStore2NotRandom(short+store.SuffixPublic, 0, common.HashLengthNamedFixedSize, 0, 0, store.StoreCtx)
-		data, err := store.StoreCtx.LoadDataMapping(shortNamed + store.SuffixPublic)
-		if err != nil {
+		if !store.StoreCtx.CheckExistShortDataMapping(shortNamed + store.SuffixPublic) {
 			msg := errors.Errorf("there was a problem with short: %s", short)
-			log.Printf("%s, not found when getting data - also for named public option (%s), err: %s\n", msg, shortNamed, err)
+			log.Printf("%s, not found when getting data - also for named public option (%s)\n", msg, shortNamed)
 			return false
 		}
-		short = string(data)
+		short = string(shortNamed)
 	}
 	if r := isAccessToShortAllowed(c, short); r != nil && !*r {
 		return *r
@@ -724,42 +734,59 @@ func getExpiration(c *gin.Context) time.Duration {
 	return t1.Sub(time.Time{})
 }
 
-func handleCreateHeaders(c *gin.Context, res map[string]string) {
+func handleCreateHeaders(c *gin.Context, res map[string]string) error {
 	var err error
+	short := res[store.FieldPublic]
+	if !store.StoreCtx.CheckExistShortDataMapping(short + store.SuffixPublic) {
+		shortNamed := shortener.GenerateShortDataTweakedWithStore2NotRandom(short+store.SuffixPublic, 0, common.HashLengthNamedFixedSize, 0, 0, store.StoreCtx)
+		if !store.StoreCtx.CheckExistShortDataMapping(shortNamed + store.SuffixPublic) {
+			msg := errors.Errorf("there was a problem with short: %s", short)
+			log.Printf("%s, not found when getting data - also for named public option (%s)\n", msg, shortNamed)
+			return errors.Errorf("failed to set password for public link")
+		}
+		short = string(shortNamed)
+	}
 	if desc := c.Request.Header.Get(common.FShortDesc); desc != "" {
-		store.StoreCtx.SetMetaDataMapping(res[store.FieldPublic]+store.SuffixPublic, store.FieldDesc, desc)
+		store.StoreCtx.SetMetaDataMapping(short+store.SuffixPublic, store.FieldDesc, desc)
 	}
 	if prvPassTok := c.Request.Header.Get(common.FPrvPassToken); prvPassTok != "" {
 		token := c.Request.Header.Get(common.FTokenID)
-		err = store.StoreCtx.SetMetaDataMapping(res[store.FieldPublic]+store.SuffixPublic, store.FieldPrvPassSalt, token)
+		err = store.StoreCtx.SetMetaDataMapping(short+store.SuffixPublic, store.FieldPrvPassSalt, token)
 		if err != nil {
-			log.Printf("failed keeping prv pass token on short <%s> metadata\n", res[store.FieldPublic])
+			log.Printf("failed keeping prv pass token on short <%s> metadata\n", short)
+			return errors.Errorf("failed to set password for private link")
 		}
-		err = store.StoreCtx.SetMetaDataMapping(res[store.FieldPublic]+store.SuffixPublic, store.FieldPrvPassTok, prvPassTok)
+		err = store.StoreCtx.SetMetaDataMapping(short+store.SuffixPublic, store.FieldPrvPassTok, prvPassTok)
 		if err != nil {
-			log.Printf("failed keeping prv pass on short <%s> metadata\n", res[store.FieldPublic])
+			log.Printf("failed keeping prv pass on short <%s> metadata\n", short)
+			return errors.Errorf("failed to set password for private link")
 		}
 	}
 	if pubPassTok := c.Request.Header.Get(common.FPubPassToken); pubPassTok != "" {
 		token := c.Request.Header.Get(common.FTokenID)
-		err = store.StoreCtx.SetMetaDataMapping(res[store.FieldPublic]+store.SuffixPublic, store.FieldPubPassSalt, token)
+		err = store.StoreCtx.SetMetaDataMapping(short+store.SuffixPublic, store.FieldPubPassSalt, token)
 		if err != nil {
-			log.Printf("failed keeping pub pass token on short <%s> metadata\n", res[store.FieldPublic])
+			log.Printf("failed keeping pub pass token on short <%s> metadata : %s\n", short, err)
+			return errors.Errorf("failed to set password for public link")
 		}
-		err = store.StoreCtx.SetMetaDataMapping(res[store.FieldPublic]+store.SuffixPublic, store.FieldPubPassTok, pubPassTok)
+		err = store.StoreCtx.SetMetaDataMapping(short+store.SuffixPublic, store.FieldPubPassTok, pubPassTok)
 		if err != nil {
-			log.Printf("failed keeping pub pass on short <%s> metadata\n", res[store.FieldPublic])
+			log.Printf("failed keeping pub pass on short <%s> metadata : %s\n", short, err)
+			return errors.Errorf("failed to set password for public link")
 		}
 	}
 	if remPassTok := c.Request.Header.Get(common.FRemPassToken); remPassTok != "" {
 		token := c.Request.Header.Get(common.FTokenID)
-		err = store.StoreCtx.SetMetaDataMapping(res[store.FieldPublic]+store.SuffixPublic, store.FieldRemPassSalt, token)
+		err = store.StoreCtx.SetMetaDataMapping(short+store.SuffixPublic, store.FieldRemPassSalt, token)
 		if err != nil {
-			log.Printf("failed keeping rem pass token on short <%s> metadata\n", res[store.FieldPublic])
+			log.Printf("failed keeping rem pass token on short <%s> metadata\n", short)
+			return errors.Errorf("failed to set password for remove link")
 		}
-		err = store.StoreCtx.SetMetaDataMapping(res[store.FieldPublic]+store.SuffixPublic, store.FieldRemPassTok, remPassTok)
+		err = store.StoreCtx.SetMetaDataMapping(short+store.SuffixPublic, store.FieldRemPassTok, remPassTok)
 		if err != nil {
-			log.Printf("failed keeping rem pass on short <%s> metadata\n", res[store.FieldPublic])
+			log.Printf("failed keeping rem pass on short <%s> metadata\n", short)
+			return errors.Errorf("failed to set password for remove link")
 		}
 	}
+	return nil
 }

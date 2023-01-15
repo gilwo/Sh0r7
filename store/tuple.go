@@ -164,6 +164,7 @@ const (
 	FieldRemPassTok  = "removePasswordToken"
 	IsBLOCKED        = "true"
 	FieldPublic      = "pub"
+	FieldNamedPublic = "named public"
 	FieldPrivate     = "prv"
 	FieldRemove      = "rem"
 	FieldURL         = "url"
