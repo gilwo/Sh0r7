@@ -51,6 +51,7 @@ type short struct {
 	passToken              string // the password token used to lock and unlock the short private
 	updateAvailable        bool   // new version available
 
+	isDev         bool
 	isDebugWindow bool
 }
 
@@ -598,7 +599,9 @@ func (h *short) Render() app.UI {
 								h.OptionPublic(),
 								h.OptionPrivate(),
 								h.OptionRemove(),
-								// h.OptionNamedPublicShort(),
+								app.If(h.isDev,
+									h.OptionNamedPublicShort(),
+								),
 							),
 					),
 			),
@@ -641,10 +644,12 @@ func (h *short) Render() app.UI {
 							),
 					),
 				),
-			func() app.UI {
-				h.isDebugWindow = true
-				return h.DebugWindow()
-			}(),
+			app.If(h.isDev,
+				func() app.UI {
+					h.isDebugWindow = true
+					return h.DebugWindow()
+				}(),
+			),
 		))
 }
 
@@ -723,6 +728,9 @@ func (h *short) load2() {
 			if err != nil {
 				app.Logf("problem with number convertion: %s\n", err)
 				return
+			}
+			if len(stid) > 3 && stid[3] == "dev" {
+				h.isDev = true
 			}
 
 			ua := app.Window().Get("navigator").Get("userAgent").String()
@@ -1175,7 +1183,7 @@ func (h *short) getTitleHeader() app.UI {
 		ID("logoTitle").
 		Body(
 			app.Div().
-				Class("col-md-4", "col-md-offset-2", "col-sm-4", "col-sm-offset-2", "col-xs-4", "col-xs-offset-3").
+				Class("col-md-4", "col-md-offset-2", "col-sm-4", "col-sm-offset-2", "col-xs-4", "col-xs-offset-1").
 				Class("logo").
 				Body(
 					app.Img().
@@ -1193,7 +1201,7 @@ func (h *short) getTitleHeader() app.UI {
 						}),
 				),
 			app.Div().
-				Class("col-md-6", "col-md-offset-0", "col-sm-4", "col-sm-offset-0", "col-xs-6", "col-xs-offset-3").
+				Class("col-md-6", "col-md-offset-0", "col-sm-4", "col-sm-offset-0", "col-xs-6", "col-xs-offset-1").
 				Class("text").
 				Body(
 					app.H1().

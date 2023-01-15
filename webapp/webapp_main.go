@@ -482,6 +482,7 @@ func queryUpdate(c *gin.Context) bool {
 	log.Printf("seed: <%s> (%d)\n", seed, seedLen)
 	log.Printf("token: <%s> (%d)\n", token, tokenLen)
 	log.Println("/*/*/*/*/*/*/*/*/*/*/*/*/")
+	isDev := c.Request.URL.Query().Has("dev")
 	redirect, err := url.ParseRequestURI(c.Request.RequestURI)
 	if err != nil {
 		log.Printf("failed to parse request uri: %s\n", err)
@@ -493,7 +494,11 @@ func queryUpdate(c *gin.Context) bool {
 	// q.Add(webappCommon.FSaltTokenID, seed)
 	// q.Add(webappCommon.FSaltTokenID, fmt.Sprintf("%d", tokenLen))
 	// q.Add(webappCommon.FSaltTokenID, "0")
-	q.Add(webappCommon.FSaltTokenID, shortener.Base64SE.Encode([]byte(fmt.Sprintf("%s$%d$%d", seed, tokenLen, 0))))
+	stidValue := fmt.Sprintf("%s$%d$%d", seed, tokenLen, 0)
+	if isDev {
+		stidValue += "$dev"
+	}
+	q.Add(webappCommon.FSaltTokenID, shortener.Base64SE.Encode([]byte(stidValue)))
 	redirect.RawQuery = q.Encode()
 	c.Redirect(http.StatusFound, redirect.String())
 	log.Printf("redirect with token seed (%s)\n", redirect)

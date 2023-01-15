@@ -39,6 +39,7 @@ const (
 	LengthMinDelete         = 10
 	LengthMaxDelete         = 15
 	LengthNamedMinShortFree = 10
+	LengthNamedMaxShortFree = 40
 )
 
 func handleCreateShortModDelete(data, namedPublic string, isPrivate, isRemove, isUrl bool, expiration time.Duration) (map[string]string, error) {
@@ -54,8 +55,12 @@ func handleCreateShortModDelete(data, namedPublic string, isPrivate, isRemove, i
 		}
 		namedPublic = string(decodedNamedPublic)
 		if len(namedPublic) < LengthNamedMinShortFree {
-			return nil, errors.Errorf("named short is too short")
+			return nil, errors.Errorf("named short is too short (%d)", len(namedPublic))
 		}
+		if len(namedPublic) > LengthNamedMaxShortFree {
+			return nil, errors.Errorf("named short is too long (%d)", len(namedPublic))
+		}
+		// TODO: add here check against reserved names (e.g. favicon.ico, /web/logo.jpg)
 		shorts[store.SuffixPublic] = shortener.GenerateShortDataTweakedWithStore2NotRandom(
 			namedPublic+store.SuffixPublic, 0, common.HashLengthNamedFixedSize, 0, 0, store.StoreCtx)
 	}

@@ -12,20 +12,21 @@
     /* font-size: 17px; */
     /* padding-top: 30px; */
     /* padding-bottom: 30px; */
-} */
-
-.logo-img {
-    background-color: bisque;
-    border-radius: 15%;
 }
 
- /* #logoTitle { */
 .row.header {
     padding-top: 30px;
     padding-bottom: 30px;
     /* background-color: palegreen; */
     background-color: #CBA0AE;
 }
+
+.logo-img {
+    /* background-color: bisque; */
+    /* border-radius: 15%; */
+    min-width: max-content;
+}
+
 .row.header h1 {
   font-family: 'Share Tech Mono', monospace;
   font-size: 55px;
@@ -154,7 +155,9 @@ div.passwordError {
 
 .clickLinkAble {
     cursor: pointer;
+    /* border-bottom */
 }
+
 
 /* for the floating window */
 #movable {
