@@ -1,6 +1,7 @@
 package frontend
 
 import (
+	"strings"
 	"time"
 
 	"github.com/gilwo/Sh0r7/store"
@@ -346,7 +347,7 @@ func (h *short) OptionNamedPublicShort() app.UI {
 							}
 							return "has-warning"
 						}()).
-						Title("Use own name for this short (public only)").
+						Title("Use own short name (some characters are invalid)").
 						ID("shortNamedPublicShortWrapper").
 						Body(
 							app.Label().
@@ -375,7 +376,21 @@ func (h *short) OptionNamedPublicShort() app.UI {
 									Class("form-control").
 									Class("syncTextStyle").
 									ID("shortNamedPublicShort").
-									ReadOnly(false).Placeholder("my named short..."),
+									ReadOnly(false).Placeholder("my named short...").
+									OnKeyUp(func(ctx app.Context, e app.Event) {
+										shortButton := app.Window().GetElementByID("shortInputButton")
+										el := ctx.JSSrc()
+										value := el.Get("value").String()
+										if strings.ContainsAny(value, "/?&#;") {
+											shortButton.Set("disabled", true)
+											el.Get("classList").Call("remove", "syncTextStyle")
+											el.Get("classList").Call("add", "errorTextStyle")
+										} else {
+											shortButton.Set("disabled", false)
+											el.Get("classList").Call("remove", "errorTextStyle")
+											el.Get("classList").Call("add", "syncTextStyle")
+										}
+									}),
 							).Else(
 								app.Input().Class("form-control").ReadOnly(true).Value("Random public").OnClick(func(ctx app.Context, e app.Event) {
 									elem := app.Window().GetElementByID("checkboxNamedPublicShort")
