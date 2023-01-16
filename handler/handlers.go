@@ -790,3 +790,10 @@ func handleCreateHeaders(c *gin.Context, res map[string]string) error {
 	}
 	return nil
 }
+
+func HandleDumpKeys(c *gin.Context) {
+	res := store.StoreCtx.GenFunc(store.STORE_FUNC_DUMPALL).(string)
+	log.Println("!! dumpall: \n" + res)
+	c.String(200, "%s", res)
+}
+
