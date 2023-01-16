@@ -840,6 +840,12 @@ func (h *short) createShort() {
 	}
 	if eNamed := app.Window().GetElementByID("shortNamedPublicShort"); !eNamed.IsNull() {
 		if name := eNamed.Get("value").String(); name != "" {
+			nameUnescaped, err := url.PathUnescape(name)
+			if err == nil {
+				name = nameUnescaped
+			}
+			app.Logf("namedpublic: final (%s), unescape(%s), origingal(%s) err (%v)\n",
+				name, nameUnescaped, eNamed.Get("value").String(), err)
 			req.Header.Set(webappCommon.FNamedPublic, shortener.Base64SE.Encode([]byte(name)))
 		}
 	}

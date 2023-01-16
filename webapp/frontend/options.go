@@ -1,6 +1,7 @@
 package frontend
 
 import (
+	"net/url"
 	"strings"
 	"time"
 
@@ -347,7 +348,7 @@ func (h *short) OptionNamedPublicShort() app.UI {
 							}
 							return "has-warning"
 						}()).
-						Title("Use own short name (some characters are invalid)").
+						Title("Use own short name (some characters are invalid) (minimum 10 chars)").
 						ID("shortNamedPublicShortWrapper").
 						Body(
 							app.Label().
@@ -381,7 +382,10 @@ func (h *short) OptionNamedPublicShort() app.UI {
 										shortButton := app.Window().GetElementByID("shortInputButton")
 										el := ctx.JSSrc()
 										value := el.Get("value").String()
-										if strings.ContainsAny(value, "/?&#;") {
+										valueUnescaped, _ := url.PathUnescape(value)
+										RESERVED_CHARS := "/?&#;"
+										if strings.ContainsAny(value, RESERVED_CHARS) ||
+											strings.ContainsAny(valueUnescaped, RESERVED_CHARS) {
 											shortButton.Set("disabled", true)
 											el.Get("classList").Call("remove", "syncTextStyle")
 											el.Get("classList").Call("add", "errorTextStyle")
