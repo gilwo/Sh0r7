@@ -71,9 +71,13 @@ func Maintainence() {
 			if _, ok := info[FieldPublic]; ok {
 				log.Printf("all entries related to <%s> are to be deleted\n", k)
 				public := info[FieldPublic].(string)
-				private := info[FieldPrivate].(string) + SuffixPrivate
-				delete := info[FieldRemove].(string) + SuffixRemove
-				keysToDelete = append(keysToDelete, private, public, delete)
+				keysToDelete = append(keysToDelete, public+SuffixPublic)
+				if private, ok := info[FieldPrivate]; ok {
+					keysToDelete = append(keysToDelete, private.(string)+SuffixPrivate)
+				}
+				if delete, ok := info[FieldRemove]; ok {
+					keysToDelete = append(keysToDelete, delete.(string)+SuffixRemove)
+				}
 				if _, ok := info[FieldURL]; ok {
 					keysToDelete = append(keysToDelete, public+SuffixURL)
 				}
