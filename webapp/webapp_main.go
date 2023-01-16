@@ -316,7 +316,7 @@ func checkRemoveRedirect(c *gin.Context) bool {
 
 func handlePrivateRedirect(c *gin.Context) bool {
 	if strings.Contains(c.Request.URL.Path, webappCommon.PrivatePath) {
-		if key, ok := c.GetQuery("key"); ok {
+		if key, ok := c.GetQuery(webappCommon.FShortKey); ok {
 			if dataKey, err := store.StoreCtx.LoadDataMapping(key + store.SuffixPrivate); err == nil {
 				if info, err := store.StoreCtx.LoadDataMappingInfo(string(dataKey) + store.SuffixPublic); err == nil {
 					if v, ok := info[store.FieldPrivate]; ok && v == key {
@@ -334,7 +334,7 @@ func handlePrivateRedirect(c *gin.Context) bool {
 
 func handlePublicRedirect(c *gin.Context) bool {
 	if strings.Contains(c.Request.URL.Path, webappCommon.PublicPath) {
-		if key, ok := c.GetQuery("key"); ok {
+		if key, ok := c.GetQuery(webappCommon.FShortKey); ok {
 			if info := getPublicInfo(key); info != nil {
 				if v, ok := info[store.FieldPublic]; ok && v == key {
 					log.Printf("!! serving path: <%s>\n", c.Request.RequestURI)
@@ -351,7 +351,7 @@ func handlePublicRedirect(c *gin.Context) bool {
 
 func handleRemoveRedirect(c *gin.Context) bool {
 	if strings.Contains(c.Request.URL.Path, webappCommon.RemovePath) {
-		if key, ok := c.GetQuery("key"); ok {
+		if key, ok := c.GetQuery(webappCommon.FShortKey); ok {
 			if dataKey, err := store.StoreCtx.LoadDataMapping(key + store.SuffixRemove); err == nil {
 				if info, err := store.StoreCtx.LoadDataMappingInfo(string(dataKey) + store.SuffixPublic); err == nil {
 					if v, ok := info[store.FieldRemove]; ok && v == key {

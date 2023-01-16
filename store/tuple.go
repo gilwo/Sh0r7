@@ -94,7 +94,7 @@ func (t *stringTuple) SetCheck(field, value string) error {
 func (t *stringTuple) Keys() []string {
 	r := []string{}
 	for k := range t.tuple {
-		if strings.HasSuffix(k, "url") ||
+		if strings.HasSuffix(k, FieldURL) ||
 			strings.HasSuffix(k, fCompress) {
 			continue
 		}
