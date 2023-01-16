@@ -147,6 +147,8 @@ func (st *StorageLocal) GenFunc(v ...interface{}) interface{} {
 		}
 		k := v[1].(string)
 		return st.dumpKey(k)
+	case STORE_FUNC_DUMPALL:
+		return st.dumpAll()
 	case STORE_FUNC_DUMPKEYS:
 		return st.dumpKeys()
 	case STORE_FUNC_GETKEYS:
@@ -175,6 +177,15 @@ func (st *StorageLocal) dumpKeys() string {
 	r := st.getKeys()
 	sort.Strings(r)
 	return strings.Join(r, "\n")
+}
+func (st *StorageLocal) dumpAll() string {
+	r := st.getKeys()
+	sort.Strings(r)
+	res := ""
+	for _, k := range r {
+		res += k + "\n" + st.dumpKey(k) + "\n\n"
+	}
+	return res
 }
 func (st *StorageLocal) dumpKey(k string) string {
 	if v, ok := st.cacheSync.Load(k); ok {

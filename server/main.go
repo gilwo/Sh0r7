@@ -244,6 +244,8 @@ func GinInit() *gin.Engine {
 			handler.HandleGetShortDataInfo(c)
 		} else if paramExt == "data" {
 			handler.HandleGetOriginData(c)
+		} else if gin.Mode() == gin.DebugMode && paramShort == "dump" && paramExt == "keys" {
+			handler.HandleDumpKeys(c)
 		} else if common.WebappGenFunc != nil && common.WebappGenFunc("SERVE", c).(bool) {
 			return
 		} else {

@@ -226,6 +226,8 @@ func (st *StorageRedis) GenFunc(v ...interface{}) interface{} {
 		}
 		k := v[1].(string)
 		return st.dumpKey(k)
+	case STORE_FUNC_DUMPALL:
+		return st.dumpAll()
 	case STORE_FUNC_DUMPKEYS:
 		return st.dumpKeys()
 	case STORE_FUNC_GETKEYS:
@@ -253,6 +255,15 @@ func (st *StorageRedis) dumpKeys() string {
 	r := st.getKeys()
 	sort.Strings(r)
 	return strings.Join(r, "\n")
+}
+func (st *StorageRedis) dumpAll() string {
+	r := st.getKeys()
+	sort.Strings(r)
+	res := ""
+	for _, k := range r {
+		res += k + "\n" + st.dumpKey(k) + "\n\n"
+	}
+	return res
 }
 func (st *StorageRedis) dumpKey(k string) string {
 	res, err := st.redisClient.Get(ctx, k).Result()
