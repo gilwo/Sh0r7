@@ -41,8 +41,9 @@ const (
 	ShortCreatedNamed   // bool
 	ShortCreateReferrer // string
 
-	// global created shorts
+	// global created / expired shorts
 	ShortCreatedCount // int
+	ShortExpiredCount // int
 
 	// Short Access - per visit metrics
 	ShortAccessVisitTime     // string
@@ -133,6 +134,8 @@ func (mo MetricType) String() string {
 
 	case ShortCreatedCount: // int
 		return "ShortCreatedCount"
+	case ShortExpiredCount: // int
+		return "ShortExpiredCount"
 
 	case ShortAccessVisitTime: // string
 		return "ShortAccessVisitTime"
@@ -190,6 +193,10 @@ func (mo MetricType) String() string {
 	return "Unknown"
 }
 
+type metricPacker interface {
+	Pack() map[interface{}]interface{}
+}
+
 type MetricGlobal struct {
 	// global failed creation
 	FailedShortCreateCounter int
@@ -197,8 +204,9 @@ type MetricGlobal struct {
 	// global invalid access
 	InvalidShortAccessCounter int
 
-	// global created shorts
+	// global created / expired shorts
 	ShortCreatedCount int
+	ShortExpiredCount int
 
 	// global short Access counter - for all visits
 	ShortAccessVisitCount       int
@@ -208,6 +216,20 @@ type MetricGlobal struct {
 	// global served path
 	ServedPathCount       int
 	ServedPathFailedCount int
+}
+
+func (m *MetricGlobal) Pack() map[interface{}]interface{} {
+	return map[interface{}]interface{}{
+		FailedShortCreateCounter:    m.FailedShortCreateCounter,
+		InvalidShortAccessCounter:   m.InvalidShortAccessCounter,
+		ShortCreatedCount:           m.ShortCreatedCount,
+		ShortExpiredCount:           m.ShortExpiredCount,
+		ShortAccessVisitCount:       m.ShortAccessVisitCount,
+		ShortAccessVisitFailedCount: m.ShortAccessVisitFailedCount,
+		ShortAccessVisitDeleteCount: m.ShortAccessVisitDeleteCount,
+		ServedPathCount:             m.ServedPathCount,
+		ServedPathFailedCount:       m.ServedPathFailedCount,
+	}
 }
 
 type MetricShortCreationFailure struct {
@@ -220,6 +242,17 @@ type MetricShortCreationFailure struct {
 	FailedShortCreateReason   string // if applicable ..?!?
 }
 
+func (m *MetricShortCreationFailure) Pack() map[interface{}]interface{} {
+	return map[interface{}]interface{}{
+		FailedShortCreateShort:    m.FailedShortCreateShort,
+		FailedShortCreateTime:     m.FailedShortCreateTime,
+		FailedShortCreateIP:       m.FailedShortCreateIP,
+		FailedShortCreateInfo:     m.FailedShortCreateInfo,
+		FailedShortCreateReferrer: m.FailedShortCreateReferrer,
+		FailedShortCreateReason:   m.FailedShortCreateReason,
+	}
+}
+
 type MetricShortAccessInvalid struct {
 	// invalid short access (non existant)
 	InvalidShortAccessShort    string // short name
@@ -227,6 +260,16 @@ type MetricShortAccessInvalid struct {
 	InvalidShortAccessIP       string
 	InvalidShortAccessInfo     string // useragent / other ...
 	InvalidShortAccessReferrer string
+}
+
+func (m *MetricShortAccessInvalid) Pack() map[interface{}]interface{} {
+	return map[interface{}]interface{}{
+		InvalidShortAccessShort:    m.InvalidShortAccessShort,
+		InvalidShortAccessTime:     m.InvalidShortAccessTime,
+		InvalidShortAccessIP:       m.InvalidShortAccessIP,
+		InvalidShortAccessInfo:     m.InvalidShortAccessInfo,
+		InvalidShortAccessReferrer: m.InvalidShortAccessReferrer,
+	}
 }
 
 type MetricShortCreationSuccess struct {
@@ -239,6 +282,17 @@ type MetricShortCreationSuccess struct {
 	ShortCreateReferrer string
 }
 
+func (m *MetricShortCreationSuccess) Pack() map[interface{}]interface{} {
+	return map[interface{}]interface{}{
+		ShortCreateIP:       m.ShortCreateIP,
+		ShortCreateInfo:     m.ShortCreateInfo,
+		ShortCreatePrivate:  m.ShortCreatePrivate,
+		ShortCreateDelete:   m.ShortCreateDelete,
+		ShortCreatedNamed:   m.ShortCreatedNamed,
+		ShortCreateReferrer: m.ShortCreateReferrer,
+	}
+}
+
 type MetricShortAccess struct {
 	// Short Access - per visit metrics
 	ShortAccessVisitTime     string
@@ -249,4 +303,17 @@ type MetricShortAccess struct {
 	ShortAccessVisitPrivate  bool
 	ShortAccessVisitDelete   bool
 	ShortAccessVisitIsLocked bool
+}
+
+func (m *MetricShortAccess) Pack() map[interface{}]interface{} {
+	return map[interface{}]interface{}{
+		ShortAccessVisitTime:     m.ShortAccessVisitTime,
+		ShortAccessVisitIP:       m.ShortAccessVisitIP,
+		ShortAccessVisitInfo:     m.ShortAccessVisitInfo,
+		ShortAccessVisitReferrer: m.ShortAccessVisitReferrer,
+		ShortAccessVisitSuccess:  m.ShortAccessVisitSuccess,
+		ShortAccessVisitPrivate:  m.ShortAccessVisitPrivate,
+		ShortAccessVisitDelete:   m.ShortAccessVisitDelete,
+		ShortAccessVisitIsLocked: m.ShortAccessVisitIsLocked,
+	}
 }
