@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
+	"github.com/klauspost/compress/zstd"
 	"github.com/pkg/errors"
 	"github.com/vmihailenco/msgpack/v5"
 )
@@ -210,15 +211,20 @@ func (mo MetricType) String() string {
 type MetricPacker interface {
 	Encode() MetricPacker
 	EncodedString() string
+	EncodedContent() []byte
 	Decode() MetricPacker
 	ToMap() MetricPacker
 	ToObject() MetricPacker
 	FromString(string) MetricPacker
+	FromCompressed([]byte) MetricPacker
 	Error() error
 	DumpMap() string
 	DumpObject() string
 	Equal(MetricPacker) bool
 	Name() string
+	Compress() MetricPacker
+	Decompress() MetricPacker
+	CompressedContent() []byte
 }
 
 type MetricGroupType int
@@ -229,6 +235,8 @@ const (
 	MetricGroupShortCreationSuccess
 	MetricGroupShortAccessInvalid
 	MetricGroupShortAccessSuccess
+	MetricGroupFailedServedPath
+	MetricGroupServedPath
 )
 
 func NewMetricGroup(mg MetricGroupType) MetricPacker {
@@ -243,22 +251,22 @@ func NewMetricGroup(mg MetricGroupType) MetricPacker {
 		return NewMetricShortAccessInvalid()
 	case MetricGroupShortAccessSuccess:
 		return NewMetricShortAccess()
+	case MetricGroupFailedServedPath:
+		return NewMetricFailedServedPath()
+	case MetricGroupServedPath:
+		return NewMetricServedPath()
 	}
 	return nil
 }
 
-// func (m *metricObject) DumpObject() string {
-// 	if _, ok := m.MetricPacker.(MetricGlobal); ok {
-
-// 	}
-// }
-
 type metricObject struct {
 	MetricPacker
-	encoded string
-	mapped  map[interface{}]interface{}
-	err     error
-	name    string
+	encoded           string
+	encodedContent    []byte
+	compressedContent []byte
+	mapped            map[interface{}]interface{}
+	err               error
+	name              string
 }
 
 func newMetricObject(name string) *metricObject {
@@ -272,6 +280,10 @@ func (m *metricObject) FromString(in string) MetricPacker {
 	m.encoded = in
 	return m
 }
+func (m *metricObject) FromCompressed(in []byte) MetricPacker {
+	m.compressedContent = in
+	return m
+}
 
 func (m *metricObject) Name() string {
 	return m.name
@@ -279,6 +291,14 @@ func (m *metricObject) Name() string {
 
 func (m *metricObject) EncodedString() string {
 	return m.encoded
+}
+
+func (m *metricObject) EncodedContent() []byte {
+	return m.encodedContent
+}
+
+func (m *metricObject) CompressedContent() []byte {
+	return m.compressedContent
 }
 
 func (m *metricObject) DumpMap() string {
@@ -302,6 +322,7 @@ func (m *metricObject) Encode() MetricPacker {
 	if m.err != nil {
 		return m
 	}
+	m.encodedContent = buf.Bytes()
 	m.encoded = buf.String()
 	return m
 }
@@ -314,19 +335,32 @@ func (m *metricObject) Decode() MetricPacker {
 		m.err = errors.New("nowhere to decode")
 		return m
 	}
-	if m.encoded == "" {
+	if m.encoded == "" && len(m.encodedContent) == 0 {
 		m.err = errors.New("nothing to decode")
 		return m
 	}
 	if len(m.mapped) > 0 {
 		m.mapped = map[interface{}]interface{}{}
 	}
-	buf := bytes.NewBufferString(m.encoded)
+	var buf *bytes.Buffer
+	if len(m.encodedContent) > 0 {
+		buf = bytes.NewBuffer(m.encodedContent)
+	} else {
+		buf = bytes.NewBufferString(m.encoded)
+	}
 	dec := msgpack.NewDecoder(buf)
 	dec.SetMapDecoder(func(d *msgpack.Decoder) (interface{}, error) {
 		return d.DecodeTypedMap()
 	})
 	m.err = dec.Decode(&m.mapped)
+	return m
+}
+func (m *metricObject) Compress() MetricPacker {
+	m.compressedContent = Compress(m.encodedContent)
+	return m
+}
+func (m *metricObject) Decompress() MetricPacker {
+	m.encodedContent, m.err = Decompress(m.compressedContent)
 	return m
 }
 
@@ -808,4 +842,201 @@ func (m *MetricShortAccess) Equal(om MetricPacker) bool {
 		m2.ShortAccessVisitPrivate == m.ShortAccessVisitPrivate &&
 		m2.ShortAccessVisitDelete == m.ShortAccessVisitDelete &&
 		m2.ShortAccessVisitIsLocked == m.ShortAccessVisitIsLocked
+}
+
+// # Served Path Metric
+// #######################################
+
+type MetricServedPath struct {
+	*metricObject
+
+	// per served path
+	ServedPathName     string
+	ServedPathTime     string
+	ServedPathIP       string
+	ServedPathInfo     string // useragent / other
+	ServedPathReferrer string
+}
+
+func NewMetricServedPath() *MetricServedPath {
+	return &MetricServedPath{
+		metricObject: newMetricObject("served path"),
+	}
+}
+
+func (m *MetricServedPath) ToMap() MetricPacker {
+	m.mapped = map[interface{}]interface{}{
+		ServedPathName:     m.ServedPathName,
+		ServedPathTime:     m.ServedPathTime,
+		ServedPathIP:       m.ServedPathIP,
+		ServedPathInfo:     m.ServedPathInfo,
+		ServedPathReferrer: m.ServedPathReferrer,
+	}
+	return m
+}
+func (m *MetricServedPath) ToObject() MetricPacker {
+	defer func() {
+		if a := recover(); a != nil {
+			m.err = errors.Errorf("panic occurred: <%v>", a)
+		}
+	}()
+	mapped := map[MetricType]string{}
+	for k, v := range m.mapped {
+		mapped[MetricType(k.(int8))] = v.(string)
+	}
+	// per served path
+	m.ServedPathName = mapped[ServedPathName]
+	m.ServedPathTime = mapped[ServedPathTime]
+	m.ServedPathIP = mapped[ServedPathIP]
+	m.ServedPathInfo = mapped[ServedPathInfo]
+	m.ServedPathReferrer = mapped[ServedPathReferrer]
+	return m
+}
+
+func (m *MetricServedPath) DumpObject() string {
+	return fmt.Sprintf(
+		"%s:\n\t"+
+			"%s: %s\n\t"+
+			"%s: %s\n\t"+
+			"%s: %s\n\t"+
+			"%s: %s\n\t"+
+			"%s: %s\n\t",
+		m.name,
+		// per served path
+		ServedPathName, m.ServedPathName,
+		ServedPathTime, m.ServedPathTime,
+		ServedPathIP, m.ServedPathIP,
+		ServedPathInfo, m.ServedPathInfo,
+		ServedPathReferrer, m.ServedPathReferrer,
+	)
+}
+
+func (m *MetricServedPath) Equal(om MetricPacker) bool {
+	m2, ok := om.(*MetricServedPath)
+	return ok &&
+		m2.ServedPathName == m.ServedPathName &&
+		m2.ServedPathTime == m.ServedPathTime &&
+		m2.ServedPathIP == m.ServedPathIP &&
+		m2.ServedPathInfo == m.ServedPathInfo &&
+		m2.ServedPathReferrer == m.ServedPathReferrer
+}
+
+// # Failed Served Path Metric
+// #######################################
+
+type MetricFailedServedPath struct {
+	*metricObject
+
+	// per failed serve path
+	FailedServedPathName     string
+	FailedServedPathTime     string
+	FailedServedPathIP       string
+	FailedServedPathInfo     string // useragent / other
+	FailedServedPathReferrer string
+	FailedServedPathReason   string // if applicable ..??
+}
+
+func NewMetricFailedServedPath() *MetricFailedServedPath {
+	return &MetricFailedServedPath{
+		metricObject: newMetricObject("failed served path"),
+	}
+}
+
+func (m *MetricFailedServedPath) ToMap() MetricPacker {
+	m.mapped = map[interface{}]interface{}{
+		FailedServedPathName:     m.FailedServedPathName,
+		FailedServedPathTime:     m.FailedServedPathTime,
+		FailedServedPathIP:       m.FailedServedPathIP,
+		FailedServedPathInfo:     m.FailedServedPathInfo,
+		FailedServedPathReferrer: m.FailedServedPathReferrer,
+		FailedServedPathReason:   m.FailedServedPathReason,
+	}
+	return m
+}
+func (m *MetricFailedServedPath) ToObject() MetricPacker {
+	defer func() {
+		if a := recover(); a != nil {
+			m.err = errors.Errorf("panic occurred: <%v>", a)
+		}
+	}()
+	mapped := map[MetricType]string{}
+	for k, v := range m.mapped {
+		mapped[MetricType(k.(int8))] = v.(string)
+	}
+	// per served path
+	m.FailedServedPathName = mapped[FailedServedPathName]
+	m.FailedServedPathTime = mapped[FailedServedPathTime]
+	m.FailedServedPathIP = mapped[FailedServedPathIP]
+	m.FailedServedPathInfo = mapped[FailedServedPathInfo]
+	m.FailedServedPathReferrer = mapped[FailedServedPathReferrer]
+	m.FailedServedPathReason = mapped[FailedServedPathReason]
+
+	return m
+}
+
+func (m *MetricFailedServedPath) DumpObject() string {
+	return fmt.Sprintf(
+		"%s:\n\t"+
+			"%s: %s\n\t"+
+			"%s: %s\n\t"+
+			"%s: %s\n\t"+
+			"%s: %s\n\t"+
+			"%s: %s\n\t"+
+			"%s: %s\n\t",
+		m.name,
+		// per served path
+		FailedServedPathName, m.FailedServedPathName,
+		FailedServedPathTime, m.FailedServedPathTime,
+		FailedServedPathIP, m.FailedServedPathIP,
+		FailedServedPathInfo, m.FailedServedPathInfo,
+		FailedServedPathReferrer, m.FailedServedPathReferrer,
+		FailedServedPathReason, m.FailedServedPathReason,
+	)
+}
+
+func (m *MetricFailedServedPath) Equal(om MetricPacker) bool {
+	m2, ok := om.(*MetricFailedServedPath)
+	return ok &&
+		m2.FailedServedPathName == m.FailedServedPathName &&
+		m2.FailedServedPathTime == m.FailedServedPathTime &&
+		m2.FailedServedPathIP == m.FailedServedPathIP &&
+		m2.FailedServedPathInfo == m.FailedServedPathInfo &&
+		m2.FailedServedPathReferrer == m.FailedServedPathReferrer &&
+		m2.FailedServedPathReason == m.FailedServedPathReason
+}
+
+// # compression
+// #######################################
+
+var (
+	__decoder *zstd.Decoder
+	__encoder *zstd.Encoder
+)
+
+func init() {
+	var err error
+	// Create a reader that caches decompressors.
+	// For this operation type we supply a nil Reader.
+	__decoder, err = zstd.NewReader(nil, zstd.WithDecoderConcurrency(0))
+	if err != nil {
+		panic(err)
+	}
+	// Create a writer that caches compressors.
+	// For this operation type we supply a nil Reader.
+	__encoder, err = zstd.NewWriter(nil)
+	if err != nil {
+		panic(err)
+	}
+}
+
+// Decompress a buffer. We don't supply a destination buffer,
+// so it will be allocated by the decoder.
+func Decompress(src []byte) ([]byte, error) {
+	return __decoder.DecodeAll(src, nil)
+}
+
+// Compress a buffer.
+// If you have a destination buffer, the allocation in the call can also be eliminated.
+func Compress(src []byte) []byte {
+	return __encoder.EncodeAll(src, make([]byte, 0, len(src)))
 }

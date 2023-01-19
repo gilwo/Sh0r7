@@ -79,11 +79,7 @@ func TestMetrics3(t *testing.T) {
 			t.Logf("encode error: %s\n", err)
 			t.FailNow()
 		}
-		// log.Println("dump: " + g1.DumpMap())
-		// log.Println("string: " + g1.EncodedString())
-		// log.Printf("g1: %+#v\n", g1)
 
-		// g2 := NewMetricShortCreationFailure()
 		metric2 := NewMetricGroup(groupType)
 		if err := metric2.FromString(metric1.EncodedString()).Decode().Error(); err != nil {
 			t.Logf("decode error: %s\n", err)
@@ -102,6 +98,23 @@ func TestMetrics3(t *testing.T) {
 			t.Logf("metric1 == metric2 : %v\n", metric1.Equal(metric2))
 			t.FailNow()
 		}
+
+		// compressed ...
+		metric1.Compress()
+		t.Logf("encoded string: len (%d)\n", len(metric1.EncodedString()))
+		t.Logf("encoded content: len (%d)\n", len(metric1.EncodedContent()))
+		t.Logf("compressed content: len (%d)\n", len(metric1.CompressedContent()))
+		metric3 := NewMetricGroup(groupType)
+		metric3.FromCompressed(metric1.CompressedContent())
+		if err := metric3.Decompress().Error(); err != nil {
+			t.Logf("decompress failed: %s", err)
+			t.FailNow()
+		}
+		if err := metric3.Decode().Error(); err != nil {
+			t.Logf("decode failed: %s", err)
+			t.FailNow()
+		}
+
 	}
 }
 
@@ -112,6 +125,8 @@ func metricsParams() map[MetricGroupType]MetricPacker {
 		MetricGroupShortCreationSuccess: metricShortCreationSuccessExample(),
 		MetricGroupShortAccessInvalid:   metricMetricShortAccessInvalidExample(),
 		MetricGroupShortAccessSuccess:   metricMetricShortAccessSuccessExample(),
+		MetricGroupFailedServedPath:     metricMetricFailedServedPathExample(),
+		MetricGroupServedPath:           metricMetricServedPathExample(),
 	}
 }
 
@@ -146,10 +161,24 @@ func metricShortCreationSuccessExample() MetricPacker {
 
 func metricMetricShortAccessInvalidExample() MetricPacker {
 	m := NewMetricShortAccessInvalid()
+	m.InvalidShortAccessShort = "akljsdhflkjadsh"
+	m.InvalidShortAccessIP = "2001::3213:2313:3213"
+	m.InvalidShortAccessTime = time.Now().String()
+	m.InvalidShortAccessReferrer = "someone referred me to here"
+	m.InvalidShortAccessInfo = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Vestibulum lorem sed risus ultricies. Rhoncus dolor purus non enim praesent elementum facilisis leo. Adipiscing vitae proin sagittis nisl rhoncus mattis rhoncus. Nunc sed id semper risus in hendrerit gravida rutrum quisque. Nibh sed pulvinar proin gravida hendrerit lectus a. Volutpat lacus laoreet non curabitur. At lectus urna duis convallis convallis tellus id interdum velit. Purus gravida quis blandit turpis. Risus ultricies tristique nulla aliquet enim tortor at. Arcu dui vivamus arcu felis bibendum ut. Turpis egestas maecenas pharetra convallis posuere. Sem nulla pharetra diam sit. Placerat duis ultricies lacus sed turpis. Vel turpis nunc eget lorem dolor sed viverra. Nisi lacus sed viverra tellus in hac habitasse platea dictumst. Volutpat diam ut venenatis tellus in."
 	return m
 }
 
 func metricMetricShortAccessSuccessExample() MetricPacker {
 	m := NewMetricShortAccess()
+	return m
+}
+
+func metricMetricServedPathExample() MetricPacker {
+	m := NewMetricServedPath()
+	return m
+}
+func metricMetricFailedServedPathExample() MetricPacker {
+	m := NewMetricFailedServedPath()
 	return m
 }
