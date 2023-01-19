@@ -42,6 +42,8 @@ const (
 	// -------------------------------------
 
 	// Short Creation - only once on creation
+	ShortCreateName     // short name
+	ShortCreateTime     // string
 	ShortCreateIP       // string // ip
 	ShortCreateInfo     // string // useragaent / user id / other ...
 	ShortCreatePrivate  // bool
@@ -129,6 +131,10 @@ func (mo MetricType) String() string {
 
 	case ShortCreateIP: // string // ip
 		return "ShortCreateIP"
+	case ShortCreateName: // short name
+		return "ShortCreateName"
+	case ShortCreateTime: // short name
+		return "ShortCreateTime"
 	case ShortCreateInfo: // string // useragaent / user id / other ...
 		return "ShortCreateInfo"
 	case ShortCreatePrivate: // bool
@@ -201,19 +207,54 @@ func (mo MetricType) String() string {
 	return "Unknown"
 }
 
-type metricPacker interface {
-	Encode() metricPacker
+type MetricPacker interface {
+	Encode() MetricPacker
 	EncodedString() string
-	Decode(string) metricPacker
-	ToMap() metricPacker
-	ToObject() metricPacker
+	Decode() MetricPacker
+	ToMap() MetricPacker
+	ToObject() MetricPacker
+	FromString(string) MetricPacker
 	Error() error
 	DumpMap() string
 	DumpObject() string
+	Equal(MetricPacker) bool
+	Name() string
 }
 
+type MetricGroupType int
+
+const (
+	MetricGroupGlobal MetricGroupType = iota
+	MetricGroupShortCreationFailure
+	MetricGroupShortCreationSuccess
+	MetricGroupShortAccessInvalid
+	MetricGroupShortAccessSuccess
+)
+
+func NewMetricGroup(mg MetricGroupType) MetricPacker {
+	switch mg {
+	case MetricGroupGlobal:
+		return NewMetricGlobal()
+	case MetricGroupShortCreationFailure:
+		return NewMetricShortCreationFailure()
+	case MetricGroupShortCreationSuccess:
+		return NewMetricShortCreationSuccess()
+	case MetricGroupShortAccessInvalid:
+		return NewMetricShortAccessInvalid()
+	case MetricGroupShortAccessSuccess:
+		return NewMetricShortAccess()
+	}
+	return nil
+}
+
+// func (m *metricObject) DumpObject() string {
+// 	if _, ok := m.MetricPacker.(MetricGlobal); ok {
+
+// 	}
+// }
+
 type metricObject struct {
-	metricPacker
+	MetricPacker
 	encoded string
 	mapped  map[interface{}]interface{}
 	err     error
@@ -227,9 +268,11 @@ func newMetricObject(name string) *metricObject {
 	}
 }
 
-func (m *metricObject) FromString(in string) {
+func (m *metricObject) FromString(in string) MetricPacker {
 	m.encoded = in
+	return m
 }
+
 func (m *metricObject) Name() string {
 	return m.name
 }
@@ -245,7 +288,10 @@ func (m *metricObject) Error() error {
 	return m.err
 }
 
-func (m *metricObject) Encode() *metricObject {
+func (m *metricObject) Encode() MetricPacker {
+	if m.err != nil {
+		return m
+	}
 	if m.mapped == nil {
 		m.err = errors.New("map not ready")
 		return m
@@ -260,7 +306,10 @@ func (m *metricObject) Encode() *metricObject {
 	return m
 }
 
-func (m *metricObject) Decode() *metricObject {
+func (m *metricObject) Decode() MetricPacker {
+	if m.err != nil {
+		return m
+	}
 	if m.mapped == nil {
 		m.err = errors.New("nowhere to decode")
 		return m
@@ -344,7 +393,7 @@ func (m *MetricGlobal) IncServedPathFailedCount() *MetricGlobal {
 	return m
 }
 
-func (m *MetricGlobal) ToMap() *MetricGlobal {
+func (m *MetricGlobal) ToMap() MetricPacker {
 	m.mapped = map[interface{}]interface{}{
 		FailedShortCreateCounter:    m.FailedShortCreateCounter,
 		InvalidShortAccessCounter:   m.InvalidShortAccessCounter,
@@ -358,7 +407,10 @@ func (m *MetricGlobal) ToMap() *MetricGlobal {
 	}
 	return m
 }
-func (m *MetricGlobal) ToObject() *MetricGlobal {
+func (m *MetricGlobal) ToObject() MetricPacker {
+	if m.err != nil {
+		return m
+	}
 	defer func() {
 		if a := recover(); a != nil {
 			m.err = errors.Errorf("panic occurred: <%v>", a)
@@ -406,8 +458,9 @@ func (m *MetricGlobal) DumpObject() string {
 	)
 }
 
-func (m *MetricGlobal) Equal(m2 *MetricGlobal) bool {
-	return true &&
+func (m *MetricGlobal) Equal(om MetricPacker) bool {
+	m2, ok := om.(*MetricGlobal)
+	return ok &&
 		m2.FailedShortCreateCounter == m.FailedShortCreateCounter &&
 		m2.InvalidShortAccessCounter == m.InvalidShortAccessCounter &&
 		m2.ShortCreatedCount == m.ShortCreatedCount &&
@@ -438,7 +491,7 @@ func NewMetricShortCreationFailure() *MetricShortCreationFailure {
 	}
 }
 
-func (m *MetricShortCreationFailure) ToMap() *MetricShortCreationFailure {
+func (m *MetricShortCreationFailure) ToMap() MetricPacker {
 	m.mapped = map[interface{}]interface{}{
 		FailedShortCreateShort:    m.FailedShortCreateShort,
 		FailedShortCreateTime:     m.FailedShortCreateTime,
@@ -449,7 +502,7 @@ func (m *MetricShortCreationFailure) ToMap() *MetricShortCreationFailure {
 	}
 	return m
 }
-func (m *MetricShortCreationFailure) ToObject() *MetricShortCreationFailure {
+func (m *MetricShortCreationFailure) ToObject() MetricPacker {
 	defer func() {
 		if a := recover(); a != nil {
 			m.err = errors.Errorf("panic occurred: <%v>", a)
@@ -487,8 +540,9 @@ func (m *MetricShortCreationFailure) DumpObject() string {
 		FailedShortCreateReason, m.FailedShortCreateReason,
 	)
 }
-func (m *MetricShortCreationFailure) Equal(m2 *MetricShortCreationFailure) bool {
-	return true &&
+func (m *MetricShortCreationFailure) Equal(om MetricPacker) bool {
+	m2, ok := om.(*MetricShortCreationFailure)
+	return ok &&
 		m2.FailedShortCreateShort == m.FailedShortCreateShort &&
 		m2.FailedShortCreateTime == m.FailedShortCreateTime &&
 		m2.FailedShortCreateIP == m.FailedShortCreateIP &&
@@ -514,7 +568,7 @@ func NewMetricShortAccessInvalid() *MetricShortAccessInvalid {
 	}
 }
 
-func (m *MetricShortAccessInvalid) ToMap() *MetricShortAccessInvalid {
+func (m *MetricShortAccessInvalid) ToMap() MetricPacker {
 	m.mapped = map[interface{}]interface{}{
 		InvalidShortAccessShort:    m.InvalidShortAccessShort,    //    string // short name
 		InvalidShortAccessTime:     m.InvalidShortAccessTime,     //     string
@@ -524,7 +578,7 @@ func (m *MetricShortAccessInvalid) ToMap() *MetricShortAccessInvalid {
 	}
 	return m
 }
-func (m *MetricShortAccessInvalid) ToObject() *MetricShortAccessInvalid {
+func (m *MetricShortAccessInvalid) ToObject() MetricPacker {
 	defer func() {
 		if a := recover(); a != nil {
 			m.err = errors.Errorf("panic occurred: <%v>", a)
@@ -558,8 +612,9 @@ func (m *MetricShortAccessInvalid) DumpObject() string {
 		InvalidShortAccessReferrer, m.InvalidShortAccessReferrer, // string
 	)
 }
-func (m *MetricShortAccessInvalid) Equal(m2 *MetricShortAccessInvalid) bool {
-	return true &&
+func (m *MetricShortAccessInvalid) Equal(om MetricPacker) bool {
+	m2, ok := om.(*MetricShortAccessInvalid)
+	return ok &&
 		m2.InvalidShortAccessShort == m.InvalidShortAccessShort &&
 		m2.InvalidShortAccessTime == m.InvalidShortAccessTime &&
 		m2.InvalidShortAccessIP == m.InvalidShortAccessIP &&
@@ -572,6 +627,8 @@ func (m *MetricShortAccessInvalid) Equal(m2 *MetricShortAccessInvalid) bool {
 type MetricShortCreationSuccess struct {
 	*metricObject
 	// Short Creation - only once on creation
+	ShortCreateName     string // short name
+	ShortCreateTime     string // short name
 	ShortCreateIP       string // ip
 	ShortCreateInfo     string // useragaent / user id / other ...
 	ShortCreatePrivate  string // bool
@@ -586,8 +643,10 @@ func NewMetricShortCreationSuccess() *MetricShortCreationSuccess {
 	}
 }
 
-func (m *MetricShortCreationSuccess) ToMap() *MetricShortCreationSuccess {
+func (m *MetricShortCreationSuccess) ToMap() MetricPacker {
 	m.mapped = map[interface{}]interface{}{
+		ShortCreateName:     m.ShortCreateName,     //       short name
+		ShortCreateTime:     m.ShortCreateTime,     //       short name
 		ShortCreateIP:       m.ShortCreateIP,       //       string // ip
 		ShortCreateInfo:     m.ShortCreateInfo,     //     string // useragaent / user id / other ...
 		ShortCreatePrivate:  m.ShortCreatePrivate,  //  string // bool
@@ -597,7 +656,7 @@ func (m *MetricShortCreationSuccess) ToMap() *MetricShortCreationSuccess {
 	}
 	return m
 }
-func (m *MetricShortCreationSuccess) ToObject() *MetricShortCreationSuccess {
+func (m *MetricShortCreationSuccess) ToObject() MetricPacker {
 	defer func() {
 		if a := recover(); a != nil {
 			m.err = errors.Errorf("panic occurred: <%v>", a)
@@ -607,6 +666,8 @@ func (m *MetricShortCreationSuccess) ToObject() *MetricShortCreationSuccess {
 	for k, v := range m.mapped {
 		mapped[MetricType(k.(int8))] = v.(string)
 	}
+	m.ShortCreateName = mapped[ShortCreateName]         //       short name
+	m.ShortCreateTime = mapped[ShortCreateTime]         //       short name
 	m.ShortCreateIP = mapped[ShortCreateIP]             //       string // ip
 	m.ShortCreateInfo = mapped[ShortCreateInfo]         //     string // useragaent / user id / other ...
 	m.ShortCreatePrivate = mapped[ShortCreatePrivate]   //  string // bool
@@ -624,9 +685,13 @@ func (m *MetricShortCreationSuccess) DumpObject() string {
 			"%s: %s\n\t"+
 			"%s: %s\n\t"+
 			"%s: %s\n\t"+
+			"%s: %s\n\t"+
+			"%s: %s\n\t"+
 			"%s: %s\n\t",
 		m.name,
 
+		ShortCreateName, m.ShortCreateName, //       string // ip
+		ShortCreateTime, m.ShortCreateTime, //       string // ip
 		ShortCreateIP, m.ShortCreateIP, //       string // ip
 		ShortCreateInfo, m.ShortCreateInfo, //     string // useragaent / user id / other ...
 		ShortCreatePrivate, m.ShortCreatePrivate, //  string // bool
@@ -635,8 +700,11 @@ func (m *MetricShortCreationSuccess) DumpObject() string {
 		ShortCreateReferrer, m.ShortCreateReferrer, // string
 	)
 }
-func (m *MetricShortCreationSuccess) Equal(m2 *MetricShortCreationSuccess) bool {
-	return true &&
+func (m *MetricShortCreationSuccess) Equal(om MetricPacker) bool {
+	m2, ok := om.(*MetricShortCreationSuccess)
+	return ok &&
+		m2.ShortCreateName == m.ShortCreateName &&
+		m2.ShortCreateTime == m.ShortCreateTime &&
 		m2.ShortCreateIP == m.ShortCreateIP &&
 		m2.ShortCreateInfo == m.ShortCreateInfo &&
 		m2.ShortCreatePrivate == m.ShortCreatePrivate &&
@@ -667,7 +735,7 @@ func NewMetricShortAccess() *MetricShortAccess {
 	}
 }
 
-func (m *MetricShortAccess) ToMap() *MetricShortAccess {
+func (m *MetricShortAccess) ToMap() MetricPacker {
 	m.mapped = map[interface{}]interface{}{
 		ShortAccessVisitTime:     m.ShortAccessVisitTime,
 		ShortAccessVisitIP:       m.ShortAccessVisitIP,
@@ -680,7 +748,7 @@ func (m *MetricShortAccess) ToMap() *MetricShortAccess {
 	}
 	return m
 }
-func (m *MetricShortAccess) ToObject() *MetricShortAccess {
+func (m *MetricShortAccess) ToObject() MetricPacker {
 	defer func() {
 		if a := recover(); a != nil {
 			m.err = errors.Errorf("panic occurred: <%v>", a)
@@ -724,8 +792,9 @@ func (m *MetricShortAccess) DumpObject() string {
 	)
 }
 
-func (m *MetricShortAccess) Equal(m2 *MetricShortAccess) bool {
-	return true &&
+func (m *MetricShortAccess) Equal(om MetricPacker) bool {
+	m2, ok := om.(*MetricShortAccess)
+	return ok &&
 		m2.ShortAccessVisitTime == m.ShortAccessVisitTime &&
 		m2.ShortAccessVisitIP == m.ShortAccessVisitIP &&
 		m2.ShortAccessVisitInfo == m.ShortAccessVisitInfo &&
