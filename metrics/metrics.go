@@ -472,7 +472,8 @@ func (m *MetricGlobal) Equal(om MetricPacker) bool {
 		m2.ServedPathFailedCount == m.ServedPathFailedCount
 }
 
-// ---------------------------------------
+// # Creation Failure Metric
+// #######################################
 
 type MetricShortCreationFailure struct {
 	*metricObject
@@ -551,7 +552,9 @@ func (m *MetricShortCreationFailure) Equal(om MetricPacker) bool {
 		m2.FailedShortCreateReason == m.FailedShortCreateReason
 }
 
-// ---------------------------------------
+// # Access Invalid Metric
+// #######################################
+
 type MetricShortAccessInvalid struct {
 	*metricObject
 	// invalid short access (non existant)
@@ -622,7 +625,8 @@ func (m *MetricShortAccessInvalid) Equal(om MetricPacker) bool {
 		m2.InvalidShortAccessReferrer == m.InvalidShortAccessReferrer
 }
 
-// ---------------------------------------
+// # Creation Success Metric
+// #######################################
 
 type MetricShortCreationSuccess struct {
 	*metricObject
@@ -713,7 +717,8 @@ func (m *MetricShortCreationSuccess) Equal(om MetricPacker) bool {
 		m2.ShortCreateReferrer == m.ShortCreateReferrer
 }
 
-// ---------------------------------------
+// # Access Success Metric
+// #######################################
 
 type MetricShortAccess struct {
 	*metricObject

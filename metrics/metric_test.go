@@ -72,7 +72,7 @@ func TestMetrics2(t *testing.T) {
 }
 func TestMetrics3(t *testing.T) {
 
-	for groupType, metric1 := range metricsParam() {
+	for groupType, metric1 := range metricsParams() {
 
 		t.Logf("testing %s\n", metric1.Name())
 		if err := metric1.ToMap().Encode().Error(); err != nil {
@@ -105,35 +105,51 @@ func TestMetrics3(t *testing.T) {
 	}
 }
 
-func metricsParam() map[MetricGroupType]MetricPacker {
-	r := map[MetricGroupType]MetricPacker{}
+func metricsParams() map[MetricGroupType]MetricPacker {
+	return map[MetricGroupType]MetricPacker{
+		MetricGroupGlobal:               metricGlobalExample(),
+		MetricGroupShortCreationFailure: metricShortCreationFailureExample(),
+		MetricGroupShortCreationSuccess: metricShortCreationSuccessExample(),
+		MetricGroupShortAccessInvalid:   metricMetricShortAccessInvalidExample(),
+		MetricGroupShortAccessSuccess:   metricMetricShortAccessSuccessExample(),
+	}
+}
 
-	g1 := NewMetricGlobal().IncFailedShortCreateCounter().IncInvalidShortAccessCounter().IncServedPathCount().
+func metricGlobalExample() MetricPacker {
+	return NewMetricGlobal().IncFailedShortCreateCounter().IncInvalidShortAccessCounter().IncServedPathCount().
 		IncShortAccessVisitDeleteCount().IncShortAccessVisitCount().IncShortAccessVisitCount()
+}
 
-	r[MetricGroupGlobal] = g1
+func metricShortCreationFailureExample() MetricPacker {
+	m := NewMetricShortCreationFailure()
+	m.FailedShortCreateShort = "short name"
+	m.FailedShortCreateIP = "1.1.1.1"
+	m.FailedShortCreateInfo = "info ... ++++ "
+	m.FailedShortCreateReferrer = "2.2.2.2 referrer"
+	m.FailedShortCreateTime = time.Now().String()
+	m.FailedShortCreateReason = errors.Errorf("bad something .. ").Error()
+	return m
+}
 
-	g2 := NewMetricShortCreationFailure()
-	g2.FailedShortCreateShort = "short name"
-	g2.FailedShortCreateIP = "1.1.1.1"
-	g2.FailedShortCreateInfo = "info ... ++++ "
-	g2.FailedShortCreateReferrer = "2.2.2.2 referrer"
-	g2.FailedShortCreateTime = time.Now().String()
-	g2.FailedShortCreateReason = errors.Errorf("bad something .. ").Error()
+func metricShortCreationSuccessExample() MetricPacker {
+	m := NewMetricShortCreationSuccess()
+	m.ShortCreateName = "hjfgds435h"
+	m.ShortCreateTime = time.Now().String()
+	m.ShortCreateIP = "1.1.1.1"
+	m.ShortCreateInfo = "info ... ++++ "
+	m.ShortCreatePrivate = "true"
+	m.ShortCreateDelete = "false"
+	m.ShortCreatedNamed = "true"
+	m.ShortCreateReferrer = "2.2.2.2 referrer"
+	return m
+}
 
-	r[MetricGroupShortCreationFailure] = g2
+func metricMetricShortAccessInvalidExample() MetricPacker {
+	m := NewMetricShortAccessInvalid()
+	return m
+}
 
-	g3 := NewMetricShortCreationSuccess()
-	g3.ShortCreateName = "hjfgds435h"
-	g3.ShortCreateTime = time.Now().String()
-	g3.ShortCreateIP = "1.1.1.1"
-	g3.ShortCreateInfo = "info ... ++++ "
-	g3.ShortCreatePrivate = "true"
-	g3.ShortCreateDelete = "false"
-	g3.ShortCreatedNamed = "true"
-	g3.ShortCreateReferrer = "2.2.2.2 referrer"
-
-	r[MetricGroupShortCreationSuccess] = g3
-
-	return r
+func metricMetricShortAccessSuccessExample() MetricPacker {
+	m := NewMetricShortAccess()
+	return m
 }
