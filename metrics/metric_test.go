@@ -74,7 +74,7 @@ func TestMetrics3(t *testing.T) {
 
 	for groupType, metric1 := range metricsParams() {
 
-		t.Logf("testing %s\n", metric1.Name())
+		t.Logf("testing %s\n", metric1.GroupType())
 		if err := metric1.ToMap().Encode().Error(); err != nil {
 			t.Logf("encode error: %s\n", err)
 			t.FailNow()

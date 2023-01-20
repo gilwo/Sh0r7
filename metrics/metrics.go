@@ -225,6 +225,7 @@ type MetricPacker interface {
 	Compress() MetricPacker
 	Decompress() MetricPacker
 	CompressedContent() []byte
+	GroupType() MetricGroupType
 }
 
 type MetricGroupType int
@@ -238,6 +239,26 @@ const (
 	MetricGroupFailedServedPath
 	MetricGroupServedPath
 )
+
+func (mg MetricGroupType) String() (r string) {
+	switch mg {
+	case MetricGroupGlobal:
+		r = "MetricGlobal"
+	case MetricGroupShortCreationFailure:
+		r = "MetricShortCreationFailure"
+	case MetricGroupShortCreationSuccess:
+		r = "MetricShortCreationSuccess"
+	case MetricGroupShortAccessInvalid:
+		r = "MetricShortAccessInvalid"
+	case MetricGroupShortAccessSuccess:
+		r = "MetricShortAccess"
+	case MetricGroupFailedServedPath:
+		r = "MetricFailedServedPath"
+	case MetricGroupServedPath:
+		r = "MetricServedPath"
+	}
+	return r
+}
 
 func NewMetricGroup(mg MetricGroupType) MetricPacker {
 	switch mg {
@@ -267,13 +288,19 @@ type metricObject struct {
 	mapped            map[interface{}]interface{}
 	err               error
 	name              string
+	groupType         MetricGroupType
 }
 
-func newMetricObject(name string) *metricObject {
+func newMetricObject(name string, groupType MetricGroupType) *metricObject {
 	return &metricObject{
-		mapped: map[interface{}]interface{}{},
-		name:   name,
+		mapped:    map[interface{}]interface{}{},
+		name:      name,
+		groupType: groupType,
 	}
+}
+
+func (m *metricObject) GroupType() MetricGroupType {
+	return m.groupType
 }
 
 func (m *metricObject) FromString(in string) MetricPacker {
@@ -389,7 +416,7 @@ type MetricGlobal struct {
 
 func NewMetricGlobal() *MetricGlobal {
 	return &MetricGlobal{
-		metricObject: newMetricObject("global"),
+		metricObject: newMetricObject("global", MetricGroupGlobal),
 	}
 }
 
@@ -522,7 +549,7 @@ type MetricShortCreationFailure struct {
 
 func NewMetricShortCreationFailure() *MetricShortCreationFailure {
 	return &MetricShortCreationFailure{
-		metricObject: newMetricObject("short creation failure"),
+		metricObject: newMetricObject("short creation failure", MetricGroupShortCreationFailure),
 	}
 }
 
@@ -601,7 +628,7 @@ type MetricShortAccessInvalid struct {
 
 func NewMetricShortAccessInvalid() *MetricShortAccessInvalid {
 	return &MetricShortAccessInvalid{
-		metricObject: newMetricObject("short access invalid"),
+		metricObject: newMetricObject("short access invalid", MetricGroupShortAccessInvalid),
 	}
 }
 
@@ -677,7 +704,7 @@ type MetricShortCreationSuccess struct {
 
 func NewMetricShortCreationSuccess() *MetricShortCreationSuccess {
 	return &MetricShortCreationSuccess{
-		metricObject: newMetricObject("short creation success"),
+		metricObject: newMetricObject("short creation success", MetricGroupShortCreationSuccess),
 	}
 }
 
@@ -770,7 +797,7 @@ type MetricShortAccess struct {
 
 func NewMetricShortAccess() *MetricShortAccess {
 	return &MetricShortAccess{
-		metricObject: newMetricObject("short access"),
+		metricObject: newMetricObject("short access", MetricGroupShortAccessSuccess),
 	}
 }
 
@@ -860,7 +887,7 @@ type MetricServedPath struct {
 
 func NewMetricServedPath() *MetricServedPath {
 	return &MetricServedPath{
-		metricObject: newMetricObject("served path"),
+		metricObject: newMetricObject("served path", MetricGroupServedPath),
 	}
 }
 
@@ -938,7 +965,7 @@ type MetricFailedServedPath struct {
 
 func NewMetricFailedServedPath() *MetricFailedServedPath {
 	return &MetricFailedServedPath{
-		metricObject: newMetricObject("failed served path"),
+		metricObject: newMetricObject("failed served path", MetricGroupFailedServedPath),
 	}
 }
 
