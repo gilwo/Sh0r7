@@ -74,11 +74,11 @@ func main() {
 				}
 				for vi, vn := range v {
 					var val string
-					switch vn.(type) {
+					switch vnt := vn.(type) {
 					case string:
-						val = vn.(string)
+						val = vnt
 					case bool:
-						val = fmt.Sprintf("%v", vn.(bool))
+						val = fmt.Sprintf("%v", vnt)
 					default:
 						val = "value problem"
 					}
@@ -120,9 +120,9 @@ func main() {
 		fmt.Printf("problem getting metrics: %s\n", err)
 	} else {
 		fmt.Printf("got %d metrics:\n\n", len(res))
-		// for _, e := range res {
-		// fmt.Printf("%s\ndecoded:\n%s\n", e, e.DumpMetricData())
-		// }
+		for _, e := range res {
+			fmt.Printf("%s\ndecoded:\n%s\n", e, e.DumpMetricData())
+		}
 	}
 
 	x := insertMetric()
@@ -342,7 +342,7 @@ func GetMetrics(conn *pgx.Conn, tableName string, count, ofs int) ([]*MetricDBRe
 
 func insertMetric() *MetricDBRecord {
 	m := metrics.NewMetricShortAccessInvalid()
-	m.InvalidShortAccessShort = uuid.NewString()
+	m.InvalidShortAccessName = uuid.NewString()
 	m.InvalidShortAccessIP = "2001::3213:2313:3213"
 	m.InvalidShortAccessTime = time.Now().String()
 	m.InvalidShortAccessReferrer = "someone referred me to here"
@@ -353,7 +353,7 @@ func insertMetric() *MetricDBRecord {
 	mp.ToMap().Encode()
 	mp.Compress()
 	return &MetricDBRecord{
-		Metric_Name:  m.InvalidShortAccessShort,
+		Metric_Name:  m.InvalidShortAccessName,
 		Metric_Group: mp.GroupType(),
 		Metric_Data:  mp.CompressedContent(),
 	}

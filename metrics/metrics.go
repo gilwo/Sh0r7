@@ -18,18 +18,18 @@ const (
 	// ---------------------------------------------
 
 	// failed short creation - per failure
-	FailedShortCreateShort    // string // short name
+	FailedShortCreateName     // string // short name
 	FailedShortCreateTime     // string
 	FailedShortCreateIP       // string
 	FailedShortCreateInfo     // string // useragent / other ...
-	FailedShortCreateReferrer // string
+	FailedShortCreateReferrer // stringG
 	FailedShortCreateReason   // string // if applicable ..?!?
 
 	// global failed creation
 	FailedShortCreateCounter //int
 
 	// invalid short access (non existant)
-	InvalidShortAccessShort    // string // short name
+	InvalidShortAccessName     // string // short name
 	InvalidShortAccessTime     // string
 	InvalidShortAccessIP       // string
 	InvalidShortAccessInfo     // string // useragent / other ...
@@ -57,6 +57,7 @@ const (
 	ShortExpiredCount // int
 
 	// Short Access - per visit metrics
+	ShortAccessVisitName     // string
 	ShortAccessVisitTime     // string
 	ShortAccessVisitIP       // string
 	ShortAccessVisitInfo     // string // useragent / other ...
@@ -100,8 +101,8 @@ func (mo MetricType) String() string {
 	case InvalidMetrtic:
 		return "InvalidMetrtic"
 
-	case FailedShortCreateShort: // string // short name
-		return "FailedShortCreateShort"
+	case FailedShortCreateName: // string // short name
+		return "FailedShortCreateName"
 	case FailedShortCreateTime: // string
 		return "FailedShortCreateTime"
 	case FailedShortCreateIP: // string
@@ -116,8 +117,8 @@ func (mo MetricType) String() string {
 	case FailedShortCreateCounter: //int
 		return "FailedShortCreateCounter"
 
-	case InvalidShortAccessShort: // string // short name
-		return "InvalidShortAccessShort"
+	case InvalidShortAccessName: // string // short name
+		return "InvalidShortAccessName"
 	case InvalidShortAccessTime: // string
 		return "InvalidShortAccessTime"
 	case InvalidShortAccessIP: // string
@@ -152,6 +153,8 @@ func (mo MetricType) String() string {
 	case ShortExpiredCount: // int
 		return "ShortExpiredCount"
 
+	case ShortAccessVisitName: // string
+		return "ShortAccessVisitName"
 	case ShortAccessVisitTime: // string
 		return "ShortAccessVisitTime"
 	case ShortAccessVisitIP: // string
@@ -209,37 +212,83 @@ func (mo MetricType) String() string {
 }
 
 type MetricPacker interface {
+	// Encode metric data in msgpack format - expect metric data as map to exists
 	Encode() MetricPacker
+	// retrieve the encoded msgpack content as string
 	EncodedString() string
+	// retrieve the encoded msgpack content as []byte
 	EncodedContent() []byte
+	// Decode from msgpack format to metric data in map format - expect msgpack string to be in string
 	Decode() MetricPacker
+	// convert metric data to map format
 	ToMap() MetricPacker
+	// convert map format to metric data
 	ToObject() MetricPacker
+	// create metric object from string
 	FromString(string) MetricPacker
+	// create metric object from compressed []byte (need to decompress and decode and convert before access metric data)
 	FromCompressed([]byte) MetricPacker
+	// return last error
 	Error() error
+	// dump metric data as map
 	DumpMap() string
+	// dump metric data for explicit object
 	DumpObject() string
+	// check if the metric data object is the same (check explicit metric data oobject)
 	Equal(MetricPacker) bool
+	// name of the metric data object
 	Name() string
+	// compress the encoded msgpack data - require existing encoded data content ([]byte)
 	Compress() MetricPacker
+	// decompress the encoded msgpack data - require existing compressed content ([]byte)
 	Decompress() MetricPacker
+	// retrieve the compressed data
 	CompressedContent() []byte
+	// metric data group type
 	GroupType() MetricGroupType
 }
 
 type MetricGroupType int
 
 const (
-	MetricGroupGlobal MetricGroupType = iota
+	MetricGroupFirst MetricGroupType = iota
+	MetricGroupGlobal
 	MetricGroupShortCreationFailure
 	MetricGroupShortCreationSuccess
 	MetricGroupShortAccessInvalid
 	MetricGroupShortAccessSuccess
 	MetricGroupFailedServedPath
 	MetricGroupServedPath
+	MetricGroupLast
+	MetricGroupInvalid
 )
 
+func ListMetricGroups() (r []MetricGroupType) {
+	for mg := MetricGroupFirst + 1; mg < MetricGroupLast; mg++ {
+		r = append(r, mg)
+	}
+	return r
+}
+
+func MetricGroupTypeFromString(in string) (r MetricGroupType) {
+	switch in {
+	case "MetricGlobal":
+		r = MetricGroupGlobal
+	case "MetricShortCreationFailure":
+		r = MetricGroupShortCreationFailure
+	case "MetricShortCreationSuccess":
+		r = MetricGroupShortCreationSuccess
+	case "MetricShortAccessInvalid":
+		r = MetricGroupShortAccessInvalid
+	case "MetricShortAccess":
+		r = MetricGroupShortAccessSuccess
+	case "MetricFailedServedPath":
+		r = MetricGroupFailedServedPath
+	case "MetricServedPath":
+		r = MetricGroupServedPath
+	}
+	return r
+}
 func (mg MetricGroupType) String() (r string) {
 	switch mg {
 	case MetricGroupGlobal:
@@ -329,6 +378,9 @@ func (m *metricObject) CompressedContent() []byte {
 }
 
 func (m *metricObject) DumpMap() string {
+	if m.mapped == nil {
+		return m.name + ": map not ready"
+	}
 	return fmt.Sprintf("%s: %#+v", m.name, m.mapped)
 }
 func (m *metricObject) Error() error {
@@ -383,10 +435,18 @@ func (m *metricObject) Decode() MetricPacker {
 	return m
 }
 func (m *metricObject) Compress() MetricPacker {
+	if m.encodedContent == nil {
+		m.err = errors.New(m.name + ": encoded content is missing")
+		return m
+	}
 	m.compressedContent = Compress(m.encodedContent)
 	return m
 }
 func (m *metricObject) Decompress() MetricPacker {
+	if m.compressedContent == nil {
+		m.err = errors.New(m.name + ": compressed content is missing")
+		return m
+	}
 	m.encodedContent, m.err = Decompress(m.compressedContent)
 	return m
 }
@@ -505,7 +565,7 @@ func (m *MetricGlobal) DumpObject() string {
 			"%s: %d\n\t"+
 			"%s: %d\n\t"+
 			"%s: %d\n\t"+
-			"%s: %d\n\t",
+			"%s: %d\n",
 		m.name,
 		FailedShortCreateCounter, m.FailedShortCreateCounter, // = mapped[FailedShortCreateCounter]
 		InvalidShortAccessCounter, m.InvalidShortAccessCounter, // = mapped[InvalidShortAccessCounter]
@@ -539,7 +599,7 @@ func (m *MetricGlobal) Equal(om MetricPacker) bool {
 type MetricShortCreationFailure struct {
 	*metricObject
 	// failed short creation - per failure
-	FailedShortCreateShort    string // short name
+	FailedShortCreateName     string // short name
 	FailedShortCreateTime     string
 	FailedShortCreateIP       string
 	FailedShortCreateInfo     string // useragent / other ...
@@ -555,7 +615,7 @@ func NewMetricShortCreationFailure() *MetricShortCreationFailure {
 
 func (m *MetricShortCreationFailure) ToMap() MetricPacker {
 	m.mapped = map[interface{}]interface{}{
-		FailedShortCreateShort:    m.FailedShortCreateShort,
+		FailedShortCreateName:     m.FailedShortCreateName,
 		FailedShortCreateTime:     m.FailedShortCreateTime,
 		FailedShortCreateIP:       m.FailedShortCreateIP,
 		FailedShortCreateInfo:     m.FailedShortCreateInfo,
@@ -574,7 +634,7 @@ func (m *MetricShortCreationFailure) ToObject() MetricPacker {
 	for k, v := range m.mapped {
 		mapped[MetricType(k.(int8))] = v.(string)
 	}
-	m.FailedShortCreateShort = mapped[FailedShortCreateShort]
+	m.FailedShortCreateName = mapped[FailedShortCreateName]
 	m.FailedShortCreateTime = mapped[FailedShortCreateTime]
 	m.FailedShortCreateIP = mapped[FailedShortCreateIP]
 	m.FailedShortCreateInfo = mapped[FailedShortCreateInfo]
@@ -592,9 +652,9 @@ func (m *MetricShortCreationFailure) DumpObject() string {
 			"%s: %s\n\t"+
 			"%s: %s\n\t"+
 			"%s: %s\n\t"+
-			"%s: %s\n\t",
+			"%s: %s\n",
 		m.name,
-		FailedShortCreateShort, m.FailedShortCreateShort,
+		FailedShortCreateName, m.FailedShortCreateName,
 		FailedShortCreateTime, m.FailedShortCreateTime,
 		FailedShortCreateIP, m.FailedShortCreateIP,
 		FailedShortCreateInfo, m.FailedShortCreateInfo,
@@ -605,7 +665,7 @@ func (m *MetricShortCreationFailure) DumpObject() string {
 func (m *MetricShortCreationFailure) Equal(om MetricPacker) bool {
 	m2, ok := om.(*MetricShortCreationFailure)
 	return ok &&
-		m2.FailedShortCreateShort == m.FailedShortCreateShort &&
+		m2.FailedShortCreateName == m.FailedShortCreateName &&
 		m2.FailedShortCreateTime == m.FailedShortCreateTime &&
 		m2.FailedShortCreateIP == m.FailedShortCreateIP &&
 		m2.FailedShortCreateInfo == m.FailedShortCreateInfo &&
@@ -619,7 +679,7 @@ func (m *MetricShortCreationFailure) Equal(om MetricPacker) bool {
 type MetricShortAccessInvalid struct {
 	*metricObject
 	// invalid short access (non existant)
-	InvalidShortAccessShort    string // short name
+	InvalidShortAccessName     string // short name
 	InvalidShortAccessTime     string
 	InvalidShortAccessIP       string
 	InvalidShortAccessInfo     string // useragent / other ...
@@ -634,7 +694,7 @@ func NewMetricShortAccessInvalid() *MetricShortAccessInvalid {
 
 func (m *MetricShortAccessInvalid) ToMap() MetricPacker {
 	m.mapped = map[interface{}]interface{}{
-		InvalidShortAccessShort:    m.InvalidShortAccessShort,    //    string // short name
+		InvalidShortAccessName:     m.InvalidShortAccessName,     //    string // short name
 		InvalidShortAccessTime:     m.InvalidShortAccessTime,     //     string
 		InvalidShortAccessIP:       m.InvalidShortAccessIP,       //       string
 		InvalidShortAccessInfo:     m.InvalidShortAccessInfo,     //     string // useragent / other ...
@@ -652,7 +712,7 @@ func (m *MetricShortAccessInvalid) ToObject() MetricPacker {
 	for k, v := range m.mapped {
 		mapped[MetricType(k.(int8))] = v.(string)
 	}
-	m.InvalidShortAccessShort = mapped[InvalidShortAccessShort]       //    string // short name
+	m.InvalidShortAccessName = mapped[InvalidShortAccessName]         //    string // short name
 	m.InvalidShortAccessTime = mapped[InvalidShortAccessTime]         //     string
 	m.InvalidShortAccessIP = mapped[InvalidShortAccessIP]             //       string
 	m.InvalidShortAccessInfo = mapped[InvalidShortAccessInfo]         //     string // useragent / other ...
@@ -667,9 +727,9 @@ func (m *MetricShortAccessInvalid) DumpObject() string {
 			"%s: %s\n\t"+
 			"%s: %s\n\t"+
 			"%s: %s\n\t"+
-			"%s: %s\n\t",
+			"%s: %s\n",
 		m.name,
-		InvalidShortAccessShort, m.InvalidShortAccessShort, //    string // short name
+		InvalidShortAccessName, m.InvalidShortAccessName, //    string // short name
 		InvalidShortAccessTime, m.InvalidShortAccessTime, //     string
 		InvalidShortAccessIP, m.InvalidShortAccessIP, //       string
 		InvalidShortAccessInfo, m.InvalidShortAccessInfo, //     string // useragent / other ...
@@ -679,7 +739,7 @@ func (m *MetricShortAccessInvalid) DumpObject() string {
 func (m *MetricShortAccessInvalid) Equal(om MetricPacker) bool {
 	m2, ok := om.(*MetricShortAccessInvalid)
 	return ok &&
-		m2.InvalidShortAccessShort == m.InvalidShortAccessShort &&
+		m2.InvalidShortAccessName == m.InvalidShortAccessName &&
 		m2.InvalidShortAccessTime == m.InvalidShortAccessTime &&
 		m2.InvalidShortAccessIP == m.InvalidShortAccessIP &&
 		m2.InvalidShortAccessInfo == m.InvalidShortAccessInfo &&
@@ -752,7 +812,7 @@ func (m *MetricShortCreationSuccess) DumpObject() string {
 			"%s: %s\n\t"+
 			"%s: %s\n\t"+
 			"%s: %s\n\t"+
-			"%s: %s\n\t",
+			"%s: %s\n",
 		m.name,
 
 		ShortCreateName, m.ShortCreateName, //       string // ip
@@ -785,6 +845,7 @@ type MetricShortAccess struct {
 	*metricObject
 
 	// Short Access - per visit metrics
+	ShortAccessVisitName     string
 	ShortAccessVisitTime     string
 	ShortAccessVisitIP       string
 	ShortAccessVisitInfo     string // useragent / other ...
@@ -803,6 +864,7 @@ func NewMetricShortAccess() *MetricShortAccess {
 
 func (m *MetricShortAccess) ToMap() MetricPacker {
 	m.mapped = map[interface{}]interface{}{
+		ShortAccessVisitName:     m.ShortAccessVisitName,
 		ShortAccessVisitTime:     m.ShortAccessVisitTime,
 		ShortAccessVisitIP:       m.ShortAccessVisitIP,
 		ShortAccessVisitInfo:     m.ShortAccessVisitInfo,
@@ -824,6 +886,7 @@ func (m *MetricShortAccess) ToObject() MetricPacker {
 	for k, v := range m.mapped {
 		mapped[MetricType(k.(int8))] = v.(string)
 	}
+	m.ShortAccessVisitName = mapped[ShortAccessVisitName]
 	m.ShortAccessVisitTime = mapped[ShortAccessVisitTime]
 	m.ShortAccessVisitIP = mapped[ShortAccessVisitIP]
 	m.ShortAccessVisitInfo = mapped[ShortAccessVisitInfo]
@@ -845,8 +908,10 @@ func (m *MetricShortAccess) DumpObject() string {
 			"%s: %s\n\t"+
 			"%s: %s\n\t"+
 			"%s: %s\n\t"+
-			"%s: %s\n\t",
+			"%s: %s\n\t"+
+			"%s: %s\n",
 		m.name,
+		ShortAccessVisitName, m.ShortAccessVisitName, //     string
 		ShortAccessVisitTime, m.ShortAccessVisitTime, //     string
 		ShortAccessVisitIP, m.ShortAccessVisitIP, //       string
 		ShortAccessVisitInfo, m.ShortAccessVisitInfo, //     string // useragent / other ...
@@ -861,6 +926,7 @@ func (m *MetricShortAccess) DumpObject() string {
 func (m *MetricShortAccess) Equal(om MetricPacker) bool {
 	m2, ok := om.(*MetricShortAccess)
 	return ok &&
+		m2.ShortAccessVisitName == m.ShortAccessVisitName &&
 		m2.ShortAccessVisitTime == m.ShortAccessVisitTime &&
 		m2.ShortAccessVisitIP == m.ShortAccessVisitIP &&
 		m2.ShortAccessVisitInfo == m.ShortAccessVisitInfo &&
@@ -927,7 +993,7 @@ func (m *MetricServedPath) DumpObject() string {
 			"%s: %s\n\t"+
 			"%s: %s\n\t"+
 			"%s: %s\n\t"+
-			"%s: %s\n\t",
+			"%s: %s\n",
 		m.name,
 		// per served path
 		ServedPathName, m.ServedPathName,
@@ -1009,7 +1075,7 @@ func (m *MetricFailedServedPath) DumpObject() string {
 			"%s: %s\n\t"+
 			"%s: %s\n\t"+
 			"%s: %s\n\t"+
-			"%s: %s\n\t",
+			"%s: %s\n",
 		m.name,
 		// per served path
 		FailedServedPathName, m.FailedServedPathName,

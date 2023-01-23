@@ -38,7 +38,7 @@ func TestMetrics1(t *testing.T) {
 
 func TestMetrics2(t *testing.T) {
 	g1 := NewMetricShortCreationFailure()
-	g1.FailedShortCreateShort = "short name"
+	g1.FailedShortCreateName = "short name"
 	g1.FailedShortCreateIP = "1.1.1.1"
 	g1.FailedShortCreateInfo = "info ... ++++ "
 	g1.FailedShortCreateReferrer = "2.2.2.2 referrer"
@@ -137,7 +137,7 @@ func metricGlobalExample() MetricPacker {
 
 func metricShortCreationFailureExample() MetricPacker {
 	m := NewMetricShortCreationFailure()
-	m.FailedShortCreateShort = "short name"
+	m.FailedShortCreateName = "short name"
 	m.FailedShortCreateIP = "1.1.1.1"
 	m.FailedShortCreateInfo = "info ... ++++ "
 	m.FailedShortCreateReferrer = "2.2.2.2 referrer"
@@ -161,7 +161,7 @@ func metricShortCreationSuccessExample() MetricPacker {
 
 func metricMetricShortAccessInvalidExample() MetricPacker {
 	m := NewMetricShortAccessInvalid()
-	m.InvalidShortAccessShort = "akljsdhflkjadsh"
+	m.InvalidShortAccessName = "akljsdhflkjadsh"
 	m.InvalidShortAccessIP = "2001::3213:2313:3213"
 	m.InvalidShortAccessTime = time.Now().String()
 	m.InvalidShortAccessReferrer = "someone referred me to here"
