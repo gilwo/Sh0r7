@@ -462,6 +462,49 @@ func HandleShort(c *gin.Context) {
 	_spawnErr(c, errors.Errorf("short %s not found", short))
 }
 
+func isAccessToPrivateAllowed(c *gin.Context, short string) (r *bool) {
+	True := true
+	False := false
+	storedPrvPassTok, e1 := store.StoreCtx.GetMetaDataMapping(string(short)+store.SuffixPublic, store.FieldPrvPassTok)
+	if e1 == nil && storedPrvPassTok != "" {
+		storedPrvPassSalt, e2 := store.StoreCtx.GetMetaDataMapping(string(short)+store.SuffixPublic, store.FieldPrvPassSalt)
+		if e2 != nil {
+			msg := errors.Errorf("short <%s> is locked but missing salt", short)
+			log.Printf("%s, e2: %s\n", msg, e2.Error())
+			_spawnErr(c, msg)
+			return &False
+		}
+		if !c.Request.URL.Query().Has(common.FPass) {
+			recvPassToken := c.Request.Header.Get(common.FPrvPassToken)
+			log.Printf("-- (recv) pass token: <%s>\n", recvPassToken)
+			log.Printf("-- pass token: <%s>\n", storedPrvPassTok)
+			log.Printf("-- pass salt: <%s>\n", storedPrvPassSalt)
+			if recvPassToken != storedPrvPassTok {
+				msg := errors.Errorf("access denied to short <%s>", short)
+				log.Printf("%s (pass tok),  recv <%s>, salt <%s>, stored <%s>\n",
+					msg, recvPassToken, storedPrvPassSalt, storedPrvPassTok)
+				_spawnErrWithCode(c, http.StatusForbidden, msg)
+				return &False
+			}
+		} else {
+			passTxt := c.Request.URL.Query().Get(common.FPass)
+			calcPassTok := shortener.GenerateTokenTweaked(passTxt+storedPrvPassSalt, 0, 30, 10)
+			log.Printf("-- (recv) pass : <%s>\n", passTxt)
+			log.Printf("-- pass salt: <%s>\n", storedPrvPassSalt)
+			log.Printf("-- pass token: <%s>\n", storedPrvPassTok)
+			log.Printf("-- (calc) pass token: <%s>\n", calcPassTok)
+			if calcPassTok != storedPrvPassTok {
+				msg := errors.Errorf("access denied to short <%s>", short)
+				log.Printf("%s (pass text), txt <%s>, salt <%s>, calc <%s>, stored <%s>\n",
+					msg, passTxt, storedPrvPassSalt, calcPassTok, storedPrvPassTok)
+				_spawnErrWithCode(c, http.StatusForbidden, msg)
+				return &False
+			}
+		}
+		return &True
+	}
+	return
+}
 func isAccessToShortAllowed(c *gin.Context, short string) (r *bool) {
 	True := true
 	False := false
