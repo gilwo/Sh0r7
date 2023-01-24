@@ -48,7 +48,7 @@ const (
 	ShortCreateIP       // string // ip
 	ShortCreateInfo     // string // useragaent / user id / other ...
 	ShortCreatePrivate  // bool
-	ShortCreateDelete   // bool
+	ShortCreateRemove   // bool
 	ShortCreatedNamed   // bool
 	ShortCreateReferrer // string
 
@@ -64,7 +64,7 @@ const (
 	ShortAccessVisitReferrer // string
 	ShortAccessVisitSuccess  // bool
 	ShortAccessVisitPrivate  // bool
-	ShortAccessVisitDelete   // bool
+	ShortAccessVisitRemove   // bool
 	ShortAccessVisitIsLocked // bool
 
 	// global Access counter - for all visits
@@ -72,7 +72,7 @@ const (
 	// TODO: add
 	// ShortAccessVisitPrivateCount       // int
 	ShortAccessVisitFailedCount // int // for failed attempts in locked short
-	ShortAccessVisitDeleteCount // int // how many delete occurs
+	ShortAccessVisitRemoveCount // int // how many remove occurs
 
 	// ==============================================================================================
 	// metrics per served path (only the app specific pages / urls ; not the framework / extra stuff)
@@ -143,8 +143,8 @@ func (mo MetricType) String() string {
 		return "ShortCreateInfo"
 	case ShortCreatePrivate: // bool
 		return "ShortCreatePrivate"
-	case ShortCreateDelete: // bool
-		return "ShortCreateDelete"
+	case ShortCreateRemove: // bool
+		return "ShortCreateRemove"
 	case ShortCreatedNamed: // bool
 		return "ShortCreatedNamed"
 	case ShortCreateReferrer: // string
@@ -169,8 +169,8 @@ func (mo MetricType) String() string {
 		return "ShortAccessVisitSuccess"
 	case ShortAccessVisitPrivate: // bool
 		return "ShortAccessVisitPrivate"
-	case ShortAccessVisitDelete: // bool
-		return "ShortAccessVisitDelete"
+	case ShortAccessVisitRemove: // bool
+		return "ShortAccessVisitRemove"
 	case ShortAccessVisitIsLocked: // bool
 		return "ShortAccessVisitIsLocked"
 
@@ -178,8 +178,8 @@ func (mo MetricType) String() string {
 		return "ShortAccessVisitCount"
 	case ShortAccessVisitFailedCount: // int // for failed attempts in locked short
 		return "ShortAccessVisitFailedCount"
-	case ShortAccessVisitDeleteCount: // int // how many delete occurs
-		return "ShortAccessVisitDeleteCount"
+	case ShortAccessVisitRemoveCount: // int // how many remove occurs
+		return "ShortAccessVisitRemoveCount"
 
 	case ServedPathName: // string
 		return "ServedPathName"
@@ -473,7 +473,7 @@ type MetricGlobal struct {
 	// global short Access counter - for all visits
 	ShortAccessVisitCount       int
 	ShortAccessVisitFailedCount int // for failed attempts in locked short
-	ShortAccessVisitDeleteCount int // how many delete occurs
+	ShortAccessVisitRemoveCount int // how many remove occurs
 
 	// global served path
 	ServedPathCount       int
@@ -510,8 +510,8 @@ func (m *MetricGlobal) IncShortAccessVisitFailedCount() *MetricGlobal {
 	m.ShortAccessVisitFailedCount += 1
 	return m
 }
-func (m *MetricGlobal) IncShortAccessVisitDeleteCount() *MetricGlobal {
-	m.ShortAccessVisitDeleteCount += 1
+func (m *MetricGlobal) IncShortAccessVisitRemoveCount() *MetricGlobal {
+	m.ShortAccessVisitRemoveCount += 1
 	return m
 }
 func (m *MetricGlobal) IncServedPathCount() *MetricGlobal { m.ServedPathCount += 1; return m }
@@ -528,7 +528,7 @@ func (m *MetricGlobal) ToMap() MetricPacker {
 		ShortExpiredCount:           m.ShortExpiredCount,
 		ShortAccessVisitCount:       m.ShortAccessVisitCount,
 		ShortAccessVisitFailedCount: m.ShortAccessVisitFailedCount,
-		ShortAccessVisitDeleteCount: m.ShortAccessVisitDeleteCount,
+		ShortAccessVisitRemoveCount: m.ShortAccessVisitRemoveCount,
 		ServedPathCount:             m.ServedPathCount,
 		ServedPathFailedCount:       m.ServedPathFailedCount,
 	}
@@ -553,7 +553,7 @@ func (m *MetricGlobal) ToObject() MetricPacker {
 	m.ShortExpiredCount = mapped[ShortExpiredCount]
 	m.ShortAccessVisitCount = mapped[ShortAccessVisitCount]
 	m.ShortAccessVisitFailedCount = mapped[ShortAccessVisitFailedCount]
-	m.ShortAccessVisitDeleteCount = mapped[ShortAccessVisitDeleteCount]
+	m.ShortAccessVisitRemoveCount = mapped[ShortAccessVisitRemoveCount]
 	m.ServedPathCount = mapped[ServedPathCount]
 	m.ServedPathFailedCount = mapped[ServedPathFailedCount]
 
@@ -579,7 +579,7 @@ func (m *MetricGlobal) DumpObject() string {
 		ShortExpiredCount, m.ShortExpiredCount, // = mapped[ShortExpiredCount]
 		ShortAccessVisitCount, m.ShortAccessVisitCount, // = mapped[ShortAccessVisitCount]
 		ShortAccessVisitFailedCount, m.ShortAccessVisitFailedCount, // = mapped[ShortAccessVisitFailedCount]
-		ShortAccessVisitDeleteCount, m.ShortAccessVisitDeleteCount, // = mapped[ShortAccessVisitDeleteCount]
+		ShortAccessVisitRemoveCount, m.ShortAccessVisitRemoveCount, // = mapped[ShortAccessVisitRemoveCount]
 		ServedPathCount, m.ServedPathCount, // = mapped[ServedPathCount]
 		ServedPathFailedCount, m.ServedPathFailedCount, // = mapped[ServedPathFailedCount]
 	)
@@ -594,7 +594,7 @@ func (m *MetricGlobal) Equal(om MetricPacker) bool {
 		m2.ShortExpiredCount == m.ShortExpiredCount &&
 		m2.ShortAccessVisitCount == m.ShortAccessVisitCount &&
 		m2.ShortAccessVisitFailedCount == m.ShortAccessVisitFailedCount &&
-		m2.ShortAccessVisitDeleteCount == m.ShortAccessVisitDeleteCount &&
+		m2.ShortAccessVisitRemoveCount == m.ShortAccessVisitRemoveCount &&
 		m2.ServedPathCount == m.ServedPathCount &&
 		m2.ServedPathFailedCount == m.ServedPathFailedCount
 }
@@ -763,7 +763,7 @@ type MetricShortCreationSuccess struct {
 	ShortCreateIP       string // ip
 	ShortCreateInfo     string // useragaent / user id / other ...
 	ShortCreatePrivate  string // bool
-	ShortCreateDelete   string // bool
+	ShortCreateRemove   string // bool
 	ShortCreatedNamed   string // bool
 	ShortCreateReferrer string
 }
@@ -781,7 +781,7 @@ func (m *MetricShortCreationSuccess) ToMap() MetricPacker {
 		ShortCreateIP:       m.ShortCreateIP,       //       string // ip
 		ShortCreateInfo:     m.ShortCreateInfo,     //     string // useragaent / user id / other ...
 		ShortCreatePrivate:  m.ShortCreatePrivate,  //  string // bool
-		ShortCreateDelete:   m.ShortCreateDelete,   //   string // bool
+		ShortCreateRemove:   m.ShortCreateRemove,   //   string // bool
 		ShortCreatedNamed:   m.ShortCreatedNamed,   //   string // bool
 		ShortCreateReferrer: m.ShortCreateReferrer, // string
 	}
@@ -802,7 +802,7 @@ func (m *MetricShortCreationSuccess) ToObject() MetricPacker {
 	m.ShortCreateIP = mapped[ShortCreateIP]             //       string // ip
 	m.ShortCreateInfo = mapped[ShortCreateInfo]         //     string // useragaent / user id / other ...
 	m.ShortCreatePrivate = mapped[ShortCreatePrivate]   //  string // bool
-	m.ShortCreateDelete = mapped[ShortCreateDelete]     //   string // bool
+	m.ShortCreateRemove = mapped[ShortCreateRemove]     //   string // bool
 	m.ShortCreatedNamed = mapped[ShortCreatedNamed]     //   string // bool
 	m.ShortCreateReferrer = mapped[ShortCreateReferrer] // string
 	return m
@@ -826,7 +826,7 @@ func (m *MetricShortCreationSuccess) DumpObject() string {
 		ShortCreateIP, m.ShortCreateIP, //       string // ip
 		ShortCreateInfo, m.ShortCreateInfo, //     string // useragaent / user id / other ...
 		ShortCreatePrivate, m.ShortCreatePrivate, //  string // bool
-		ShortCreateDelete, m.ShortCreateDelete, //   string // bool
+		ShortCreateRemove, m.ShortCreateRemove, //   string // bool
 		ShortCreatedNamed, m.ShortCreatedNamed, //   string // bool
 		ShortCreateReferrer, m.ShortCreateReferrer, // string
 	)
@@ -839,7 +839,7 @@ func (m *MetricShortCreationSuccess) Equal(om MetricPacker) bool {
 		m2.ShortCreateIP == m.ShortCreateIP &&
 		m2.ShortCreateInfo == m.ShortCreateInfo &&
 		m2.ShortCreatePrivate == m.ShortCreatePrivate &&
-		m2.ShortCreateDelete == m.ShortCreateDelete &&
+		m2.ShortCreateRemove == m.ShortCreateRemove &&
 		m2.ShortCreatedNamed == m.ShortCreatedNamed &&
 		m2.ShortCreateReferrer == m.ShortCreateReferrer
 }
@@ -858,7 +858,7 @@ type MetricShortAccess struct {
 	ShortAccessVisitReferrer string
 	ShortAccessVisitSuccess  string //bool
 	ShortAccessVisitPrivate  string //bool
-	ShortAccessVisitDelete   string //bool
+	ShortAccessVisitRemove   string //bool
 	ShortAccessVisitIsLocked string //bool
 }
 
@@ -877,7 +877,7 @@ func (m *MetricShortAccess) ToMap() MetricPacker {
 		ShortAccessVisitReferrer: m.ShortAccessVisitReferrer,
 		ShortAccessVisitSuccess:  m.ShortAccessVisitSuccess,
 		ShortAccessVisitPrivate:  m.ShortAccessVisitPrivate,
-		ShortAccessVisitDelete:   m.ShortAccessVisitDelete,
+		ShortAccessVisitRemove:   m.ShortAccessVisitRemove,
 		ShortAccessVisitIsLocked: m.ShortAccessVisitIsLocked,
 	}
 	return m
@@ -899,7 +899,7 @@ func (m *MetricShortAccess) ToObject() MetricPacker {
 	m.ShortAccessVisitReferrer = mapped[ShortAccessVisitReferrer]
 	m.ShortAccessVisitSuccess = mapped[ShortAccessVisitSuccess]
 	m.ShortAccessVisitPrivate = mapped[ShortAccessVisitPrivate]
-	m.ShortAccessVisitDelete = mapped[ShortAccessVisitDelete]
+	m.ShortAccessVisitRemove = mapped[ShortAccessVisitRemove]
 	m.ShortAccessVisitIsLocked = mapped[ShortAccessVisitIsLocked]
 	return m
 }
@@ -924,7 +924,7 @@ func (m *MetricShortAccess) DumpObject() string {
 		ShortAccessVisitReferrer, m.ShortAccessVisitReferrer, // string
 		ShortAccessVisitSuccess, m.ShortAccessVisitSuccess, //  string //bool
 		ShortAccessVisitPrivate, m.ShortAccessVisitPrivate, //  string //bool
-		ShortAccessVisitDelete, m.ShortAccessVisitDelete, //   string //bool
+		ShortAccessVisitRemove, m.ShortAccessVisitRemove, //   string //bool
 		ShortAccessVisitIsLocked, m.ShortAccessVisitIsLocked, // string //bool
 	)
 }
@@ -939,7 +939,7 @@ func (m *MetricShortAccess) Equal(om MetricPacker) bool {
 		m2.ShortAccessVisitReferrer == m.ShortAccessVisitReferrer &&
 		m2.ShortAccessVisitSuccess == m.ShortAccessVisitSuccess &&
 		m2.ShortAccessVisitPrivate == m.ShortAccessVisitPrivate &&
-		m2.ShortAccessVisitDelete == m.ShortAccessVisitDelete &&
+		m2.ShortAccessVisitRemove == m.ShortAccessVisitRemove &&
 		m2.ShortAccessVisitIsLocked == m.ShortAccessVisitIsLocked
 }
 

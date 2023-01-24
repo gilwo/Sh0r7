@@ -301,7 +301,7 @@ func GinInit() *gin.Engine {
 	})
 	// update data on short
 	r.DELETE("/:short", func(c *gin.Context) {
-		handler.DeleteShortData(c)
+		handler.RemoveShortData(c)
 	})
 	return r
 }

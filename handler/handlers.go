@@ -37,13 +37,13 @@ const (
 	LengthMaxShortFree      = 10
 	LengthMinPrivate        = 10
 	LengthMaxPrivate        = 15
-	LengthMinDelete         = 10
-	LengthMaxDelete         = 15
+	LengthMinRemove         = 10
+	LengthMaxRemove         = 15
 	LengthNamedMinShortFree = 10
 	LengthNamedMaxShortFree = 40
 )
 
-func handleCreateShortModDelete(data, namedPublic string, isPrivate, isRemove, isUrl bool, expiration time.Duration) (map[string]string, error) {
+func handleCreateShortModRemove(data, namedPublic string, isPrivate, isRemove, isUrl bool, expiration time.Duration) (map[string]string, error) {
 	var err error
 	shorts := map[string]string{
 		store.SuffixPublic: shortener.GenerateShortDataTweakedWithStore2(
@@ -71,7 +71,7 @@ func handleCreateShortModDelete(data, namedPublic string, isPrivate, isRemove, i
 	}
 	if isRemove {
 		shorts[store.SuffixRemove] = shortener.GenerateShortDataTweakedWithStore2(
-			data+store.SuffixRemove, -1, 0, LengthMinDelete, LengthMaxDelete, store.StoreCtx)
+			data+store.SuffixRemove, -1, 0, LengthMinRemove, LengthMaxRemove, store.StoreCtx)
 	}
 	for k, e := range shorts {
 		if e == "" {
@@ -152,7 +152,7 @@ func HandleCreateShortData(c *gin.Context) {
 		_spawnErr(c, err)
 		return
 	}
-	res, err := handleCreateShortModDelete(string(d),
+	res, err := handleCreateShortModRemove(string(d),
 		c.Request.Header.Get(common.FNamedPublic),
 		c.Request.Header.Get(common.FPrivate) != "false",
 		c.Request.Header.Get(common.FRemove) != "false",
@@ -258,7 +258,7 @@ func HandleCreateShortUrl(c *gin.Context) {
 		log.Printf("json field url is missing, %#v\n", mapping)
 		return
 	} else {
-		res, err := handleCreateShortModDelete(url,
+		res, err := handleCreateShortModRemove(url,
 			c.Request.Header.Get(common.FNamedPublic),
 			c.Request.Header.Get(common.FPrivate) != "false",
 			c.Request.Header.Get(common.FRemove) != "false",
@@ -346,10 +346,10 @@ func updateData(c *gin.Context, d []byte) bool {
 	}
 	return true
 }
-func DeleteShortData(c *gin.Context) {
+func RemoveShortData(c *gin.Context) {
 	handleRemove(c, true)
 }
-func tryDelete(c *gin.Context) bool {
+func tryRemove(c *gin.Context) bool {
 	return handleRemove(c, false)
 }
 func handleRemove(c *gin.Context, withResponse bool) bool {
@@ -408,8 +408,8 @@ func handleRemove(c *gin.Context, withResponse bool) bool {
 			return false
 		}
 	}
-	mt := PrepMetricShortAccess(c, short, true /*success*/, false /*private*/, true /*delete*/, accessAllowed /*locked*/)
-	metrics.MetricGlobalCounter.IncShortAccessVisitDeleteCount()
+	mt := PrepMetricShortAccess(c, short, true /*success*/, false /*private*/, true /*remove*/, accessAllowed /*locked*/)
+	metrics.MetricGlobalCounter.IncShortAccessVisitRemoveCount()
 	metrics.MetricProcessor.Add(mt)
 	return true
 }
@@ -453,8 +453,8 @@ func HandleShort(c *gin.Context) {
 	if getDataPrivate(c) {
 		return
 	}
-	log.Printf("trying delete for <%s>\n", short)
-	if tryDelete(c) {
+	log.Printf("trying remove for <%s>\n", short)
+	if tryRemove(c) {
 		return
 	}
 
@@ -576,7 +576,7 @@ func getData(c *gin.Context) bool {
 		return false
 	}
 	c.String(200, "%s", data)
-	mt := PrepMetricShortAccess(c, short, true /*success*/, false /*private*/, false /*delete*/, accessAllowed /*locked*/)
+	mt := PrepMetricShortAccess(c, short, true /*success*/, false /*private*/, false /*remove*/, accessAllowed /*locked*/)
 	metrics.MetricGlobalCounter.IncShortAccessVisitCount()
 	metrics.MetricProcessor.Add(mt)
 	return true
@@ -601,7 +601,7 @@ func getDataPrivate(c *gin.Context) bool {
 		return false
 	}
 	c.JSON(200, data)
-	mt := PrepMetricShortAccess(c, short, false /*success*/, true /*private*/, false /*delete*/, accessAllowed /*locked*/)
+	mt := PrepMetricShortAccess(c, short, false /*success*/, true /*private*/, false /*remove*/, accessAllowed /*locked*/)
 	metrics.MetricGlobalCounter.IncShortAccessVisitCount()
 	metrics.MetricProcessor.Add(mt)
 	return true
@@ -642,7 +642,7 @@ func tryUrl(c *gin.Context) bool {
 	} else {
 		c.Redirect(302, url)
 	}
-	mt := PrepMetricShortAccess(c, short, true /*success*/, false /*private*/, false /*delete*/, accessAllowed /*locked*/)
+	mt := PrepMetricShortAccess(c, short, true /*success*/, false /*private*/, false /*remove*/, accessAllowed /*locked*/)
 	metrics.MetricGlobalCounter.IncShortAccessVisitCount()
 	metrics.MetricProcessor.Add(mt)
 	return true
@@ -770,38 +770,21 @@ func HandleDumpKeys(c *gin.Context) {
 	c.String(200, "%s", res)
 }
 
-func PrepMetricShortAccess(c *gin.Context, name string, success, private, delete bool, isLocked *bool) *metrics.MetricShortAccess {
+func PrepMetricShortAccess(c *gin.Context, name string, success, private, remove bool, isLocked *bool) *metrics.MetricShortAccess {
+	trueOrFalseString := func(cond bool) string {
+		if cond {
+			return "true"
+		}
+		return "false"
+	}
 	mt := metrics.NewMetricShortAccess()
 	mt.ShortAccessVisitName = name
 	mt.ShortAccessVisitIP = c.ClientIP()
 	mt.ShortAccessVisitTime = time.Now().String()
-	// mt.ShortAccessVisitSuccess = fmt.Sprintf("%t", success)
-	mt.ShortAccessVisitSuccess = func() string {
-		if success {
-			return "true"
-		}
-		return "false"
-	}()
-	// mt.ShortAccessVisitPrivate = fmt.Sprintf("%t", private)
-	mt.ShortAccessVisitPrivate = func() string {
-		if private {
-			return "true"
-		}
-		return "false"
-	}()
-	// mt.ShortAccessVisitDelete = fmt.Sprintf("%t", delete)
-	mt.ShortAccessVisitDelete = func() string {
-		if delete {
-			return "true"
-		}
-		return "false"
-	}()
-	mt.ShortAccessVisitIsLocked = func() string {
-		if isLocked == nil {
-			return "false"
-		}
-		return "true"
-	}()
+	mt.ShortAccessVisitSuccess = trueOrFalseString(success)
+	mt.ShortAccessVisitPrivate = trueOrFalseString(private)
+	mt.ShortAccessVisitRemove = trueOrFalseString(remove)
+	mt.ShortAccessVisitIsLocked = trueOrFalseString(isLocked == nil)
 	reqDump, err := httputil.DumpRequest(c.Request, true)
 	if err != nil {
 		log.Printf("failed getting request dump for %s, err: %s\n", name, err)
