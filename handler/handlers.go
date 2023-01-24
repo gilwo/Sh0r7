@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilwo/Sh0r7/metrics"
 	"github.com/gilwo/Sh0r7/shortener"
 	"github.com/gilwo/Sh0r7/store"
 	"github.com/gilwo/Sh0r7/webapp/common"
