@@ -68,7 +68,9 @@ const (
 	ShortAccessVisitIsLocked // bool
 
 	// global Access counter - for all visits
-	ShortAccessVisitCount       // int
+	ShortAccessVisitCount // int
+	// TODO: add
+	// ShortAccessVisitPrivateCount       // int
 	ShortAccessVisitFailedCount // int // for failed attempts in locked short
 	ShortAccessVisitDeleteCount // int // how many delete occurs
 
@@ -450,6 +452,10 @@ func (m *metricObject) Decompress() MetricPacker {
 	m.encodedContent, m.err = Decompress(m.compressedContent)
 	return m
 }
+
+// # Global Metric
+// #######################################
+// TODO: add lock on object changes
 
 type MetricGlobal struct {
 	*metricObject

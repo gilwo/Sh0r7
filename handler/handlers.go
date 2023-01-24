@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/http/httputil"
 	"strings"
 	"time"
 
@@ -140,6 +141,8 @@ func handleCreateShortModDelete(data, namedPublic string, isPrivate, isRemove, i
 	}
 	return res, nil
 }
+
+// TODO: add proper cleanup on failed creation (for any reason... )
 func HandleCreateShortData(c *gin.Context) {
 	if !checkToken(c) {
 		return
@@ -227,10 +230,13 @@ func HandleUploadFile(c *gin.Context) {
 		return
 	}
 
+	// this overwrite - remove and save ... - FIXME - try use updatedatamapping
+	// there is a potential of name hijacking in some rare occasions
 	store.StoreCtx.RemoveDataMapping(name)
 	store.StoreCtx.SaveDataMapping(buf.Bytes(), name, -1)
 }
 
+// TODO: add proper cleanup on failed creation (for any reason... )
 func HandleCreateShortUrl(c *gin.Context) {
 	if !checkToken(c) {
 		return
@@ -356,8 +362,9 @@ func handleRemove(c *gin.Context, withResponse bool) bool {
 		_spawnErrCond(c, msg, withResponse)
 		return false
 	}
-	if r := isAccessToRemoveAllowed(c, string(dataKey)); r != nil && !*r {
-		return *r
+	var accessAllowed *bool
+	if accessAllowed = isAccessToShortAllowed(c, string(dataKey)); accessAllowed != nil && !*accessAllowed {
+		return *accessAllowed
 	}
 	info, err := store.StoreCtx.LoadDataMappingInfo(string(dataKey) + store.SuffixPublic)
 	if err != nil {
@@ -401,66 +408,16 @@ func handleRemove(c *gin.Context, withResponse bool) bool {
 			return false
 		}
 	}
+	mt := PrepMetricShortAccess(c, short, true /*success*/, false /*private*/, true /*delete*/, accessAllowed /*locked*/)
+	metrics.MetricGlobalCounter.IncShortAccessVisitDeleteCount()
+	metrics.MetricProcessor.Add(mt)
 	return true
 }
 
 func HandleGetShortDataInfo(c *gin.Context) {
-	short := c.Param("short")
-	dataKey, err := store.StoreCtx.LoadDataMapping(short + store.SuffixPrivate)
-	if err != nil {
-		msg := errors.Errorf("there was a problem with short: %s", short)
-		log.Printf("%s, err: %s\n", msg, err)
-		_spawnErr(c, msg)
+	if getDataPrivate(c) {
 		return
 	}
-	log.Printf("data key: %s, short %s\n", string(dataKey), short)
-
-	storedPrvPassTok, e1 := store.StoreCtx.GetMetaDataMapping(string(dataKey)+store.SuffixPublic, store.FieldPrvPassTok)
-	if e1 == nil && storedPrvPassTok != "" {
-		storedPrvPassSalt, e2 := store.StoreCtx.GetMetaDataMapping(string(dataKey)+store.SuffixPublic, store.FieldPrvPassSalt)
-		if e2 != nil {
-			msg := errors.Errorf("short <%s> is locked but missing salt", dataKey)
-			log.Printf("%s, e2: %s\n", msg, e2.Error())
-			_spawnErr(c, msg)
-			return
-		}
-		if !c.Request.URL.Query().Has(common.FPass) {
-			recvPassToken := c.Request.Header.Get(common.FPrvPassToken)
-			log.Printf("-- (recv) pass token: <%s>\n", recvPassToken)
-			log.Printf("-- pass token: <%s>\n", storedPrvPassTok)
-			log.Printf("-- pass salt: <%s>\n", storedPrvPassSalt)
-			if recvPassToken != storedPrvPassTok {
-				msg := errors.Errorf("access denied to short <%s>", short)
-				log.Printf("%s (pass tok),  recv <%s>, salt <%s>, stored <%s>\n",
-					msg, recvPassToken, storedPrvPassSalt, storedPrvPassTok)
-				_spawnErrWithCode(c, http.StatusForbidden, msg)
-				return
-			}
-		} else {
-			passTxt := c.Request.URL.Query().Get(common.FPass)
-			calcPassTok := shortener.GenerateTokenTweaked(passTxt+storedPrvPassSalt, 0, 30, 10)
-			log.Printf("-- (recv) pass : <%s>\n", passTxt)
-			log.Printf("-- pass salt: <%s>\n", storedPrvPassSalt)
-			log.Printf("-- pass token: <%s>\n", storedPrvPassTok)
-			log.Printf("-- (calc) pass token: <%s>\n", calcPassTok)
-			if calcPassTok != storedPrvPassTok {
-				msg := errors.Errorf("access denied to short <%s>", short)
-				log.Printf("%s (pass text), txt <%s>, salt <%s>, calc <%s>, stored <%s>\n",
-					msg, passTxt, storedPrvPassSalt, calcPassTok, storedPrvPassTok)
-				_spawnErrWithCode(c, http.StatusForbidden, msg)
-				return
-			}
-		}
-	}
-
-	data, err := store.StoreCtx.LoadDataMappingInfo(string(dataKey) + store.SuffixPublic)
-	if err != nil {
-		msg := errors.Errorf("there was a problem with short: %s", short)
-		log.Printf("%s, err: %s\n", msg, err)
-		_spawnErr(c, msg)
-		return
-	}
-	c.JSON(200, data)
 }
 func HandleGetOriginData(c *gin.Context) {
 	short := c.Param("short")
@@ -601,8 +558,9 @@ func getData(c *gin.Context) bool {
 		}
 		short = string(shortNamed)
 	}
-	if r := isAccessToShortAllowed(c, short); r != nil && !*r {
-		return *r
+	var accessAllowed *bool
+	if accessAllowed = isAccessToShortAllowed(c, string(short)); accessAllowed != nil && !*accessAllowed {
+		return *accessAllowed
 	}
 	data, err := store.StoreCtx.LoadDataMapping(short + store.SuffixPublic)
 	if err != nil {
@@ -618,8 +576,12 @@ func getData(c *gin.Context) bool {
 		return false
 	}
 	c.String(200, "%s", data)
+	mt := PrepMetricShortAccess(c, short, true /*success*/, false /*private*/, false /*delete*/, accessAllowed /*locked*/)
+	metrics.MetricGlobalCounter.IncShortAccessVisitCount()
+	metrics.MetricProcessor.Add(mt)
 	return true
 }
+
 func getDataPrivate(c *gin.Context) bool {
 	short := c.Param("short")
 	dataKey, err := store.StoreCtx.LoadDataMapping(short + store.SuffixPrivate)
@@ -628,13 +590,20 @@ func getDataPrivate(c *gin.Context) bool {
 		log.Printf("%s, err: %s\n", msg, err)
 		return false
 	}
-	data, err := store.StoreCtx.LoadDataMapping(string(dataKey) + store.SuffixPublic)
+	var accessAllowed *bool
+	if accessAllowed = isAccessToPrivateAllowed(c, string(dataKey)); accessAllowed != nil && !*accessAllowed {
+		return *accessAllowed
+	}
+	data, err := store.StoreCtx.LoadDataMappingInfo(string(dataKey) + store.SuffixPublic)
 	if err != nil {
 		msg := errors.Errorf("there was a problem with short: %s", short)
 		log.Printf("%s, err: %s\n", msg, err)
 		return false
 	}
-	c.String(200, "%s", data)
+	c.JSON(200, data)
+	mt := PrepMetricShortAccess(c, short, false /*success*/, true /*private*/, false /*delete*/, accessAllowed /*locked*/)
+	metrics.MetricGlobalCounter.IncShortAccessVisitCount()
+	metrics.MetricProcessor.Add(mt)
 	return true
 }
 
@@ -651,8 +620,9 @@ func tryUrl(c *gin.Context) bool {
 			return false
 		}
 	}
-	if r := isAccessToShortAllowed(c, string(data)); r != nil && !*r {
-		return *r
+	var accessAllowed *bool
+	if accessAllowed = isAccessToShortAllowed(c, string(data)); accessAllowed != nil && !*accessAllowed {
+		return *accessAllowed
 	}
 	data, err = store.StoreCtx.LoadDataMapping(string(data) + store.SuffixPublic)
 	if err != nil {
@@ -672,6 +642,9 @@ func tryUrl(c *gin.Context) bool {
 	} else {
 		c.Redirect(302, url)
 	}
+	mt := PrepMetricShortAccess(c, short, true /*success*/, false /*private*/, false /*delete*/, accessAllowed /*locked*/)
+	metrics.MetricGlobalCounter.IncShortAccessVisitCount()
+	metrics.MetricProcessor.Add(mt)
 	return true
 }
 
@@ -795,5 +768,50 @@ func HandleDumpKeys(c *gin.Context) {
 	res := store.StoreCtx.GenFunc(store.STORE_FUNC_DUMPALL).(string)
 	log.Println("!! dumpall: \n" + res)
 	c.String(200, "%s", res)
+}
+
+func PrepMetricShortAccess(c *gin.Context, name string, success, private, delete bool, isLocked *bool) *metrics.MetricShortAccess {
+	mt := metrics.NewMetricShortAccess()
+	mt.ShortAccessVisitName = name
+	mt.ShortAccessVisitIP = c.ClientIP()
+	mt.ShortAccessVisitTime = time.Now().String()
+	// mt.ShortAccessVisitSuccess = fmt.Sprintf("%t", success)
+	mt.ShortAccessVisitSuccess = func() string {
+		if success {
+			return "true"
+		}
+		return "false"
+	}()
+	// mt.ShortAccessVisitPrivate = fmt.Sprintf("%t", private)
+	mt.ShortAccessVisitPrivate = func() string {
+		if private {
+			return "true"
+		}
+		return "false"
+	}()
+	// mt.ShortAccessVisitDelete = fmt.Sprintf("%t", delete)
+	mt.ShortAccessVisitDelete = func() string {
+		if delete {
+			return "true"
+		}
+		return "false"
+	}()
+	mt.ShortAccessVisitIsLocked = func() string {
+		if isLocked == nil {
+			return "false"
+		}
+		return "true"
+	}()
+	reqDump, err := httputil.DumpRequest(c.Request, true)
+	if err != nil {
+		log.Printf("failed getting request dump for %s, err: %s\n", name, err)
+		reqDump = []byte("something failed getting request dump: " + err.Error())
+	}
+	mt.ShortAccessVisitInfo = fmt.Sprintf("\n--\n%s\n--\n%s\n--\n%s",
+		c.Request.RemoteAddr,
+		c.Request.RequestURI,
+		string(reqDump),
+	)
+	return mt
 }
 

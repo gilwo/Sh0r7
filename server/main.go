@@ -19,6 +19,7 @@ import (
 
 	"github.com/gilwo/Sh0r7/common"
 	"github.com/gilwo/Sh0r7/handler"
+	"github.com/gilwo/Sh0r7/metrics"
 	"github.com/gilwo/Sh0r7/shortener"
 	"github.com/gilwo/Sh0r7/store"
 	_ "github.com/gilwo/Sh0r7/webapp"
@@ -47,6 +48,10 @@ func mainServer() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+	metrics.MetricGlobalCounter = metrics.NewMetricGlobal()
+	metrics.MetricProcessor = metrics.NewMetricContext()
+	metrics.MetricProcessor.StartProcessing()
+	metrics.MetricProcessor.EnableDisableDump()
 	adTokenSet()
 	startServer()
 }
@@ -149,6 +154,7 @@ func startServer() {
 	}()
 	<-ctx.Done()
 	time.Sleep(100 * time.Millisecond)
+	metrics.MetricProcessor.StopProcessing()
 	fmt.Println("** server down **")
 	// err = GinInit().Run(addr)
 	// if err != nil {
