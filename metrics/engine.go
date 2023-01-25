@@ -56,7 +56,10 @@ func (mc *metricContext) StartProcessing() {
 				return
 			case mt := <-mc.process:
 				mc.dbAdd(mt)
-				mc.MetricDump(mt)
+				err := MDBctx.AddMetric(mt)
+				if err != nil {
+					log.Printf("failed adding metric to db: %s\n", err)
+				}
 			}
 		}
 	}()

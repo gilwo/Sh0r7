@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"os"
 	"strconv"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/gilwo/Sh0r7/common"
+	"github.com/gilwo/Sh0r7/metrics"
 	"github.com/gilwo/Sh0r7/shortener"
 	"github.com/gilwo/Sh0r7/store"
 	_ "github.com/gilwo/Sh0r7/webapp/backend"
@@ -159,6 +161,27 @@ func webappgenfunc(args ...interface{}) interface{} {
 			return true
 		}
 		sh0r7H.ServeHTTP(c.Writer, c.Request)
+		// collect metrics for app specific served paths (not the go-app framework)
+		switch c.Request.URL.Path {
+		case webappCommon.PrivatePath, webappCommon.PublicPath, webappCommon.RemovePath, webappCommon.ShortPath:
+			mt := metrics.NewMetricServedPath()
+			mt.ServedPathIP = c.ClientIP()
+			mt.ServedPathName = c.Request.URL.Path
+			mt.ServedPathReferrer = c.Request.Referer()
+			mt.ServedPathTime = time.Now().String()
+			reqDump, err := httputil.DumpRequest(c.Request, true)
+			if err != nil {
+				log.Printf("failed getting request dump for %s, err: %s\n", c.Request.URL.Path, err)
+				reqDump = []byte("something failed getting request dump: " + err.Error())
+			}
+			mt.ServedPathInfo = fmt.Sprintf("\n-remoteAddr-\n%s\n-requestURI-\n%s\n-requestDump-\n%s",
+				c.Request.RemoteAddr,
+				c.Request.RequestURI,
+				string(reqDump),
+			)
+			log.Printf("dumpobject: %s\n", mt.DumpObject())
+			metrics.MDBctx.AddMetric(mt)
+		}
 		return true
 	}
 	return false

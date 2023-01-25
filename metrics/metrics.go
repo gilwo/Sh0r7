@@ -271,6 +271,12 @@ func ListMetricGroups() (r []MetricGroupType) {
 	}
 	return r
 }
+func ListMetricGroupsString() (r []string) {
+	for mg := MetricGroupFirst + 1; mg < MetricGroupLast; mg++ {
+		r = append(r, mg.String())
+	}
+	return r
+}
 
 func MetricGroupTypeFromString(in string) (r MetricGroupType) {
 	switch in {
@@ -338,7 +344,7 @@ type metricObject struct {
 	compressedContent []byte
 	mapped            map[interface{}]interface{}
 	err               error
-	name              string
+	name              string // either short name, path name or other name (global??/)
 	groupType         MetricGroupType
 }
 
@@ -620,6 +626,7 @@ func NewMetricShortCreationFailure() *MetricShortCreationFailure {
 }
 
 func (m *MetricShortCreationFailure) ToMap() MetricPacker {
+	m.name = m.FailedShortCreateName
 	m.mapped = map[interface{}]interface{}{
 		FailedShortCreateName:     m.FailedShortCreateName,
 		FailedShortCreateTime:     m.FailedShortCreateTime,
@@ -699,6 +706,7 @@ func NewMetricShortAccessInvalid() *MetricShortAccessInvalid {
 }
 
 func (m *MetricShortAccessInvalid) ToMap() MetricPacker {
+	m.name = m.InvalidShortAccessName
 	m.mapped = map[interface{}]interface{}{
 		InvalidShortAccessName:     m.InvalidShortAccessName,     //    string // short name
 		InvalidShortAccessTime:     m.InvalidShortAccessTime,     //     string
@@ -775,6 +783,7 @@ func NewMetricShortCreationSuccess() *MetricShortCreationSuccess {
 }
 
 func (m *MetricShortCreationSuccess) ToMap() MetricPacker {
+	m.name = m.ShortCreateName
 	m.mapped = map[interface{}]interface{}{
 		ShortCreateName:     m.ShortCreateName,     //       short name
 		ShortCreateTime:     m.ShortCreateTime,     //       short name
@@ -869,6 +878,7 @@ func NewMetricShortAccess() *MetricShortAccess {
 }
 
 func (m *MetricShortAccess) ToMap() MetricPacker {
+	m.name = m.ShortAccessVisitName
 	m.mapped = map[interface{}]interface{}{
 		ShortAccessVisitName:     m.ShortAccessVisitName,
 		ShortAccessVisitTime:     m.ShortAccessVisitTime,
@@ -964,6 +974,7 @@ func NewMetricServedPath() *MetricServedPath {
 }
 
 func (m *MetricServedPath) ToMap() MetricPacker {
+	m.name = m.ServedPathName
 	m.mapped = map[interface{}]interface{}{
 		ServedPathName:     m.ServedPathName,
 		ServedPathTime:     m.ServedPathTime,
@@ -1042,6 +1053,7 @@ func NewMetricFailedServedPath() *MetricFailedServedPath {
 }
 
 func (m *MetricFailedServedPath) ToMap() MetricPacker {
+	m.name = m.FailedServedPathName
 	m.mapped = map[interface{}]interface{}{
 		FailedServedPathName:     m.FailedServedPathName,
 		FailedServedPathTime:     m.FailedServedPathTime,
