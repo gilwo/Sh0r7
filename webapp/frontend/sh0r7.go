@@ -161,31 +161,7 @@ func (h *short) RenderPrivate() app.UI {
 									),
 							),
 					).ElseIf(h.isResultUnlockFailed,
-						app.Div().
-							Class("passwordError").
-							Class("container-fluid").
-							Body(
-								app.Div().Class("row").Body(
-									app.Text("Unlock failed"),
-								),
-								app.Div().Class("row").Body(
-									app.Button().
-										Title("Retry").
-										ID("").
-										Class("btn", "btn-default").
-										Type("button").
-										Body(
-											app.Text("Retry"),
-										).
-										OnClick(func(ctx app.Context, e app.Event) {
-											retryUrl, _ := url.ParseRequestURI(app.Window().URL().String())
-											retryUrl.Path = retryUrl.Query().Get(webappCommon.FShortKey)
-											retryUrl.RawQuery = ""
-											app.Logf("retry navigate to %s\n", retryUrl.String())
-											app.Window().Get("location").Set("href", retryUrl.String())
-										}),
-								),
-							),
+						h.showRetry(),
 					),
 					app.Div().
 						Class("col-xs-8", "col-xs-offset-1").
@@ -361,32 +337,7 @@ func (h *short) RenderPublic() app.UI {
 							),
 					),
 			).Else( // conider use elseif with h.isResultUnlockFailed
-				app.Div().
-					Class("passwordError").
-					Class("container-fluid").
-					Body(
-						app.Div().Class("row").Body(
-							app.Text("Unlock failed"),
-						),
-						app.Div().Class("row").Body(
-							app.Button().
-								Title("Retry").
-								ID("").
-								Class("btn", "btn-default").
-								Type("button").
-								Body(
-									app.Text("Retry"),
-								).
-								OnClick(func(ctx app.Context, e app.Event) {
-									retryUrl, _ := url.ParseRequestURI(app.Window().URL().String())
-									retryUrl.Path = retryUrl.Query().Get(webappCommon.FShortKey)
-									retryUrl.RawQuery = ""
-									app.Window().Get("location").Set("href", retryUrl.String())
-									// ctx.Navigate(retryUrl.String())
-									// ctx.NavigateTo(retryUrl)
-								}),
-						),
-					),
+				h.showRetry(),
 			),
 		)
 }
@@ -444,30 +395,35 @@ func (h *short) RenderRemove() app.UI {
 							),
 					),
 			).Else( // conider use elseif with h.isResultUnlockFailed
-				app.Div().
-					Class("passwordError").
-					Class("container-fluid").
+				h.showRetry(),
+			),
+		)
+}
+
+func (h *short) showRetry() app.UI {
+	return app.Div().
+		Class("passwordError").
+		Class("container-fluid").
+		Body(
+			app.Div().Class("row").Body(
+				app.Text("Unlock failed"),
+			),
+			app.Div().Class("row").Body(
+				app.Button().
+					Title("Retry").
+					ID("").
+					Class("btn", "btn-default").
+					Type("button").
 					Body(
-						app.Div().Class("row").Body(
-							app.Text("Unlock failed"),
-						),
-						app.Div().Class("row").Body(
-							app.Button().
-								Title("Retry").
-								ID("").
-								Class("btn", "btn-default").
-								Type("button").
-								Body(
-									app.Text("Retry"),
-								).
-								OnClick(func(ctx app.Context, e app.Event) {
-									retryUrl, _ := url.ParseRequestURI(app.Window().URL().String())
-									retryUrl.Path = retryUrl.Query().Get(webappCommon.FShortKey)
-									retryUrl.RawQuery = ""
-									app.Window().Get("location").Set("href", retryUrl.String())
-								}),
-						),
-					),
+						app.Text("Retry"),
+					).
+					OnClick(func(ctx app.Context, e app.Event) {
+						retryUrl, _ := url.ParseRequestURI(app.Window().URL().String())
+						retryUrl.Path = retryUrl.Query().Get(webappCommon.FShortKey)
+						retryUrl.RawQuery = ""
+						app.Logf("retry navigate to %s\n", retryUrl.String())
+						app.Window().Get("location").Set("href", retryUrl.String())
+					}),
 			),
 		)
 }
