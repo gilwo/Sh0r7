@@ -8,7 +8,6 @@ import (
 	"log"
 	"net/http"
 	"net/http/httputil"
-	"strings"
 	"time"
 
 	"github.com/gilwo/Sh0r7/metrics"
@@ -382,10 +381,11 @@ func handleRemove(c *gin.Context) (r resTri) {
 		metrics.MetricProcessor.Add(mt)
 		return r.False()
 	}
-	accessRes := shortAccessCheck(c, string(dataKey), common.ShortRemove)
+	accessRes := shortAccessAllowedCheck(c, string(dataKey), common.ShortRemove)
 	if accessRes.IsFalse() {
 		mt := PrepMetricShortAccessNew(c, short, false /*success*/, false /*private*/, true /*remove*/, true /*locked*/)
 		metrics.MetricProcessor.Add(mt)
+		// TODO: addd global counter for locked access failure
 		return r.False()
 	}
 	info, err := store.StoreCtx.LoadDataMappingInfo(string(dataKey) + store.SuffixPublic)
@@ -675,44 +675,65 @@ func getDataPrivate(c *gin.Context) bool {
 }
 
 func tryUrl(c *gin.Context) bool {
+	return !handleUrl(c).IsNil()
+}
+
+// handleUrl:
+//
+//	True - found - update response
+//	False - url access failed due to an error - update response
+//	Nil - unhandled (not found) - skipped respones
+func handleUrl(c *gin.Context) (r resTri) {
+	r = ResTri()
 	short := c.Param("short")
-	data, err := store.StoreCtx.LoadDataMapping(short + store.SuffixURL)
+
+	shortNamed := shortener.GenerateShortDataTweakedWithStore2NotRandom(short+store.SuffixPublic, 0, common.HashLengthNamedFixedSize, 0, 0, store.StoreCtx)
+	if !store.StoreCtx.CheckExistShortDataMapping(short+store.SuffixURL) &&
+		!store.StoreCtx.CheckExistShortDataMapping(shortNamed+store.SuffixURL) {
+		return r.Nil()
+	}
+
+	errMsg := errors.Errorf("there was a problem with short: %s", short)
+	dataKey, err := store.StoreCtx.LoadDataMapping(short + store.SuffixURL)
 	if err != nil {
-		shortNamed := shortener.GenerateShortDataTweakedWithStore2NotRandom(short+store.SuffixPublic, 0, common.HashLengthNamedFixedSize, 0, 0, store.StoreCtx)
-		data, err = store.StoreCtx.LoadDataMapping(shortNamed + store.SuffixURL)
+		dataKey, err = store.StoreCtx.LoadDataMapping(shortNamed + store.SuffixURL)
 		if err != nil {
-			log.Println(err)
-			msg := errors.Errorf("there was a problem with short: %s", short)
-			log.Printf("load url: %s, err: %s\n", msg, err)
-			return false
+			log.Printf("problem with loading url for short:(named): <%s>:<%s>\n", short, shortNamed)
+			_spawnErrWithCode(c, http.StatusInternalServerError, errMsg)
+			mt := PrepMetricShortAccessNew(c, short, false /*success*/, false /*private*/, false /*remove*/, false /*locked*/)
+			metrics.MetricProcessor.Add(mt)
+			return r.False()
 		}
+		log.Printf("url mapping for short: <%s>, found as named short<%s\n", short, shortNamed)
 	}
-	var accessAllowed *bool
-	if accessAllowed = isAccessToShortAllowed(c, string(data)); accessAllowed != nil && !*accessAllowed {
-		return *accessAllowed
+	accessRes := shortAccessAllowedCheck(c, string(dataKey), common.ShortPublic)
+	if accessRes.IsFalse() {
+		mt := PrepMetricShortAccessNew(c, short, false /*success*/, false /*private*/, false /*remove*/, true /*locked*/)
+		metrics.MetricProcessor.Add(mt)
+		// TODO: addd global counter for locked access failure
+		return r.False()
 	}
-	data, err = store.StoreCtx.LoadDataMapping(string(data) + store.SuffixPublic)
+	data, err := store.StoreCtx.LoadDataMapping(string(dataKey) + store.SuffixPublic)
 	if err != nil {
-		msg := errors.Errorf("there was a problem with short: %s", short)
-		log.Printf("load data: %s, err: %s\n", msg, err)
-		return false
+		log.Printf("failed to get info for public: <%s>\n", dataKey)
+		_spawnErrWithCode(c, http.StatusInternalServerError, errMsg)
+		mt := PrepMetricShortAccessNew(c, short, false /*success*/, false /*private*/, true /*remove*/, accessRes.IsTrue() /*locked*/)
+		metrics.MetricProcessor.Add(mt)
+		return r.False()
 	}
 	url := string(data)
-	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
-		url = "http://" + url
-	}
 	if c.Request.Header.Get("xRedirect") == "no" {
 		tup := store.NewTuple()
 		tup.Set(store.FieldURL, url)
 		c.String(200, "%s", tup.ToString())
-		// c.JSON(200, map[string]interface{}{store.FieldURL: url})
 	} else {
 		c.Redirect(302, url)
 	}
-	mt := PrepMetricShortAccess(c, short, true /*success*/, false /*private*/, false /*remove*/, accessAllowed /*locked*/)
+	mt := PrepMetricShortAccessNew(c, short, true /*success*/, false /*private*/, false /*remove*/, accessRes.IsTrue() /*locked*/)
 	metrics.MetricGlobalCounter.IncShortAccessVisitCount()
 	metrics.MetricProcessor.Add(mt)
-	return true
+
+	return r.True()
 }
 
 func checkToken(c *gin.Context) bool {
@@ -852,16 +873,7 @@ func PrepMetricShortAccess(c *gin.Context, name string, success, private, remove
 	mt.ShortAccessVisitPrivate = trueOrFalseString(private)
 	mt.ShortAccessVisitRemove = trueOrFalseString(remove)
 	mt.ShortAccessVisitIsLocked = trueOrFalseString(isLocked == nil)
-	reqDump, err := httputil.DumpRequest(c.Request, true)
-	if err != nil {
-		log.Printf("failed getting request dump for %s, err: %s\n", name, err)
-		reqDump = []byte("something failed getting request dump: " + err.Error())
-	}
-	mt.ShortAccessVisitInfo = fmt.Sprintf("\n--\n%s\n--\n%s\n--\n%s",
-		c.Request.RemoteAddr,
-		c.Request.RequestURI,
-		string(reqDump),
-	)
+	mt.ShortAccessVisitInfo = collectInfo(c, name)
 	return mt
 }
 
@@ -880,25 +892,16 @@ func PrepMetricShortAccessNew(c *gin.Context, name string, success, private, rem
 	mt.ShortAccessVisitPrivate = trueOrFalseString(private)
 	mt.ShortAccessVisitRemove = trueOrFalseString(remove)
 	mt.ShortAccessVisitIsLocked = trueOrFalseString(isLocked)
-	reqDump, err := httputil.DumpRequest(c.Request, true)
-	if err != nil {
-		log.Printf("failed getting request dump for %s, err: %s\n", name, err)
-		reqDump = []byte("something failed getting request dump: " + err.Error())
-	}
-	mt.ShortAccessVisitInfo = fmt.Sprintf("\n--\n%s\n--\n%s\n--\n%s",
-		c.Request.RemoteAddr,
-		c.Request.RequestURI,
-		string(reqDump),
-	)
+	mt.ShortAccessVisitInfo = collectInfo(c, name)
 	return mt
 }
 
-// shortAccessCheck :
+// shortAccessAllowedCheck :
 //
 //	True - access locked and unlock succeeded
 //	False - access locked and unlock failed or error occurred - response updated
 //	Nil - access is not locked
-func shortAccessCheck(c *gin.Context, short string, which common.ShortType) (r resTri) {
+func shortAccessAllowedCheck(c *gin.Context, short string, which common.ShortType) (r resTri) {
 	r = ResTri()
 	var (
 		tokenHeader string
@@ -966,16 +969,24 @@ func PrepMetricShortAccessInvalid(c *gin.Context, name string) *metrics.MetricSh
 	mt.InvalidShortAccessIP = c.ClientIP()
 	mt.InvalidShortAccessTime = time.Now().String()
 	mt.InvalidShortAccessReferrer = c.Request.Referer()
+	mt.InvalidShortAccessInfo = collectInfo(c, name)
+	return mt
+}
 
+func collectInfo(c *gin.Context, name string) string {
 	reqDump, err := httputil.DumpRequest(c.Request, true)
 	if err != nil {
 		log.Printf("failed getting request dump for %s, err: %s\n", name, err)
 		reqDump = []byte("something failed getting request dump: " + err.Error())
 	}
-	mt.InvalidShortAccessInfo = fmt.Sprintf("\n--\n%s\n--\n%s\n--\n%s",
-		c.Request.RemoteAddr,
-		c.Request.RequestURI,
-		string(reqDump),
-	)
-	return mt
+	info := map[string]string{
+		"remote_addr":  c.Request.RemoteAddr,
+		"request_uri":  c.Request.RequestURI,
+		"request_dump": string(reqDump),
+	}
+	res, err := json.Marshal(info)
+	if err != nil {
+		log.Printf("failed converting info to json %#+v, err: %s\n", info, err)
+	}
+	return string(res)
 }
