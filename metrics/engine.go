@@ -13,7 +13,7 @@ type metricContext struct {
 
 func NewMetricContext() *metricContext {
 	return &metricContext{
-		process:        make(chan MetricPacker),
+		process:        make(chan MetricPacker, 100),
 		quitProcessing: make(chan any),
 		doneProcessing: make(chan any),
 	}
@@ -47,6 +47,7 @@ func (mc *metricContext) StopProcessing() {
 	close(mc.quitProcessing)
 	<-mc.doneProcessing
 }
+
 func (mc *metricContext) StartProcessing() {
 	go func() {
 		for {
@@ -55,10 +56,10 @@ func (mc *metricContext) StartProcessing() {
 				close(mc.doneProcessing)
 				return
 			case mt := <-mc.process:
-				mc.dbAdd(mt)
-				err := MDBctx.AddMetric(mt)
-				if err != nil {
+				if err := MDBctx.AddMetric(mt); err != nil {
 					log.Printf("failed adding metric to db: %s\n", err)
+					// TODO: consider save the failed metric in memory and update the db
+					//  when it is ready again
 				}
 			}
 		}

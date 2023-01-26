@@ -336,7 +336,9 @@ func (h *short) RenderPublic() app.UI {
 				app.Div().
 					Class("passwordError").
 					Body(
-						app.Text("Unlock failed"),
+						app.Div().Body(
+							app.Text("Unlock failed"),
+						),
 						app.Button().
 							Title("Retry").
 							ID("").

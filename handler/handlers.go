@@ -348,71 +348,92 @@ func updateData(c *gin.Context, d []byte) bool {
 	return true
 }
 func RemoveShortData(c *gin.Context) {
-	handleRemove(c, true)
+	if handleRemove(c).IsNil() {
+		_spawnErrWithCode(c, http.StatusNotFound, errors.New(c.Request.URL.Path+" not found"))
+		mt := PrepMetricShortAccessInvalid(c, c.Param("short"))
+		metrics.MetricProcessor.Add(mt)
+		metrics.MetricGlobalCounter.IncInvalidShortAccessCounter()
+	}
 }
 func tryRemove(c *gin.Context) bool {
-	return handleRemove(c, false)
+	return !handleRemove(c).IsNil()
 }
-func handleRemove(c *gin.Context, withResponse bool) bool {
+
+// handleRemove:
+//
+//	True - removed succeeded - update response
+//	False - removed failed due to an error - update response
+//	Nil - removed unhandled (not found) - skipped respones
+func handleRemove(c *gin.Context) (r resTri) {
+	r = ResTri()
 	short := c.Param("short")
 	removeKey := short + store.SuffixRemove
+
+	if !store.StoreCtx.CheckExistShortDataMapping(removeKey) {
+		return r.Nil()
+	}
+
+	errMsg := errors.Errorf("there was a problem with short: %s", short)
 	dataKey, err := store.StoreCtx.LoadDataMapping(removeKey)
 	if err != nil {
-		msg := errors.Errorf("there was a problem with short: %s", short)
-		log.Printf("%s, err: %s\n", msg, err)
-		_spawnErrCond(c, msg, withResponse)
-		return false
+		log.Printf("failed getting public from remove key: <%s>, err: %s\n", removeKey, err)
+		_spawnErrWithCode(c, http.StatusInternalServerError, errMsg)
+		mt := PrepMetricShortAccessNew(c, short, false /*success*/, false /*private*/, true /*remove*/, false /*locked*/)
+		metrics.MetricProcessor.Add(mt)
+		return r.False()
 	}
-	var accessAllowed *bool
-	if accessAllowed = isAccessToShortAllowed(c, string(dataKey)); accessAllowed != nil && !*accessAllowed {
-		return *accessAllowed
+	accessRes := shortAccessCheck(c, string(dataKey), common.ShortRemove)
+	if accessRes.IsFalse() {
+		mt := PrepMetricShortAccessNew(c, short, false /*success*/, false /*private*/, true /*remove*/, true /*locked*/)
+		metrics.MetricProcessor.Add(mt)
+		return r.False()
 	}
 	info, err := store.StoreCtx.LoadDataMappingInfo(string(dataKey) + store.SuffixPublic)
 	if err != nil {
-		log.Printf("failed to get info for token: <%s>\n", dataKey)
-		_spawnErrWithCode(c, http.StatusPreconditionFailed, errors.Errorf("invalid token"))
-		return false
+		log.Printf("failed to get info for public: <%s>\n", dataKey)
+		_spawnErrWithCode(c, http.StatusInternalServerError, errMsg)
+		mt := PrepMetricShortAccessNew(c, short, false /*success*/, false /*private*/, true /*remove*/, accessRes.IsTrue() /*locked*/)
+		metrics.MetricProcessor.Add(mt)
+		return r.False()
 	}
+	var removeErr error
+	// remove all even if some fail , but log it
 	if val, ok := info[store.FieldRemove]; ok { // we know its here alread as we arrived from it ... but for the generic flow logic - need to optimize ...
 		removeKey := val.(string) + store.SuffixRemove
-		if err := store.StoreCtx.RemoveDataMapping(removeKey); err != nil {
-			msg := errors.Errorf("there was a problem with short: %s", short)
-			log.Printf("%s - remove, err: %s\n", msg, err)
-			_spawnErrCond(c, msg, withResponse)
-			return false
+		if removeErr = store.StoreCtx.RemoveDataMapping(removeKey); removeErr != nil {
+			log.Printf("removal of remove key <%s>, err: %s\n", removeKey, removeErr)
 		}
 	}
 	if val, ok := info[store.FieldPublic]; ok {
 		publicKey := val.(string) + store.SuffixPublic
-		if err := store.StoreCtx.RemoveDataMapping(publicKey); err != nil {
-			msg := errors.Errorf("there was a problem with short: %s", short)
-			log.Printf("%s - public, err: %s\n", msg, err)
-			_spawnErrCond(c, msg, withResponse)
-			return false
+		if removeErr = store.StoreCtx.RemoveDataMapping(publicKey); removeErr != nil {
+			log.Printf("removal of public key <%s>, err: %s\n", publicKey, removeErr)
 		}
 	}
 	if val, ok := info[store.FieldPrivate]; ok {
 		privateKey := val.(string) + store.SuffixPrivate
-		if err := store.StoreCtx.RemoveDataMapping(privateKey); err != nil {
-			msg := errors.Errorf("there was a problem with short: %s", short)
-			log.Printf("%s - private, err: %s\n", msg, err)
-			_spawnErrCond(c, msg, withResponse)
-			return false
+		if removeErr = store.StoreCtx.RemoveDataMapping(privateKey); removeErr != nil {
+			log.Printf("removal of private key <%s>, err: %s\n", privateKey, removeErr)
 		}
 	}
 	if val, ok := info[store.FieldURL]; ok {
 		urlKey := val.(string) + store.SuffixURL
-		if err := store.StoreCtx.RemoveDataMapping(urlKey); err != nil {
-			msg := errors.Errorf("there was a problem with short: %s", short)
-			log.Printf("%s - url, err: %s\n", msg, err)
-			_spawnErrCond(c, msg, withResponse)
-			return false
+		if removeErr = store.StoreCtx.RemoveDataMapping(urlKey); removeErr != nil {
+			log.Printf("removal of url key <%s>, err: %s\n", urlKey, removeErr)
 		}
 	}
-	mt := PrepMetricShortAccess(c, short, true /*success*/, false /*private*/, true /*remove*/, accessAllowed /*locked*/)
+	if removeErr != nil {
+		_spawnErrWithCode(c, http.StatusInternalServerError, errors.New("failed to remove some keys"))
+		mt := PrepMetricShortAccessNew(c, short, false /*success*/, false /*private*/, true /*remove*/, accessRes.IsTrue() /*locked*/)
+		metrics.MetricGlobalCounter.IncShortAccessVisitRemoveCount()
+		metrics.MetricProcessor.Add(mt)
+		return r.False()
+	}
+	c.Status(200)
+	mt := PrepMetricShortAccessNew(c, short, true /*success*/, false /*private*/, true /*remove*/, accessRes.IsTrue() /*locked*/)
 	metrics.MetricGlobalCounter.IncShortAccessVisitRemoveCount()
 	metrics.MetricProcessor.Add(mt)
-	return true
+	return r.True()
 }
 
 func HandleGetShortDataInfo(c *gin.Context) {
@@ -505,6 +526,7 @@ func isAccessToPrivateAllowed(c *gin.Context, short string) (r *bool) {
 	}
 	return
 }
+
 func isAccessToShortAllowed(c *gin.Context, short string) (r *bool) {
 	True := true
 	False := false
@@ -548,6 +570,7 @@ func isAccessToShortAllowed(c *gin.Context, short string) (r *bool) {
 	}
 	return
 }
+
 func isAccessToRemoveAllowed(c *gin.Context, short string) (r *bool) {
 	True := true
 	False := false
@@ -842,3 +865,117 @@ func PrepMetricShortAccess(c *gin.Context, name string, success, private, remove
 	return mt
 }
 
+func PrepMetricShortAccessNew(c *gin.Context, name string, success, private, remove, isLocked bool) *metrics.MetricShortAccess {
+	trueOrFalseString := func(cond bool) string {
+		if cond {
+			return "true"
+		}
+		return "false"
+	}
+	mt := metrics.NewMetricShortAccess()
+	mt.ShortAccessVisitName = name
+	mt.ShortAccessVisitIP = c.ClientIP()
+	mt.ShortAccessVisitTime = time.Now().String()
+	mt.ShortAccessVisitSuccess = trueOrFalseString(success)
+	mt.ShortAccessVisitPrivate = trueOrFalseString(private)
+	mt.ShortAccessVisitRemove = trueOrFalseString(remove)
+	mt.ShortAccessVisitIsLocked = trueOrFalseString(isLocked)
+	reqDump, err := httputil.DumpRequest(c.Request, true)
+	if err != nil {
+		log.Printf("failed getting request dump for %s, err: %s\n", name, err)
+		reqDump = []byte("something failed getting request dump: " + err.Error())
+	}
+	mt.ShortAccessVisitInfo = fmt.Sprintf("\n--\n%s\n--\n%s\n--\n%s",
+		c.Request.RemoteAddr,
+		c.Request.RequestURI,
+		string(reqDump),
+	)
+	return mt
+}
+
+// shortAccessCheck :
+//
+//	True - access locked and unlock succeeded
+//	False - access locked and unlock failed or error occurred - response updated
+//	Nil - access is not locked
+func shortAccessCheck(c *gin.Context, short string, which common.ShortType) (r resTri) {
+	r = ResTri()
+	var (
+		tokenHeader string
+		tokenField  string
+		saltField   string
+	)
+	switch which {
+	case common.ShortPublic:
+		tokenHeader = common.FPubPassToken
+		tokenField = store.FieldPubPassTok
+		saltField = store.FieldPubPassSalt
+	case common.ShortPrivate:
+		tokenHeader = common.FPrvPassToken
+		tokenField = store.FieldPrvPassTok
+		saltField = store.FieldPrvPassSalt
+	case common.ShortRemove:
+		tokenHeader = common.FRemPassToken
+		tokenField = store.FieldRemPassTok
+		saltField = store.FieldRemPassSalt
+	}
+	storedPassTok, e1 := store.StoreCtx.GetMetaDataMapping(string(short)+store.SuffixPublic, tokenField)
+	if e1 == nil && storedPassTok != "" {
+		storedPassSalt, e2 := store.StoreCtx.GetMetaDataMapping(string(short)+store.SuffixPublic, saltField)
+		if e2 != nil {
+			msg := errors.Errorf("short <%s> is locked but missing salt", short)
+			log.Printf("%s, e2: %s\n", msg, e2.Error())
+			_spawnErrWithCode(c, http.StatusForbidden, msg)
+			return r.False()
+		}
+		if !c.Request.URL.Query().Has(common.FPass) {
+			recvPassToken := c.Request.Header.Get(tokenHeader)
+			log.Printf("-- (recv) pass token: <%s>\n", recvPassToken)
+			log.Printf("-- pass token: <%s>\n", storedPassTok)
+			log.Printf("-- pass salt: <%s>\n", storedPassSalt)
+			if recvPassToken != storedPassTok {
+				msg := errors.Errorf("access denied to short <%s>", short)
+				log.Printf("%s (pass tok),  recv <%s>, salt <%s>, stored <%s>\n",
+					msg, recvPassToken, storedPassSalt, storedPassTok)
+				_spawnErrWithCode(c, http.StatusUnauthorized, msg)
+				return r.False()
+			}
+		} else {
+			passTxt := c.Request.URL.Query().Get(common.FPass)
+			calcPassTok := shortener.GenerateTokenTweaked(passTxt+storedPassSalt, 0, 30, 10)
+			log.Printf("-- (recv) pass : <%s>\n", passTxt)
+			log.Printf("-- pass salt: <%s>\n", storedPassSalt)
+			log.Printf("-- pass token: <%s>\n", storedPassTok)
+			log.Printf("-- (calc) pass token: <%s>\n", calcPassTok)
+			if calcPassTok != storedPassTok {
+				msg := errors.Errorf("access denied to short <%s>", short)
+				log.Printf("%s (pass text), txt <%s>, salt <%s>, calc <%s>, stored <%s>\n",
+					msg, passTxt, storedPassSalt, calcPassTok, storedPassTok)
+				_spawnErrWithCode(c, http.StatusUnauthorized, msg)
+				return r.False()
+			}
+		}
+		return r.True()
+	}
+	return r.Nil()
+}
+
+func PrepMetricShortAccessInvalid(c *gin.Context, name string) *metrics.MetricShortAccessInvalid {
+	mt := metrics.NewMetricShortAccessInvalid()
+	mt.InvalidShortAccessName = name
+	mt.InvalidShortAccessIP = c.ClientIP()
+	mt.InvalidShortAccessTime = time.Now().String()
+	mt.InvalidShortAccessReferrer = c.Request.Referer()
+
+	reqDump, err := httputil.DumpRequest(c.Request, true)
+	if err != nil {
+		log.Printf("failed getting request dump for %s, err: %s\n", name, err)
+		reqDump = []byte("something failed getting request dump: " + err.Error())
+	}
+	mt.InvalidShortAccessInfo = fmt.Sprintf("\n--\n%s\n--\n%s\n--\n%s",
+		c.Request.RemoteAddr,
+		c.Request.RequestURI,
+		string(reqDump),
+	)
+	return mt
+}

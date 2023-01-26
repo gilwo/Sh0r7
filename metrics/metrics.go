@@ -853,6 +853,7 @@ func (m *MetricShortCreationSuccess) Equal(om MetricPacker) bool {
 		m2.ShortCreateReferrer == m.ShortCreateReferrer
 }
 
+// TODO: rename this - remove succes from name and type (success is a field inside)
 // # Access Success Metric
 // #######################################
 
