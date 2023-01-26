@@ -26,23 +26,7 @@ func (mc *metricContext) MetricDump(mt MetricPacker) {
 		log.Printf("%s\n", mt.DumpObject())
 	}
 }
-func (mc *metricContext) dbAdd(mp MetricPacker) {
-	if mp.ToMap().Error() != nil {
-		log.Printf("metric failed to convert to map")
-		return
-	}
-	if mp.Encode().Error() != nil {
-		log.Printf("metric failed to encode")
-		return
-	}
-	if mp.Compress().Error() != nil {
-		log.Printf("metric failed to compress to map")
-		return
-	}
 
-	log.Printf("adding to db: <%s>\n", mp.CompressedContent())
-	// TODO: ... add actual code that add to DB
-}
 func (mc *metricContext) StopProcessing() {
 	close(mc.quitProcessing)
 	<-mc.doneProcessing

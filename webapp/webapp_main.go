@@ -220,9 +220,6 @@ func checkPrivateRedirect(c *gin.Context) bool {
 				if salt, ok := info[store.FieldPrvPassSalt]; ok {
 					redirect.RawQuery += "&" + webappCommon.PasswordProtected + "=" + url.QueryEscape(salt.(string))
 				}
-				if strings.HasSuffix(c.Request.Referer(), redirect.String()) {
-					return false
-				}
 				if c.Request.Header.Get(webappCommon.FPrvPassToken) != "" {
 					return false
 				}

@@ -256,9 +256,9 @@ func GinInit() *gin.Engine {
 		} else if paramShort == "favicon.ico" {
 			c.FileFromFS(".", handler.HandleGetFavIcon())
 		} else if paramExt == "info" {
-			handler.HandleGetShortDataInfo(c)
+			handler.HandleShort(c)
 		} else if paramExt == "data" {
-			handler.HandleGetOriginData(c)
+			handler.HandleShort(c)
 		} else if gin.Mode() == gin.DebugMode && paramShort == "dump" && paramExt == "keys" {
 			handler.HandleDumpKeys(c)
 		} else if common.WebappGenFunc != nil && common.WebappGenFunc("SERVE", c).(bool) {
