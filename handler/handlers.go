@@ -361,7 +361,7 @@ func tryRemove(c *gin.Context) bool {
 // handleRemove:
 //
 //	True - removed succeeded - update response
-//	False - removed failed due to an error - update response
+//	False - removed failed due to an error or failure to unlock - update response
 //	Nil - removed unhandled (not found) - skipped respones
 func handleRemove(c *gin.Context) (r resTri) {
 	r = ResTri()
@@ -483,195 +483,112 @@ func HandleShort(c *gin.Context) {
 	_spawnErr(c, errors.Errorf("short %s not found", short))
 }
 
-func isAccessToPrivateAllowed(c *gin.Context, short string) (r *bool) {
-	True := true
-	False := false
-	storedPrvPassTok, e1 := store.StoreCtx.GetMetaDataMapping(string(short)+store.SuffixPublic, store.FieldPrvPassTok)
-	if e1 == nil && storedPrvPassTok != "" {
-		storedPrvPassSalt, e2 := store.StoreCtx.GetMetaDataMapping(string(short)+store.SuffixPublic, store.FieldPrvPassSalt)
-		if e2 != nil {
-			msg := errors.Errorf("short <%s> is locked but missing salt", short)
-			log.Printf("%s, e2: %s\n", msg, e2.Error())
-			_spawnErr(c, msg)
-			return &False
-		}
-		if !c.Request.URL.Query().Has(common.FPass) {
-			recvPassToken := c.Request.Header.Get(common.FPrvPassToken)
-			log.Printf("-- (recv) pass token: <%s>\n", recvPassToken)
-			log.Printf("-- pass token: <%s>\n", storedPrvPassTok)
-			log.Printf("-- pass salt: <%s>\n", storedPrvPassSalt)
-			if recvPassToken != storedPrvPassTok {
-				msg := errors.Errorf("access denied to short <%s>", short)
-				log.Printf("%s (pass tok),  recv <%s>, salt <%s>, stored <%s>\n",
-					msg, recvPassToken, storedPrvPassSalt, storedPrvPassTok)
-				_spawnErrWithCode(c, http.StatusForbidden, msg)
-				return &False
-			}
-		} else {
-			passTxt := c.Request.URL.Query().Get(common.FPass)
-			calcPassTok := shortener.GenerateTokenTweaked(passTxt+storedPrvPassSalt, 0, 30, 10)
-			log.Printf("-- (recv) pass : <%s>\n", passTxt)
-			log.Printf("-- pass salt: <%s>\n", storedPrvPassSalt)
-			log.Printf("-- pass token: <%s>\n", storedPrvPassTok)
-			log.Printf("-- (calc) pass token: <%s>\n", calcPassTok)
-			if calcPassTok != storedPrvPassTok {
-				msg := errors.Errorf("access denied to short <%s>", short)
-				log.Printf("%s (pass text), txt <%s>, salt <%s>, calc <%s>, stored <%s>\n",
-					msg, passTxt, storedPrvPassSalt, calcPassTok, storedPrvPassTok)
-				_spawnErrWithCode(c, http.StatusForbidden, msg)
-				return &False
-			}
-		}
-		return &True
-	}
-	return
-}
 
-func isAccessToShortAllowed(c *gin.Context, short string) (r *bool) {
-	True := true
-	False := false
-	storedPubPassTok, e1 := store.StoreCtx.GetMetaDataMapping(string(short)+store.SuffixPublic, store.FieldPubPassTok)
-	if e1 == nil && storedPubPassTok != "" {
-		storedPubPassSalt, e2 := store.StoreCtx.GetMetaDataMapping(string(short)+store.SuffixPublic, store.FieldPubPassSalt)
-		if e2 != nil {
-			msg := errors.Errorf("short <%s> is locked but missing salt", short)
-			log.Printf("%s, e2: %s\n", msg, e2.Error())
-			_spawnErr(c, msg)
-			return &False
-		}
-		if !c.Request.URL.Query().Has(common.FPass) {
-			recvPassToken := c.Request.Header.Get(common.FPubPassToken)
-			log.Printf("-- (recv) pass token: <%s>\n", recvPassToken)
-			log.Printf("-- pass token: <%s>\n", storedPubPassTok)
-			log.Printf("-- pass salt: <%s>\n", storedPubPassSalt)
-			if recvPassToken != storedPubPassTok {
-				msg := errors.Errorf("access denied to short <%s>", short)
-				log.Printf("%s (pass tok),  recv <%s>, salt <%s>, stored <%s>\n",
-					msg, recvPassToken, storedPubPassSalt, storedPubPassTok)
-				_spawnErrWithCode(c, http.StatusForbidden, msg)
-				return &False
-			}
-		} else {
-			passTxt := c.Request.URL.Query().Get(common.FPass)
-			calcPassTok := shortener.GenerateTokenTweaked(passTxt+storedPubPassSalt, 0, 30, 10)
-			log.Printf("-- (recv) pass : <%s>\n", passTxt)
-			log.Printf("-- pass salt: <%s>\n", storedPubPassSalt)
-			log.Printf("-- pass token: <%s>\n", storedPubPassTok)
-			log.Printf("-- (calc) pass token: <%s>\n", calcPassTok)
-			if calcPassTok != storedPubPassTok {
-				msg := errors.Errorf("access denied to short <%s>", short)
-				log.Printf("%s (pass text), txt <%s>, salt <%s>, calc <%s>, stored <%s>\n",
-					msg, passTxt, storedPubPassSalt, calcPassTok, storedPubPassTok)
-				_spawnErrWithCode(c, http.StatusForbidden, msg)
-				return &False
-			}
-		}
-		return &True
-	}
-	return
-}
 
-func isAccessToRemoveAllowed(c *gin.Context, short string) (r *bool) {
-	True := true
-	False := false
-	storedRemPassTok, e1 := store.StoreCtx.GetMetaDataMapping(string(short)+store.SuffixPublic, store.FieldRemPassTok)
-	if e1 == nil && storedRemPassTok != "" {
-		storedRemPassSalt, e2 := store.StoreCtx.GetMetaDataMapping(string(short)+store.SuffixPublic, store.FieldRemPassSalt)
-		if e2 != nil {
-			msg := errors.Errorf("short <%s> is locked but missing salt", short)
-			log.Printf("%s, e2: %s\n", msg, e2.Error())
-			_spawnErr(c, msg)
-			return &False
-		}
-		if !c.Request.URL.Query().Has(common.FPass) {
-			recvPassToken := c.Request.Header.Get(common.FRemPassToken)
-			log.Printf("-- (recv) pass token: <%s>\n", recvPassToken)
-			log.Printf("-- pass token: <%s>\n", storedRemPassTok)
-			log.Printf("-- pass salt: <%s>\n", storedRemPassSalt)
-			if recvPassToken != storedRemPassTok {
-				msg := errors.Errorf("access denied to short <%s>", short)
-				log.Printf("%s (pass tok),  recv <%s>, salt <%s>, stored <%s>\n",
-					msg, recvPassToken, storedRemPassSalt, storedRemPassTok)
-				_spawnErrWithCode(c, http.StatusForbidden, msg)
-				return &False
-			}
-		} else {
-			passTxt := c.Request.URL.Query().Get(common.FPass)
-			calcPassTok := shortener.GenerateTokenTweaked(passTxt+storedRemPassSalt, 0, 30, 10)
-			log.Printf("-- (recv) pass : <%s>\n", passTxt)
-			log.Printf("-- pass salt: <%s>\n", storedRemPassSalt)
-			log.Printf("-- pass token: <%s>\n", storedRemPassTok)
-			log.Printf("-- (calc) pass token: <%s>\n", calcPassTok)
-			if calcPassTok != storedRemPassTok {
-				msg := errors.Errorf("access denied to short <%s>", short)
-				log.Printf("%s (pass text), txt <%s>, salt <%s>, calc <%s>, stored <%s>\n",
-					msg, passTxt, storedRemPassSalt, calcPassTok, storedRemPassTok)
-				_spawnErrWithCode(c, http.StatusForbidden, msg)
-				return &False
-			}
-		}
-		return &True
-	}
-	return
-}
 func getData(c *gin.Context) bool {
+	return !handleData(c).IsNil()
+}
+
+// handleData:
+//
+//	True - found - update response
+//	False - data access failed due to an error or failure to unlock - update response
+//	Nil - unhandled (not found) - skipped respones
+func handleData(c *gin.Context) (r resTri) {
+	r = ResTri()
 	short := c.Param("short")
+	dataKey := short
 	if !store.StoreCtx.CheckExistShortDataMapping(short + store.SuffixPublic) {
 		shortNamed := shortener.GenerateShortDataTweakedWithStore2NotRandom(short+store.SuffixPublic, 0, common.HashLengthNamedFixedSize, 0, 0, store.StoreCtx)
 		if !store.StoreCtx.CheckExistShortDataMapping(shortNamed + store.SuffixPublic) {
-			msg := errors.Errorf("there was a problem with short: %s", short)
-			log.Printf("%s, not found when getting data - also for named public option (%s)\n", msg, shortNamed)
-			return false
+			return r.Nil()
 		}
-		short = string(shortNamed)
+		dataKey = shortNamed
 	}
-	var accessAllowed *bool
-	if accessAllowed = isAccessToShortAllowed(c, string(short)); accessAllowed != nil && !*accessAllowed {
-		return *accessAllowed
+
+	accessRes := shortAccessAllowedCheck(c, string(dataKey), common.ShortPublic)
+	if accessRes.IsFalse() {
+		mt := PrepMetricShortAccessNew(c, short, false /*success*/, false /*private*/, false /*remove*/, true /*locked*/)
+		metrics.MetricProcessor.Add(mt)
+		// TODO: addd global counter for locked access failure
+		return r.False()
 	}
-	data, err := store.StoreCtx.LoadDataMapping(short + store.SuffixPublic)
+
+	errMsg := errors.Errorf("there was a problem with short: %s", short)
+	data, err := store.StoreCtx.LoadDataMapping(string(dataKey) + store.SuffixPublic)
 	if err != nil {
-		// if short fail here, then try to get the data for the full path
-		//  (some elements are stored this way using the storage provider)
-		data, err = store.StoreCtx.LoadDataMapping(c.Request.URL.Path)
-		if err == nil {
-			c.String(200, string(data))
-			return true
+		{ // a hacky flow - TODO - investigate or rethink
+			log.Printf("failed to get data for public: <%s> - %s ; trying directly for the url <%s>\n", dataKey, err, c.Request.URL.Path)
+			// if short fail here, then try to get the data for the full path
+			//  (some elements are stored this way using the storage provider)
+			data, err = store.StoreCtx.LoadDataMapping(c.Request.URL.Path)
+			if err == nil {
+				c.String(200, string(data))
+				return r.True()
+			}
 		}
-		msg := errors.Errorf("there was a problem with short: %s", short)
-		log.Printf("%s, err: %s\n", msg, err)
-		return false
+		log.Printf("failed to get info for public: <%s> - %s\n", dataKey, err)
+		_spawnErrWithCode(c, http.StatusInternalServerError, errMsg)
+		mt := PrepMetricShortAccessNew(c, short, false /*success*/, false /*private*/, false /*remove*/, accessRes.IsTrue() /*locked*/)
+		metrics.MetricProcessor.Add(mt)
+		return r.False()
 	}
 	c.String(200, "%s", data)
-	mt := PrepMetricShortAccess(c, short, true /*success*/, false /*private*/, false /*remove*/, accessAllowed /*locked*/)
+	mt := PrepMetricShortAccessNew(c, short, true /*success*/, false /*private*/, false /*remove*/, accessRes.IsTrue() /*locked*/)
 	metrics.MetricGlobalCounter.IncShortAccessVisitCount()
 	metrics.MetricProcessor.Add(mt)
-	return true
+
+	return r.True()
 }
 
 func getDataPrivate(c *gin.Context) bool {
+	return !handlePrivateData(c).IsNil()
+}
+
+// handlePrivateData:
+//
+//	True - found - update response
+//	False - data access failed due to an error or failure to unlock - update response
+//	Nil - unhandled (not found) - skipped respones
+func handlePrivateData(c *gin.Context) (r resTri) {
+	r = ResTri()
 	short := c.Param("short")
-	dataKey, err := store.StoreCtx.LoadDataMapping(short + store.SuffixPrivate)
+	privateKey := short + store.SuffixPrivate
+	if !store.StoreCtx.CheckExistShortDataMapping(privateKey) {
+		return r.Nil()
+	}
+	errMsg := errors.Errorf("there was a problem with short: %s", short)
+	dataKey, err := store.StoreCtx.LoadDataMapping(privateKey)
 	if err != nil {
-		msg := errors.Errorf("there was a problem with short: %s", short)
-		log.Printf("%s, err: %s\n", msg, err)
-		return false
+		log.Printf("failed getting public from private key: <%s>, err: %s\n", privateKey, err)
+		_spawnErrWithCode(c, http.StatusInternalServerError, errMsg)
+		mt := PrepMetricShortAccessNew(c, short, false /*success*/, true /*private*/, false /*remove*/, false /*locked*/)
+		metrics.MetricProcessor.Add(mt)
+		return r.False()
 	}
-	var accessAllowed *bool
-	if accessAllowed = isAccessToPrivateAllowed(c, string(dataKey)); accessAllowed != nil && !*accessAllowed {
-		return *accessAllowed
+
+	accessRes := shortAccessAllowedCheck(c, string(dataKey), common.ShortPrivate)
+	if accessRes.IsFalse() {
+		mt := PrepMetricShortAccessNew(c, short, false /*success*/, true /*private*/, false /*remove*/, true /*locked*/)
+		metrics.MetricProcessor.Add(mt)
+		// TODO: addd global counter for locked access failure
+		return r.False()
 	}
-	data, err := store.StoreCtx.LoadDataMappingInfo(string(dataKey) + store.SuffixPublic)
+
+	info, err := store.StoreCtx.LoadDataMappingInfo(string(dataKey) + store.SuffixPublic)
 	if err != nil {
-		msg := errors.Errorf("there was a problem with short: %s", short)
-		log.Printf("%s, err: %s\n", msg, err)
-		return false
+		log.Printf("failed to get info for public: <%s> - %s\n", dataKey, err)
+		_spawnErrWithCode(c, http.StatusInternalServerError, errMsg)
+		mt := PrepMetricShortAccessNew(c, short, false /*success*/, true /*private*/, false /*remove*/, accessRes.IsTrue() /*locked*/)
+		metrics.MetricProcessor.Add(mt)
+		return r.False()
 	}
-	c.JSON(200, data)
-	mt := PrepMetricShortAccess(c, short, false /*success*/, true /*private*/, false /*remove*/, accessAllowed /*locked*/)
+	c.JSON(200, info)
+	mt := PrepMetricShortAccessNew(c, short, true /*success*/, true /*private*/, false /*remove*/, accessRes.IsTrue() /*locked*/)
 	metrics.MetricGlobalCounter.IncShortAccessVisitCount()
 	metrics.MetricProcessor.Add(mt)
-	return true
+
+	return r.True()
 }
 
 func tryUrl(c *gin.Context) bool {
@@ -681,7 +598,7 @@ func tryUrl(c *gin.Context) bool {
 // handleUrl:
 //
 //	True - found - update response
-//	False - url access failed due to an error - update response
+//	False - url access failed due to an error or failure to unlock - update response
 //	Nil - unhandled (not found) - skipped respones
 func handleUrl(c *gin.Context) (r resTri) {
 	r = ResTri()
@@ -717,7 +634,7 @@ func handleUrl(c *gin.Context) (r resTri) {
 	if err != nil {
 		log.Printf("failed to get info for public: <%s>\n", dataKey)
 		_spawnErrWithCode(c, http.StatusInternalServerError, errMsg)
-		mt := PrepMetricShortAccessNew(c, short, false /*success*/, false /*private*/, true /*remove*/, accessRes.IsTrue() /*locked*/)
+		mt := PrepMetricShortAccessNew(c, short, false /*success*/, false /*private*/, false /*remove*/, accessRes.IsTrue() /*locked*/)
 		metrics.MetricProcessor.Add(mt)
 		return r.False()
 	}

@@ -46,3 +46,11 @@ const (
 
 	HashLengthNamedFixedSize = 40
 )
+
+type ShortType int
+
+const (
+	ShortPublic ShortType = iota
+	ShortPrivate
+	ShortRemove
+)
