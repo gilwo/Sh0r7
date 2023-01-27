@@ -396,6 +396,7 @@ func handleRemove(c *gin.Context) (r resTri) {
 		metrics.MetricProcessor.Add(mt)
 		return r.False()
 	}
+
 	var removeErr error
 	// remove all even if some fail , but log it
 	if val, ok := info[store.FieldRemove]; ok { // we know its here alread as we arrived from it ... but for the generic flow logic - need to optimize ...
@@ -437,59 +438,52 @@ func handleRemove(c *gin.Context) (r resTri) {
 }
 
 func HandleGetShortDataInfo(c *gin.Context) {
-	if getDataPrivate(c) {
-		return
+	if handlePrivateData(c).IsNil() {
+		path := c.Request.URL.Path
+		mt := PrepMetricShortAccessInvalid(c, path)
+		metrics.MetricGlobalCounter.IncInvalidShortAccessCounter()
+		metrics.MetricProcessor.Add(mt)
+		_spawnErrWithCode(c, http.StatusNotFound, errors.New(path+" not found"))
 	}
 }
-func HandleGetOriginData(c *gin.Context) {
-	short := c.Param("short")
-	dataKey, err := store.StoreCtx.LoadDataMapping(short + store.SuffixPrivate)
-	if err != nil {
-		msg := errors.Errorf("there was a problem with short: %s", short)
-		log.Printf("%s, err: %s\n", msg, err)
-		_spawnErr(c, msg)
-		return
-	}
-	data, err := store.StoreCtx.LoadDataMapping(string(dataKey) + store.SuffixPublic)
-	if err != nil {
-		msg := errors.Errorf("there was a problem with short: %s", short)
-		log.Printf("%s, err: %s\n", msg, err)
-		_spawnErr(c, msg)
-		return
-	}
 
-	c.String(200, "%s", data)
+func HandleGetOriginData(c *gin.Context) {
+	if handleData(c).IsNil() {
+		path := c.Request.URL.Path
+		mt := PrepMetricShortAccessInvalid(c, path)
+		metrics.MetricGlobalCounter.IncInvalidShortAccessCounter()
+		metrics.MetricProcessor.Add(mt)
+		_spawnErrWithCode(c, http.StatusNotFound, errors.New(path+" not found"))
+	}
 }
 
 func HandleShort(c *gin.Context) {
 	short := c.Param("short")
 	log.Printf("trying url for <%s>\n", short)
-	if tryUrl(c) {
+
+	if !handleUrl(c).IsNil() {
 		return
 	}
 	log.Printf("trying data for <%s>\n", short)
-	if getData(c) {
+	if !handleData(c).IsNil() {
 		return
 	}
 	log.Printf("trying private data for <%s>\n", short)
-	if getDataPrivate(c) {
+	if !handlePrivateData(c).IsNil() {
 		return
 	}
 	log.Printf("trying remove for <%s>\n", short)
-	if tryRemove(c) {
+	if !handleRemove(c).IsNil() {
 		return
 	}
 
-	_spawnErr(c, errors.Errorf("short %s not found", short))
+	mt := PrepMetricShortAccessInvalid(c, short)
+	metrics.MetricGlobalCounter.IncInvalidShortAccessCounter()
+	metrics.MetricProcessor.Add(mt)
+	_spawnErrWithCode(c, http.StatusNotFound, errors.Errorf("short %s not found", short))
 }
 
-
-
-func getData(c *gin.Context) bool {
-	return !handleData(c).IsNil()
-}
-
-// handleData:
+// handleData: retrieve data associated with short
 //
 //	True - found - update response
 //	False - data access failed due to an error or failure to unlock - update response
@@ -541,11 +535,7 @@ func handleData(c *gin.Context) (r resTri) {
 	return r.True()
 }
 
-func getDataPrivate(c *gin.Context) bool {
-	return !handlePrivateData(c).IsNil()
-}
-
-// handlePrivateData:
+// handlePrivateData: retrieve private data associated with short
 //
 //	True - found - update response
 //	False - data access failed due to an error or failure to unlock - update response

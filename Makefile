@@ -24,7 +24,7 @@ build:
 run: run-local
 
 run-local: build-web
-	go run -tags webapp,redis main.go -webapp -local
+	go run -tags webapp main.go -webapp -local
 
 deploy: build-web-prod
 	go build -tags netgo,webapp,prod,redis -ldflags '-s -w' -o app
