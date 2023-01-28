@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"math/rand"
 	"net/http"
 	"os"
 	"os/signal"
@@ -185,46 +184,6 @@ func exit() {
 	}
 }
 
-func triggerMaintainence() {
-	const MAX_SCHEDULED_MAINT = 60
-	var when time.Duration
-	if gin.Mode() == gin.DebugMode {
-		// when = time.Duration(rand.Intn(5)) * time.Minute
-		when = time.Duration(rand.Intn(5)) * time.Second
-	} else {
-		when = time.Duration(rand.Intn(5))*time.Hour + time.Duration(rand.Intn(60))*time.Minute
-	}
-	if scheduledMaint > MAX_SCHEDULED_MAINT {
-		// log.Printf("scheduled maintainence already at its peek %d\n", MAX_SCHEDULED_MAINT)
-		return
-	}
-	go func() {
-		scheduledMaint += 1
-		log.Printf("scheduling maintainence (%d/%d)\n", scheduledMaint, MAX_SCHEDULED_MAINT)
-	again:
-		log.Printf("maintainence scheduled in %s\n", when)
-		select {
-		case <-mainCtx.Done():
-			log.Println("maintainence aborted")
-		case <-time.After(when):
-			log.Printf("maintainence triggered after %s\n", when)
-			if maintainenceOngoing {
-				log.Printf("maintainence ongoing - rescheduling in %s\n", when)
-				goto again
-			}
-			maintainenceOngoing = true
-			store.Maintainence()
-			scheduledMaint -= 1
-			maintainenceOngoing = false
-		}
-	}()
-}
-
-var (
-	maintainenceOngoing bool
-	scheduledMaint      int
-)
-
 func GinInit() *gin.Engine {
 
 	// gin endpoints
@@ -251,7 +210,7 @@ func GinInit() *gin.Engine {
 		// }
 
 		if paramShort == "hc" {
-			triggerMaintainence()
+			defer QueueMaintWork()
 			c.String(200, "")
 		} else if paramShort == "favicon.ico" {
 			c.FileFromFS(".", handler.HandleGetFavIcon())
