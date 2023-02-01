@@ -4,14 +4,14 @@
 ### *SH0R7_STORE_LOCAL*
 start with local storage (memory map) - non empty to enable
 ### *SH0R7_STORE_REDIS*
-start with redis storage - redis url to enable
+start with redis storage - redis DSN to enable
 ### *SH0R7_STORE_FALLBACK*
 use local storage provider as a fallback to redis
 
 ---
 ## Metric
-### *SH0R7_METRIC_DB_PATH*
-db path (postgresql only ATM) url - non empty postgresql db path to enable
+### *SH0R7_OTEL_UPTRACE*
+use uptrace.dev services for metrics and more - uptrace DSN to enable
 
 ---
 ## Web support
@@ -25,16 +25,26 @@ amount of time for a legitimate session of the webapp without refreshing - any v
 ---
 ## Operational 
 ### *SH0R7_PRODUCTION*
-use `true` to enable
+run service in production level use `true` to enable
 ### *SH0R7_ADDR*
 valid `ip:addr` to override default
 ### *SH0R7_EXPIRATION*
 amount of time for default expiration of shorts - any valid duration (parsed by go ParseDuration) to override default
 
+## Deployment
+### *SH0R7_DEPLOY*
+indicate the deployment type:
+- `prod` : production service
+- `dev` : development service
+- `localdev` : run as local development service
+
 ## Dev 
 ---
 ### *__DEV_ENV*
+### *SH0R7__DEV_ENV*
 enable some dev helper stuff
+### *SH0R7_DEV_HOST*
+host name of the dev machine
 ### *SH0R7_METRIC_DB_TABLE_DEV_PREFIX*
 suffix to table name in metric db
 ### *SH0R7_METRIC_DB_GROUP_TYPE_DEV_PREFIX*

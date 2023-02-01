@@ -12,6 +12,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/uptrace/uptrace-go/uptrace"
+
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
@@ -47,10 +51,10 @@ func mainServer() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	metrics.MetricGlobalCounter = metrics.NewMetricGlobal()
-	metrics.MetricProcessor = metrics.NewMetricContext()
-	metrics.MetricProcessor.StartProcessing()
-	metrics.MetricProcessor.EnableDisableDump()
+	// metrics.MetricGlobalCounter = metrics.NewMetricGlobal()
+	// metrics.MetricProcessor = metrics.NewMetricContext()
+	// metrics.MetricProcessor.StartProcessing()
+	// metrics.MetricProcessor.EnableDisableDump()
 	adTokenSet()
 	startServer()
 }
@@ -153,7 +157,7 @@ func startServer() {
 	}()
 	<-ctx.Done()
 	time.Sleep(100 * time.Millisecond)
-	metrics.MetricProcessor.StopProcessing()
+	// metrics.MetricProcessor.StopProcessing()
 	fmt.Println("** server down **")
 	// err = GinInit().Run(addr)
 	// if err != nil {
@@ -189,6 +193,10 @@ func GinInit() *gin.Engine {
 	// gin endpoints
 	// ----------------
 	r := gin.Default()
+	if OpenTelemetryServiceName != "" {
+		r.Use(otelgin.Middleware(OpenTelemetryServiceName))
+	}
+
 	// r.GET("/", func(c *gin.Context) {
 	// 	c.JSON(200, gin.H{
 	// 		"message": "Welcome to the URL Shortener API",
@@ -263,4 +271,36 @@ func GinInit() *gin.Engine {
 		handler.RemoveShortData(c)
 	})
 	return r
+}
+
+var (
+	OpenTelemetryServiceName string
+)
+
+func init() {
+	prefix := ""
+	if _, ok := os.LookupEnv("SH0R7__DEV_ENV"); ok {
+		prefix = os.Getenv("SH0R7_DEV_HOST")
+	}
+
+	OpenTelemetryServiceName = prefix + ".dev.sh0r7.me"
+	switch gin.Mode() {
+	case gin.DebugMode:
+		OpenTelemetryServiceName += ".debug"
+	case gin.TestMode:
+		OpenTelemetryServiceName += ".test"
+	case gin.ReleaseMode:
+	}
+	if otelEnv := os.Getenv("SH0R7_OTEL_UPTRACE"); otelEnv != "" {
+		options := []uptrace.Option{}
+		options = append(options,
+			uptrace.WithServiceName(OpenTelemetryServiceName),
+			uptrace.WithDeploymentEnvironment("development"),
+		)
+		options = append(options,
+			uptrace.WithServiceVersion("v1.0.0-dev"),
+		)
+		uptrace.ConfigureOpentelemetry(options...)
+	}
+	metrics.GlobalMeter = metrics.InitGlobalMeter(OpenTelemetryServiceName)
 }

@@ -54,3 +54,15 @@ const (
 	ShortPrivate
 	ShortRemove
 )
+
+func (s ShortType) String() (r string) {
+	switch s {
+	case ShortPrivate:
+		r = "private"
+	case ShortPublic:
+		r = "public"
+	case ShortRemove:
+		r = "remove"
+	}
+	return r
+}

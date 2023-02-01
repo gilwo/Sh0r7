@@ -17,6 +17,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/karrick/tparse"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func _spawnErrWithCode(c *gin.Context, code int, err error) {
@@ -43,9 +45,15 @@ const (
 	LengthNamedMaxShortFree = 40
 )
 
-func handleCreateShortModRemove(data, namedPublic string, isPrivate, isRemove, isUrl bool, expiration time.Duration) (map[string]string, error) {
-	var err error
-	shorts := map[string]string{
+func handleCreateShortModRemove(data, namedPublic string, isPrivate, isRemove, isUrl bool, expiration time.Duration) (shorts map[string]string, err error) {
+	defer func() {
+		if err == nil {
+			metrics.GlobalMeter.IncMeterCounter(metrics.Created)
+		} else {
+			metrics.GlobalMeter.IncMeterCounter(metrics.CreationFailed)
+		}
+	}()
+	shorts = map[string]string{
 		store.SuffixPublic: shortener.GenerateShortDataTweakedWithStore2(
 			data+store.SuffixPublic, -1, 0, LengthMinShortFree, LengthMaxShortFree, store.StoreCtx),
 	}
@@ -62,6 +70,9 @@ func handleCreateShortModRemove(data, namedPublic string, isPrivate, isRemove, i
 			return nil, errors.Errorf("named short is too long (%d)", len(namedPublic))
 		}
 		// TODO: add here check against reserved names (e.g. favicon.ico, /web/logo.jpg)
+		if checkReserveNames(namedPublic).IsFalse() {
+			return nil, errors.Errorf("named short (%s) cannot be used", namedPublic)
+		}
 		shorts[store.SuffixPublic] = shortener.GenerateShortDataTweakedWithStore2NotRandom(
 			namedPublic+store.SuffixPublic, 0, common.HashLengthNamedFixedSize, 0, 0, store.StoreCtx)
 	}
@@ -349,13 +360,8 @@ func updateData(c *gin.Context, d []byte) bool {
 func RemoveShortData(c *gin.Context) {
 	if handleRemove(c).IsNil() {
 		_spawnErrWithCode(c, http.StatusNotFound, errors.New(c.Request.URL.Path+" not found"))
-		mt := PrepMetricShortAccessInvalid(c, c.Param("short"))
-		metrics.MetricProcessor.Add(mt)
-		metrics.MetricGlobalCounter.IncInvalidShortAccessCounter()
+		metrics.GlobalMeter.IncMeterCounter(metrics.InvalidShort)
 	}
-}
-func tryRemove(c *gin.Context) bool {
-	return !handleRemove(c).IsNil()
 }
 
 // handleRemove:
@@ -364,6 +370,17 @@ func tryRemove(c *gin.Context) bool {
 //	False - removed failed due to an error or failure to unlock - update response
 //	Nil - removed unhandled (not found) - skipped respones
 func handleRemove(c *gin.Context) (r resTri) {
+	defer func() {
+		if r.IsTrue() {
+			metrics.GlobalMeter.IncMeterCounter(metrics.ShortRemoved)
+		} else if r.IsFalse() {
+			if c.Writer.Status() != http.StatusUnauthorized {
+				metrics.GlobalMeter.IncMeterCounter(metrics.RemoveFailed)
+			} else {
+				metrics.GlobalMeter.IncMeterCounter(metrics.RemoveNotAuth)
+			}
+		}
+	}()
 	r = ResTri()
 	short := c.Param("short")
 	removeKey := short + store.SuffixRemove
@@ -377,14 +394,10 @@ func handleRemove(c *gin.Context) (r resTri) {
 	if err != nil {
 		log.Printf("failed getting public from remove key: <%s>, err: %s\n", removeKey, err)
 		_spawnErrWithCode(c, http.StatusInternalServerError, errMsg)
-		mt := PrepMetricShortAccessNew(c, short, false /*success*/, false /*private*/, true /*remove*/, false /*locked*/)
-		metrics.MetricProcessor.Add(mt)
 		return r.False()
 	}
 	accessRes := shortAccessAllowedCheck(c, string(dataKey), common.ShortRemove)
 	if accessRes.IsFalse() {
-		mt := PrepMetricShortAccessNew(c, short, false /*success*/, false /*private*/, true /*remove*/, true /*locked*/)
-		metrics.MetricProcessor.Add(mt)
 		// TODO: addd global counter for locked access failure
 		return r.False()
 	}
@@ -392,8 +405,6 @@ func handleRemove(c *gin.Context) (r resTri) {
 	if err != nil {
 		log.Printf("failed to get info for public: <%s>\n", dataKey)
 		_spawnErrWithCode(c, http.StatusInternalServerError, errMsg)
-		mt := PrepMetricShortAccessNew(c, short, false /*success*/, false /*private*/, true /*remove*/, accessRes.IsTrue() /*locked*/)
-		metrics.MetricProcessor.Add(mt)
 		return r.False()
 	}
 
@@ -425,35 +436,25 @@ func handleRemove(c *gin.Context) (r resTri) {
 	}
 	if removeErr != nil {
 		_spawnErrWithCode(c, http.StatusInternalServerError, errors.New("failed to remove some keys"))
-		mt := PrepMetricShortAccessNew(c, short, false /*success*/, false /*private*/, true /*remove*/, accessRes.IsTrue() /*locked*/)
-		metrics.MetricGlobalCounter.IncShortAccessVisitRemoveCount()
-		metrics.MetricProcessor.Add(mt)
 		return r.False()
 	}
 	c.Status(200)
-	mt := PrepMetricShortAccessNew(c, short, true /*success*/, false /*private*/, true /*remove*/, accessRes.IsTrue() /*locked*/)
-	metrics.MetricGlobalCounter.IncShortAccessVisitRemoveCount()
-	metrics.MetricProcessor.Add(mt)
 	return r.True()
 }
 
 func HandleGetShortDataInfo(c *gin.Context) {
 	if handlePrivateData(c).IsNil() {
 		path := c.Request.URL.Path
-		mt := PrepMetricShortAccessInvalid(c, path)
-		metrics.MetricGlobalCounter.IncInvalidShortAccessCounter()
-		metrics.MetricProcessor.Add(mt)
 		_spawnErrWithCode(c, http.StatusNotFound, errors.New(path+" not found"))
+		metrics.GlobalMeter.IncMeterCounter(metrics.InvalidShort)
 	}
 }
 
 func HandleGetOriginData(c *gin.Context) {
 	if handleData(c).IsNil() {
 		path := c.Request.URL.Path
-		mt := PrepMetricShortAccessInvalid(c, path)
-		metrics.MetricGlobalCounter.IncInvalidShortAccessCounter()
-		metrics.MetricProcessor.Add(mt)
 		_spawnErrWithCode(c, http.StatusNotFound, errors.New(path+" not found"))
+		metrics.GlobalMeter.IncMeterCounter(metrics.InvalidShort)
 	}
 }
 
@@ -462,25 +463,56 @@ func HandleShort(c *gin.Context) {
 	log.Printf("trying url for <%s>\n", short)
 
 	if !handleUrl(c).IsNil() {
+		{
+			span := trace.SpanFromContext(c.Request.Context())
+			if span.IsRecording() {
+				span.SetAttributes(attribute.String("referrer", c.Request.Referer()))
+				span.SetAttributes(attribute.String("which", common.ShortPublic.String()))
+				span.SetAttributes(attribute.String("key", short))
+				span.SetAttributes(attribute.Bool("url", true))
+			}
+		}
 		return
 	}
 	log.Printf("trying data for <%s>\n", short)
 	if !handleData(c).IsNil() {
+		{
+			span := trace.SpanFromContext(c.Request.Context())
+			if span.IsRecording() {
+				span.SetAttributes(attribute.String("referrer", c.Request.Referer()))
+				span.SetAttributes(attribute.String("which", common.ShortPublic.String()))
+				span.SetAttributes(attribute.String("key", short))
+			}
+		}
 		return
 	}
 	log.Printf("trying private data for <%s>\n", short)
 	if !handlePrivateData(c).IsNil() {
+		{
+			span := trace.SpanFromContext(c.Request.Context())
+			if span.IsRecording() {
+				span.SetAttributes(attribute.String("referrer", c.Request.Referer()))
+				span.SetAttributes(attribute.String("which", common.ShortPrivate.String()))
+				span.SetAttributes(attribute.String("key", short))
+			}
+		}
 		return
 	}
 	log.Printf("trying remove for <%s>\n", short)
 	if !handleRemove(c).IsNil() {
+		{
+			span := trace.SpanFromContext(c.Request.Context())
+			if span.IsRecording() {
+				span.SetAttributes(attribute.String("referrer", c.Request.Referer()))
+				span.SetAttributes(attribute.String("which", common.ShortRemove.String()))
+				span.SetAttributes(attribute.String("key", short))
+			}
+		}
 		return
 	}
 
-	mt := PrepMetricShortAccessInvalid(c, short)
-	metrics.MetricGlobalCounter.IncInvalidShortAccessCounter()
-	metrics.MetricProcessor.Add(mt)
 	_spawnErrWithCode(c, http.StatusNotFound, errors.Errorf("short %s not found", short))
+	metrics.GlobalMeter.IncMeterCounter(metrics.InvalidShort)
 }
 
 // handleData: retrieve data associated with short
@@ -502,8 +534,6 @@ func handleData(c *gin.Context) (r resTri) {
 
 	accessRes := shortAccessAllowedCheck(c, string(dataKey), common.ShortPublic)
 	if accessRes.IsFalse() {
-		mt := PrepMetricShortAccessNew(c, short, false /*success*/, false /*private*/, false /*remove*/, true /*locked*/)
-		metrics.MetricProcessor.Add(mt)
 		// TODO: addd global counter for locked access failure
 		return r.False()
 	}
@@ -523,14 +553,9 @@ func handleData(c *gin.Context) (r resTri) {
 		}
 		log.Printf("failed to get info for public: <%s> - %s\n", dataKey, err)
 		_spawnErrWithCode(c, http.StatusInternalServerError, errMsg)
-		mt := PrepMetricShortAccessNew(c, short, false /*success*/, false /*private*/, false /*remove*/, accessRes.IsTrue() /*locked*/)
-		metrics.MetricProcessor.Add(mt)
 		return r.False()
 	}
 	c.String(200, "%s", data)
-	mt := PrepMetricShortAccessNew(c, short, true /*success*/, false /*private*/, false /*remove*/, accessRes.IsTrue() /*locked*/)
-	metrics.MetricGlobalCounter.IncShortAccessVisitCount()
-	metrics.MetricProcessor.Add(mt)
 
 	return r.True()
 }
@@ -541,6 +566,17 @@ func handleData(c *gin.Context) (r resTri) {
 //	False - data access failed due to an error or failure to unlock - update response
 //	Nil - unhandled (not found) - skipped respones
 func handlePrivateData(c *gin.Context) (r resTri) {
+	defer func() {
+		if r.IsTrue() {
+			metrics.GlobalMeter.IncMeterCounter(metrics.VisitPrivate)
+		} else if r.IsFalse() {
+			if c.Writer.Status() != http.StatusUnauthorized {
+				metrics.GlobalMeter.IncMeterCounter(metrics.PrivateFailed)
+			} else {
+				metrics.GlobalMeter.IncMeterCounter(metrics.PrivateNotAuth)
+			}
+		}
+	}()
 	r = ResTri()
 	short := c.Param("short")
 	privateKey := short + store.SuffixPrivate
@@ -552,15 +588,11 @@ func handlePrivateData(c *gin.Context) (r resTri) {
 	if err != nil {
 		log.Printf("failed getting public from private key: <%s>, err: %s\n", privateKey, err)
 		_spawnErrWithCode(c, http.StatusInternalServerError, errMsg)
-		mt := PrepMetricShortAccessNew(c, short, false /*success*/, true /*private*/, false /*remove*/, false /*locked*/)
-		metrics.MetricProcessor.Add(mt)
 		return r.False()
 	}
 
 	accessRes := shortAccessAllowedCheck(c, string(dataKey), common.ShortPrivate)
 	if accessRes.IsFalse() {
-		mt := PrepMetricShortAccessNew(c, short, false /*success*/, true /*private*/, false /*remove*/, true /*locked*/)
-		metrics.MetricProcessor.Add(mt)
 		// TODO: addd global counter for locked access failure
 		return r.False()
 	}
@@ -569,20 +601,11 @@ func handlePrivateData(c *gin.Context) (r resTri) {
 	if err != nil {
 		log.Printf("failed to get info for public: <%s> - %s\n", dataKey, err)
 		_spawnErrWithCode(c, http.StatusInternalServerError, errMsg)
-		mt := PrepMetricShortAccessNew(c, short, false /*success*/, true /*private*/, false /*remove*/, accessRes.IsTrue() /*locked*/)
-		metrics.MetricProcessor.Add(mt)
 		return r.False()
 	}
 	c.JSON(200, info)
-	mt := PrepMetricShortAccessNew(c, short, true /*success*/, true /*private*/, false /*remove*/, accessRes.IsTrue() /*locked*/)
-	metrics.MetricGlobalCounter.IncShortAccessVisitCount()
-	metrics.MetricProcessor.Add(mt)
 
 	return r.True()
-}
-
-func tryUrl(c *gin.Context) bool {
-	return !handleUrl(c).IsNil()
 }
 
 // handleUrl:
@@ -591,6 +614,17 @@ func tryUrl(c *gin.Context) bool {
 //	False - url access failed due to an error or failure to unlock - update response
 //	Nil - unhandled (not found) - skipped respones
 func handleUrl(c *gin.Context) (r resTri) {
+	defer func() {
+		if r.IsTrue() {
+			metrics.GlobalMeter.IncMeterCounter(metrics.VisitPublic)
+		} else if r.IsFalse() {
+			if c.Writer.Status() != http.StatusUnauthorized {
+				metrics.GlobalMeter.IncMeterCounter(metrics.PublicFailed)
+			} else {
+				metrics.GlobalMeter.IncMeterCounter(metrics.PublicNotAuth)
+			}
+		}
+	}()
 	r = ResTri()
 	short := c.Param("short")
 
@@ -607,16 +641,12 @@ func handleUrl(c *gin.Context) (r resTri) {
 		if err != nil {
 			log.Printf("problem with loading url for short:(named): <%s>:<%s>\n", short, shortNamed)
 			_spawnErrWithCode(c, http.StatusInternalServerError, errMsg)
-			mt := PrepMetricShortAccessNew(c, short, false /*success*/, false /*private*/, false /*remove*/, false /*locked*/)
-			metrics.MetricProcessor.Add(mt)
 			return r.False()
 		}
 		log.Printf("url mapping for short: <%s>, found as named short<%s\n", short, shortNamed)
 	}
 	accessRes := shortAccessAllowedCheck(c, string(dataKey), common.ShortPublic)
 	if accessRes.IsFalse() {
-		mt := PrepMetricShortAccessNew(c, short, false /*success*/, false /*private*/, false /*remove*/, true /*locked*/)
-		metrics.MetricProcessor.Add(mt)
 		// TODO: addd global counter for locked access failure
 		return r.False()
 	}
@@ -624,8 +654,6 @@ func handleUrl(c *gin.Context) (r resTri) {
 	if err != nil {
 		log.Printf("failed to get info for public: <%s>\n", dataKey)
 		_spawnErrWithCode(c, http.StatusInternalServerError, errMsg)
-		mt := PrepMetricShortAccessNew(c, short, false /*success*/, false /*private*/, false /*remove*/, accessRes.IsTrue() /*locked*/)
-		metrics.MetricProcessor.Add(mt)
 		return r.False()
 	}
 	url := string(data)
@@ -636,9 +664,6 @@ func handleUrl(c *gin.Context) (r resTri) {
 	} else {
 		c.Redirect(302, url)
 	}
-	mt := PrepMetricShortAccessNew(c, short, true /*success*/, false /*private*/, false /*remove*/, accessRes.IsTrue() /*locked*/)
-	metrics.MetricGlobalCounter.IncShortAccessVisitCount()
-	metrics.MetricProcessor.Add(mt)
 
 	return r.True()
 }
@@ -765,43 +790,6 @@ func HandleDumpKeys(c *gin.Context) {
 	c.String(200, "%s", res)
 }
 
-func PrepMetricShortAccess(c *gin.Context, name string, success, private, remove bool, isLocked *bool) *metrics.MetricShortAccess {
-	trueOrFalseString := func(cond bool) string {
-		if cond {
-			return "true"
-		}
-		return "false"
-	}
-	mt := metrics.NewMetricShortAccess()
-	mt.ShortAccessVisitName = name
-	mt.ShortAccessVisitIP = c.ClientIP()
-	mt.ShortAccessVisitTime = time.Now().String()
-	mt.ShortAccessVisitSuccess = trueOrFalseString(success)
-	mt.ShortAccessVisitPrivate = trueOrFalseString(private)
-	mt.ShortAccessVisitRemove = trueOrFalseString(remove)
-	mt.ShortAccessVisitIsLocked = trueOrFalseString(isLocked == nil)
-	mt.ShortAccessVisitInfo = collectInfo(c, name)
-	return mt
-}
-
-func PrepMetricShortAccessNew(c *gin.Context, name string, success, private, remove, isLocked bool) *metrics.MetricShortAccess {
-	trueOrFalseString := func(cond bool) string {
-		if cond {
-			return "true"
-		}
-		return "false"
-	}
-	mt := metrics.NewMetricShortAccess()
-	mt.ShortAccessVisitName = name
-	mt.ShortAccessVisitIP = c.ClientIP()
-	mt.ShortAccessVisitTime = time.Now().String()
-	mt.ShortAccessVisitSuccess = trueOrFalseString(success)
-	mt.ShortAccessVisitPrivate = trueOrFalseString(private)
-	mt.ShortAccessVisitRemove = trueOrFalseString(remove)
-	mt.ShortAccessVisitIsLocked = trueOrFalseString(isLocked)
-	mt.ShortAccessVisitInfo = collectInfo(c, name)
-	return mt
-}
 
 // shortAccessAllowedCheck :
 //
@@ -870,15 +858,6 @@ func shortAccessAllowedCheck(c *gin.Context, short string, which common.ShortTyp
 	return r.Nil()
 }
 
-func PrepMetricShortAccessInvalid(c *gin.Context, name string) *metrics.MetricShortAccessInvalid {
-	mt := metrics.NewMetricShortAccessInvalid()
-	mt.InvalidShortAccessName = name
-	mt.InvalidShortAccessIP = c.ClientIP()
-	mt.InvalidShortAccessTime = time.Now().String()
-	mt.InvalidShortAccessReferrer = c.Request.Referer()
-	mt.InvalidShortAccessInfo = collectInfo(c, name)
-	return mt
-}
 
 func collectInfo(c *gin.Context, name string) string {
 	reqDump, err := httputil.DumpRequest(c.Request, true)
@@ -896,4 +875,20 @@ func collectInfo(c *gin.Context, name string) string {
 		log.Printf("failed converting info to json %#+v, err: %s\n", info, err)
 	}
 	return string(res)
+}
+
+func checkReserveNames(name string) resTri {
+	r := ResTri()
+
+	switch name {
+	case "web", "favicon.ico", "admin", "create-short-date",
+		"create-short-url", "app.css", "wasm_exec.js", "app.js",
+		common.ShortPath,
+		common.PrivatePath,
+		common.PublicPath,
+		common.RemovePath:
+		return r.False()
+	}
+
+	return r.True()
 }
