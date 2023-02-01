@@ -152,10 +152,8 @@ func (st *StorageLocal) GenFunc(v ...interface{}) interface{} {
 	case STORE_FUNC_DUMPKEYS:
 		return st.dumpKeys()
 	case STORE_FUNC_GETKEYS:
-		log.Println("!!!!!!!!!! getkeys ... ")
 		return st.getKeys()
 	case STORE_FUNC_REMOVEKEYS:
-		log.Println("!!!!!!!!!! getkeys ... ")
 		if len(v) < 2 {
 			return nil
 		}
@@ -196,8 +194,11 @@ func (st *StorageLocal) dumpKey(k string) string {
 }
 
 func (st *StorageLocal) removeKeys(ks []string) []error {
-	log.Printf("** removing keys: %#v\n", ks)
 	errors := []error{}
+	if len(ks) == 0 {
+		return errors
+	}
+	log.Printf("** removing keys: %#v\n", ks)
 	for _, k := range ks {
 		if err := st.RemoveDataMapping(k); err != nil {
 			errors = append(errors, err)
@@ -208,6 +209,8 @@ func (st *StorageLocal) removeKeys(ks []string) []error {
 	for _, e := range errors {
 		errs = append(errs, e.Error())
 	}
-	log.Printf("** errors gathered: %#+v\n", strings.Join(errs, "; "))
+	if len(errs) > 0 {
+		log.Printf("** errors gathered: %#+v\n", strings.Join(errs, "; "))
+	}
 	return errors
 }
