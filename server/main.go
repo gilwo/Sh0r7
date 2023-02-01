@@ -279,11 +279,33 @@ var (
 
 func init() {
 	prefix := ""
+	version := ""
+	deploy := ""
+	switch deploy = os.Getenv("SH0R7_DEPLOY"); deploy {
+	case "prod", "dev":
+	case "stage", "test":
+		panic("deploy type not ready yet: " + deploy)
+	case "localdev":
+		if _, ok := os.LookupEnv("RENDER"); ok {
+			panic("invalid deploy type " + deploy + " for render environment")
+		}
+		version = deploy // TODO - add build time ??
+	default:
+		panic("deploy type not familiar: [" + deploy + "]")
+	}
+	if _, ok := os.LookupEnv("RENDER"); ok {
+		prefix = os.Getenv("RENDER_SERVICE_NAME")
+		version = os.Getenv("RENDER_GIT_COMMIT")
+		if deploy == "prod" {
+			version = "v.0.0.0-alpha" // TODO : grab from tag
+		}
+	}
 	if _, ok := os.LookupEnv("SH0R7__DEV_ENV"); ok {
-		prefix = os.Getenv("SH0R7_DEV_HOST")
+		prefix = os.Getenv("SH0R7_DEV_HOST") + ".dev"
+		version = deploy
 	}
 
-	OpenTelemetryServiceName = prefix + ".dev.sh0r7.me"
+	OpenTelemetryServiceName = prefix + "." + deploy + ".sh0r7.me"
 	switch gin.Mode() {
 	case gin.DebugMode:
 		OpenTelemetryServiceName += ".debug"
@@ -294,13 +316,15 @@ func init() {
 	if otelEnv := os.Getenv("SH0R7_OTEL_UPTRACE"); otelEnv != "" {
 		options := []uptrace.Option{}
 		options = append(options,
+			uptrace.WithDSN(otelEnv),
 			uptrace.WithServiceName(OpenTelemetryServiceName),
 			uptrace.WithDeploymentEnvironment("development"),
 		)
 		options = append(options,
-			uptrace.WithServiceVersion("v1.0.0-dev"),
+			uptrace.WithServiceVersion(version),
 		)
 		uptrace.ConfigureOpentelemetry(options...)
+		log.Printf("** using uptrace OTEL service using [%s]\n", OpenTelemetryServiceName)
 	}
 	metrics.GlobalMeter = metrics.InitGlobalMeter(OpenTelemetryServiceName)
 }
