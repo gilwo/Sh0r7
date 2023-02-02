@@ -46,13 +46,6 @@ const (
 )
 
 func handleCreateShortModRemove(data, namedPublic string, isPrivate, isRemove, isUrl bool, expiration time.Duration) (shorts map[string]string, err error) {
-	defer func() {
-		if err == nil {
-			metrics.GlobalMeter.IncMeterCounter(metrics.Created)
-		} else {
-			metrics.GlobalMeter.IncMeterCounter(metrics.CreationFailed)
-		}
-	}()
 	shorts = map[string]string{
 		store.SuffixPublic: shortener.GenerateShortDataTweakedWithStore2(
 			data+store.SuffixPublic, -1, 0, LengthMinShortFree, LengthMaxShortFree, store.StoreCtx),
@@ -155,12 +148,22 @@ func handleCreateShortModRemove(data, namedPublic string, isPrivate, isRemove, i
 
 // TODO: add proper cleanup on failed creation (for any reason... )
 func HandleCreateShortData(c *gin.Context) {
+	fail := false
+	defer func() {
+		if fail {
+			metrics.GlobalMeter.IncMeterCounter(metrics.CreationFailed)
+		} else {
+			metrics.GlobalMeter.IncMeterCounter(metrics.Created)
+		}
+	}()
 	if !checkToken(c) {
+		fail = true
 		return
 	}
 	d, err := c.GetRawData()
 	if err != nil {
 		_spawnErr(c, err)
+		fail = true
 		return
 	}
 	res, err := handleCreateShortModRemove(string(d),
@@ -169,11 +172,13 @@ func HandleCreateShortData(c *gin.Context) {
 		c.Request.Header.Get(common.FRemove) != "false",
 		false, getExpiration(c))
 	if err != nil {
+		fail = true
 		_spawnErr(c, err)
 		return
 	}
 	err = handleCreateHeaders(c, res)
 	if err != nil {
+		fail = true
 		_spawnErr(c, err)
 		return
 	}
@@ -249,12 +254,22 @@ func HandleUploadFile(c *gin.Context) {
 
 // TODO: add proper cleanup on failed creation (for any reason... )
 func HandleCreateShortUrl(c *gin.Context) {
+	fail := false
+	defer func() {
+		if fail {
+			metrics.GlobalMeter.IncMeterCounter(metrics.CreationFailed)
+		} else {
+			metrics.GlobalMeter.IncMeterCounter(metrics.Created)
+		}
+	}()
 	if !checkToken(c) {
+		fail = true
 		return
 	}
 	d, err := c.GetRawData()
 	if err != nil {
 		_spawnErr(c, err)
+		fail = true
 		return
 	}
 	mapping := map[string]string{}
@@ -262,11 +277,13 @@ func HandleCreateShortUrl(c *gin.Context) {
 	if err != nil {
 		_spawnErr(c, errors.Errorf("invalid payload"))
 		log.Printf("err in json unmarshal, %s\n", err)
+		fail = true
 		return
 	}
 	if url, ok := mapping["url"]; !ok {
 		_spawnErr(c, errors.Errorf("invalid payload"))
 		log.Printf("json field url is missing, %#v\n", mapping)
+		fail = true
 		return
 	} else {
 		res, err := handleCreateShortModRemove(url,
@@ -276,11 +293,13 @@ func HandleCreateShortUrl(c *gin.Context) {
 			true, getExpiration(c))
 		if err != nil {
 			_spawnErr(c, err)
+			fail = true
 			return
 		}
 		err = handleCreateHeaders(c, res)
 		if err != nil {
 			_spawnErr(c, err)
+			fail = true
 			return
 		}
 		log.Printf("res: %v\n", verboseShorts(res))

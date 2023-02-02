@@ -9,7 +9,6 @@ import (
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/metric/instrument"
-	"go.opentelemetry.io/otel/metric/instrument/asyncint64"
 )
 
 var (
@@ -19,8 +18,8 @@ var (
 type MeterCounter struct {
 	meterCtx     metric.Meter
 	name         string
-	counters     map[string]asyncint64.Counter
-	meterNumbers map[asyncint64.Counter]int64
+	counters     map[string]instrument.Int64ObservableCounter
+	meterNumbers map[instrument.Int64ObservableCounter]int64
 }
 
 const (
@@ -47,12 +46,12 @@ func NewMeterCounter(name string, elements ...string) *MeterCounter {
 	var err error
 	r := &MeterCounter{
 		name:         name,
-		counters:     map[string]asyncint64.Counter{},
-		meterNumbers: map[asyncint64.Counter]int64{},
+		counters:     map[string]instrument.Int64ObservableCounter{},
+		meterNumbers: map[instrument.Int64ObservableCounter]int64{},
 	}
 	r.meterCtx = global.MeterProvider().Meter(name)
 	for _, e := range elements {
-		r.counters[e], err = r.meterCtx.AsyncInt64().Counter(
+		r.counters[e], err = r.meterCtx.Int64ObservableCounter(
 			name+"."+e,
 			instrument.WithUnit("1"),
 			instrument.WithDescription(e),
@@ -65,14 +64,14 @@ func NewMeterCounter(name string, elements ...string) *MeterCounter {
 	for k, v := range r.counters {
 		counterName := k
 		counter := v
-		if err = r.meterCtx.RegisterCallback([]instrument.Asynchronous{counter},
-			func(ctx context.Context) {
-				counter.Observe(ctx, r.meterNumbers[counter])
-				// log.Printf("callback invoked for %s\n", counterName)
-			},
-		); err != nil {
+		regist, err := r.meterCtx.RegisterCallback(func(ctx context.Context, o metric.Observer) error {
+			o.ObserveInt64(counter, r.meterNumbers[counter])
+			return nil
+		}, counter)
+		if err != nil {
 			panic(errors.Wrapf(err, "failed to register meter callback for %s (%s)", name, counterName))
 		}
+		regist = regist // TODO: FIXME ... handle properly
 	}
 	return r
 }

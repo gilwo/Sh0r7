@@ -6,12 +6,14 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/redis/go-redis/extra/redisotel/v9"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -39,6 +41,14 @@ func (st *StorageRedis) InitializeStore() error {
 		return errors.Wrapf(err, "parse url <%s> failed", st.redisUrl)
 	}
 	st.redisClient = redis.NewClient(opts)
+	if os.Getenv("SH0R7_OTEL_UPTRACE") != "" {
+		if err := redisotel.InstrumentTracing(st.redisClient); err != nil {
+			return errors.Wrapf(err, "redis telemetry trace failed")
+		}
+		if err := redisotel.InstrumentMetrics(st.redisClient); err != nil {
+			return errors.Wrapf(err, "redis telemetry metric failed")
+		}
+	}
 
 	pong, err := st.redisClient.Ping(ctx).Result()
 	if err != nil {
