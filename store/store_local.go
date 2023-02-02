@@ -3,6 +3,7 @@ package store
 import (
 	"fmt"
 	"log"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -14,13 +15,22 @@ import (
 
 type StorageLocal struct {
 	cacheSync *sync.Map
+	__prefix  string
 }
+
+var __prefixLocal string
 
 func init() {
 	NewStoreLocal = newStoreLocal
 }
 func newStoreLocal() Store {
-	return &StorageLocal{}
+	return &StorageLocal{
+		__prefix: os.Getenv("SH0R7_DEPLOY") + "$$",
+	}
+}
+
+func (st *StorageLocal) _pad(short string) string {
+	return st.__prefix + short
 }
 
 func (st *StorageLocal) InitializeStore() error {
@@ -29,7 +39,7 @@ func (st *StorageLocal) InitializeStore() error {
 }
 
 func (st *StorageLocal) UpdateDataMapping(data []byte, short string) error {
-	entry, ok := st.cacheSync.Load(short)
+	entry, ok := st.cacheSync.Load(st._pad(short))
 	if !ok {
 		return errors.Errorf("entry not exist for %s", short)
 	}
@@ -59,7 +69,7 @@ func (st *StorageLocal) UpdateDataMapping(data []byte, short string) error {
 }
 
 func (st *StorageLocal) SaveDataMapping(data []byte, short string, ttl time.Duration) error {
-	if _, ok := st.cacheSync.Load(short); ok {
+	if _, ok := st.cacheSync.Load(st._pad(short)); ok {
 		return errors.Errorf("entry exist for %s", short)
 	}
 	t := NewTuple()
@@ -74,16 +84,16 @@ func (st *StorageLocal) SaveDataMapping(data []byte, short string, ttl time.Dura
 		t.Set(FieldTTL, ttl.String())
 	} // ttl < 0 - dont use ttl at all
 
-	return func() error { st.cacheSync.Store(short, t); return nil }()
+	return func() error { st.cacheSync.Store(st._pad(short), t); return nil }()
 }
 func (st *StorageLocal) CheckExistShortDataMapping(short string) bool {
-	if _, ok := st.cacheSync.Load(short); ok {
+	if _, ok := st.cacheSync.Load(st._pad(short)); ok {
 		return true
 	}
 	return false
 }
 func (st *StorageLocal) LoadDataMapping(short string) ([]byte, error) {
-	tup, ok := st.cacheSync.Load(short)
+	tup, ok := st.cacheSync.Load(st._pad(short))
 	if !ok {
 		return nil, errors.Errorf("entry not exist for %s", short)
 	}
@@ -94,7 +104,7 @@ func (st *StorageLocal) LoadDataMapping(short string) ([]byte, error) {
 	return t.Get2Bytes(FieldDATA)
 }
 func (st *StorageLocal) LoadDataMappingInfo(short string) (map[string]interface{}, error) {
-	tup, ok := st.cacheSync.Load(short)
+	tup, ok := st.cacheSync.Load(st._pad(short))
 	if !ok {
 		return nil, errors.Errorf("entry not exist for %s", short)
 	}
@@ -106,7 +116,7 @@ func (st *StorageLocal) LoadDataMappingInfo(short string) (map[string]interface{
 }
 
 func (st *StorageLocal) SetMetaDataMapping(short, key, value string) error {
-	entry, ok := st.cacheSync.Load(short)
+	entry, ok := st.cacheSync.Load(st._pad(short))
 	if !ok {
 		return errors.Errorf("entry not exist for %s", short)
 	}
@@ -115,7 +125,7 @@ func (st *StorageLocal) SetMetaDataMapping(short, key, value string) error {
 }
 
 func (st *StorageLocal) GetMetaDataMapping(short, key string) (string, error) {
-	entry, ok := st.cacheSync.Load(short)
+	entry, ok := st.cacheSync.Load(st._pad(short))
 	if !ok {
 		return "", errors.Errorf("entry not exist for %s", short)
 	}
@@ -127,11 +137,11 @@ func (st *StorageLocal) GetMetaDataMapping(short, key string) (string, error) {
 }
 
 func (st *StorageLocal) RemoveDataMapping(short string) error {
-	_, ok := st.cacheSync.Load(short)
+	_, ok := st.cacheSync.Load(st._pad(short))
 	if !ok {
 		return errors.Errorf("entry not exist for %s", short)
 	}
-	st.cacheSync.Delete(short)
+	st.cacheSync.Delete(st._pad(short))
 	return nil
 }
 
@@ -186,7 +196,7 @@ func (st *StorageLocal) dumpAll() string {
 	return res
 }
 func (st *StorageLocal) dumpKey(k string) string {
-	if v, ok := st.cacheSync.Load(k); ok {
+	if v, ok := st.cacheSync.Load(st._pad(k)); ok {
 		tup := v.(*stringTuple)
 		return tup.Dump()
 	}
