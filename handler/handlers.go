@@ -913,6 +913,7 @@ func checkReserveNames(name string) resTri {
 	switch name {
 	case "web", "favicon.ico", "admin", "create-short-date",
 		"create-short-url", "app.css", "wasm_exec.js", "app.js",
+		"dump",
 		common.ShortPath,
 		common.PrivatePath,
 		common.PublicPath,
