@@ -540,6 +540,17 @@ func HandleShort(c *gin.Context) {
 //	False - data access failed due to an error or failure to unlock - update response
 //	Nil - unhandled (not found) - skipped respones
 func handleData(c *gin.Context) (r resTri) {
+	defer func() {
+		if r.IsTrue() {
+			metrics.GlobalMeter.IncMeterCounter(metrics.VisitPublic)
+		} else if r.IsFalse() {
+			if c.Writer.Status() != http.StatusUnauthorized {
+				metrics.GlobalMeter.IncMeterCounter(metrics.PublicFailed)
+			} else {
+				metrics.GlobalMeter.IncMeterCounter(metrics.PublicNotAuth)
+			}
+		}
+	}()
 	r = ResTri()
 	short := c.Param("short")
 	dataKey := short

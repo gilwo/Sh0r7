@@ -101,7 +101,7 @@ func (h *short) RenderPrivate() app.UI {
 				Class("row").
 				Body(
 					app.Div().
-						Class("col-xs-8", "col-xs-offset-2").
+						Class("col-sm-8", "col-sm-offset-2").
 						Body(
 							app.H2().
 								Body(app.Text("private details")),
@@ -111,7 +111,7 @@ func (h *short) RenderPrivate() app.UI {
 				Class("row").
 				Body(
 					app.Div().
-						Class("col-xs-6", "col-xs-offset-3").
+						Class("col-sm-6", "col-sm-offset-3").
 						Body(
 							app.H3().
 								ID("privateTitle").
@@ -164,7 +164,7 @@ func (h *short) RenderPrivate() app.UI {
 						h.showRetry(),
 					),
 					app.Div().
-						Class("col-xs-8", "col-xs-offset-1").
+						Class("col-sm-8", "col-sm-offset-1").
 						Body(
 							app.Table().
 								ID(tableID).
@@ -454,7 +454,7 @@ func (h *short) Render() app.UI {
 				Class("note").
 				Body(
 					app.Div().
-						Class("col-xs-8", "col-xs-offset-2").
+						Class("col-sm-8", "col-sm-offset-2").
 						Body(
 							app.H4().
 								Styles(
@@ -493,7 +493,7 @@ func (h *short) Render() app.UI {
 				Class("shortDo").
 				Body(
 					app.Div().
-						Class("col-xs-10", "col-xs-offset-1", "shortInputWrapper").
+						Class("col-sm-10", "col-sm-offset-1", "shortInputWrapper").
 						Class("shortInputWrapper").
 						Body(
 							app.If(!h.resultReady,
@@ -516,7 +516,7 @@ func (h *short) Render() app.UI {
 							),
 						),
 					app.Div().
-						Class("col-xs-8", "col-xs-offset-2").
+						Class("col-sm-8", "col-sm-offset-2").
 						Class("shortButtonWrapper").
 						Body(
 							app.Div().
@@ -614,7 +614,7 @@ func (h *short) Render() app.UI {
 						Class("row").
 						Body(
 							app.Div().
-								Class("col-xs-6 col-xs-offset-3").
+								Class("col-sm-6 col-sm-offset-3").
 								Class("text-center").
 								Body(
 									app.P().
@@ -632,7 +632,7 @@ func (h *short) Render() app.UI {
 						),
 					app.If(true, //h.debug, // FIXME - problem with where to show message from POST to createshort
 						app.Div().
-							Class("col-xs-8 col-xs-offset-2").
+							Class("col-sm-8 col-sm-offset-2").
 							Body(
 								app.Textarea().
 									Class("syncTextStyle").
@@ -736,7 +736,7 @@ func (h *short) OnNav(ctx app.Context) {
 }
 func (h *short) OnResize(ctx app.Context) {
 	h.ResizeContent()
-	app.Logf("******************************* update")
+	app.Logf("******************************* resize")
 }
 func (h *short) OnUpdate(ctx app.Context) {
 	app.Logf("******************************* update")
@@ -1222,7 +1222,7 @@ func (h *short) passwordOption(isPassword, isPasswordShown *bool, which string) 
 	}
 	return app.Div().
 		Class("form-group").
-		Class("col-md-offset-2", "col-md-6", "col-sm-offset-2", "col-sm-6", "col-xs-offset-1", "col-xs-10").
+		Class("col-md-offset-2", "col-md-6", "col-sm-offset-2", "col-sm-6", "_col-xs-offset-1", "_col-xs-10").
 		Body(
 			app.Div().
 				Class("input-group").
