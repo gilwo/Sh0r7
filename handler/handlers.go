@@ -557,6 +557,15 @@ func handleData(c *gin.Context) (r resTri) {
 	if !store.StoreCtx.CheckExistShortDataMapping(short + store.SuffixPublic) {
 		shortNamed := shortener.GenerateShortDataTweakedWithStore2NotRandom(short+store.SuffixPublic, 0, common.HashLengthNamedFixedSize, 0, 0, store.StoreCtx)
 		if !store.StoreCtx.CheckExistShortDataMapping(shortNamed + store.SuffixPublic) {
+			{ // a hacky flow - TODO - investigate or rethink
+				// if short fail here, then try to get the data for the full path
+				//  (some elements are stored this way using the storage provider)
+				data, err := store.StoreCtx.LoadDataMapping(c.Request.URL.Path)
+				if err == nil {
+					c.Data(200, "", data)
+					return r.True()
+				}
+			}
 			return r.Nil()
 		}
 		dataKey = shortNamed
@@ -571,16 +580,6 @@ func handleData(c *gin.Context) (r resTri) {
 	errMsg := errors.Errorf("there was a problem with short: %s", short)
 	data, err := store.StoreCtx.LoadDataMapping(string(dataKey) + store.SuffixPublic)
 	if err != nil {
-		{ // a hacky flow - TODO - investigate or rethink
-			log.Printf("failed to get data for public: <%s> - %s ; trying directly for the url <%s>\n", dataKey, err, c.Request.URL.Path)
-			// if short fail here, then try to get the data for the full path
-			//  (some elements are stored this way using the storage provider)
-			data, err = store.StoreCtx.LoadDataMapping(c.Request.URL.Path)
-			if err == nil {
-				c.String(200, string(data))
-				return r.True()
-			}
-		}
 		log.Printf("failed to get info for public: <%s> - %s\n", dataKey, err)
 		_spawnErrWithCode(c, http.StatusInternalServerError, errMsg)
 		return r.False()
