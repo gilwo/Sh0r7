@@ -99,7 +99,12 @@ func webappInit() {
 			Default: frontend.ImgSource,
 			Large:   frontend.ImgSource,
 		}
-		webappServedPaths[frontend.ImgSource] = true
+		if wd, err := os.Getwd(); err == nil {
+			if f, err := os.Open(wd + frontend.ImgSource); err == nil {
+				webappServedPaths[frontend.ImgSource] = true
+				f.Close()
+			}
+		}
 	}
 }
 
