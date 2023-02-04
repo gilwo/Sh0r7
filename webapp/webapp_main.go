@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gilwo/Sh0r7/common"
+	"github.com/gilwo/Sh0r7/metrics"
 	"github.com/gilwo/Sh0r7/shortener"
 	"github.com/gilwo/Sh0r7/store"
 	_ "github.com/gilwo/Sh0r7/webapp/backend"
@@ -22,6 +23,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/maxence-charriere/go-app/v9/pkg/app"
 	"github.com/maxence-charriere/go-app/v9/pkg/errors"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 var (
@@ -96,7 +99,12 @@ func webappInit() {
 			Default: frontend.ImgSource,
 			Large:   frontend.ImgSource,
 		}
-		webappServedPaths[frontend.ImgSource] = true
+		if wd, err := os.Getwd(); err == nil {
+			if f, err := os.Open(wd + frontend.ImgSource); err == nil {
+				webappServedPaths[frontend.ImgSource] = true
+				f.Close()
+			}
+		}
 	}
 }
 
@@ -155,10 +163,28 @@ func webappgenfunc(args ...interface{}) interface{} {
 			headerUpdate(c)
 		}
 		log.Printf("serving %s\n", c.Request.URL)
-		if path == webappCommon.ShortPath && queryUpdate(c) {
+		if redirectAppPathWithToken(c) {
 			return true
 		}
 		sh0r7H.ServeHTTP(c.Writer, c.Request)
+		// collect metrics for app specific served paths (not the go-app framework)
+		{
+			span := trace.SpanFromContext(c.Request.Context())
+			if span.IsRecording() {
+				span.SetName("GET " + c.Request.URL.Path)
+				span.SetAttributes(attribute.String("referrer", c.Request.Referer()))
+			}
+		}
+		switch c.Request.URL.Path {
+		case webappCommon.PrivatePath:
+			metrics.GlobalMeter.IncMeterCounter(metrics.ServedPathPrivate)
+		case webappCommon.PublicPath:
+			metrics.GlobalMeter.IncMeterCounter(metrics.ServedPathPublic)
+		case webappCommon.RemovePath:
+			metrics.GlobalMeter.IncMeterCounter(metrics.ServedPathRemove)
+		case webappCommon.ShortPath:
+			metrics.GlobalMeter.IncMeterCounter(metrics.ServedPathCreate)
+		}
 		return true
 	}
 	return false
@@ -197,9 +223,6 @@ func checkPrivateRedirect(c *gin.Context) bool {
 				if salt, ok := info[store.FieldPrvPassSalt]; ok {
 					redirect.RawQuery += "&" + webappCommon.PasswordProtected + "=" + url.QueryEscape(salt.(string))
 				}
-				if strings.HasSuffix(c.Request.Referer(), redirect.String()) {
-					return false
-				}
 				if c.Request.Header.Get(webappCommon.FPrvPassToken) != "" {
 					return false
 				}
@@ -209,6 +232,14 @@ func checkPrivateRedirect(c *gin.Context) bool {
 
 				c.Redirect(http.StatusFound, redirect.String())
 				log.Printf("redirect with private key (%s)\n", redirect)
+				{
+					span := trace.SpanFromContext(c.Request.Context())
+					if span.IsRecording() {
+						span.SetAttributes(attribute.String("referrer", c.Request.Referer()))
+						span.SetAttributes(attribute.String("redirect", redirect.String()))
+						span.SetAttributes(attribute.String("which", webappCommon.ShortPrivate.String()))
+					}
+				}
 				return true
 			}
 		}
@@ -262,6 +293,14 @@ func checkPublicRedirect(c *gin.Context) bool {
 				redirect.RawQuery += "&" + webappCommon.PasswordProtected + "=" + url.QueryEscape(salt.(string))
 				c.Redirect(http.StatusFound, redirect.String())
 				log.Printf("redirect with public key (%s)\n", redirect)
+				{
+					span := trace.SpanFromContext(c.Request.Context())
+					if span.IsRecording() {
+						span.SetAttributes(attribute.String("referrer", c.Request.Referer()))
+						span.SetAttributes(attribute.String("redirect", redirect.String()))
+						span.SetAttributes(attribute.String("which", webappCommon.ShortPublic.String()))
+					}
+				}
 				return true
 			}
 		}
@@ -305,6 +344,14 @@ func checkRemoveRedirect(c *gin.Context) bool {
 					redirect.RawQuery += "&" + webappCommon.PasswordProtected + "=" + url.QueryEscape(salt.(string))
 					c.Redirect(http.StatusFound, redirect.String())
 					log.Printf("redirect with remove key (%s)\n", redirect)
+					{
+						span := trace.SpanFromContext(c.Request.Context())
+						if span.IsRecording() {
+							span.SetAttributes(attribute.String("referrer", c.Request.Referer()))
+							span.SetAttributes(attribute.String("redirect", redirect.String()))
+							span.SetAttributes(attribute.String("which", webappCommon.ShortRemove.String()))
+						}
+					}
 					return true
 				}
 			}
@@ -322,6 +369,14 @@ func handlePrivateRedirect(c *gin.Context) bool {
 					if v, ok := info[store.FieldPrivate]; ok && v == key {
 						log.Printf("!! serving path: <%s>\n", c.Request.RequestURI)
 						sh0r7H.ServeHTTP(c.Writer, c.Request)
+						{
+							span := trace.SpanFromContext(c.Request.Context())
+							if span.IsRecording() {
+								span.SetAttributes(attribute.String("referrer", c.Request.Referer()))
+								span.SetAttributes(attribute.String("which", webappCommon.ShortPublic.String()))
+								span.SetAttributes(attribute.String("key", key))
+							}
+						}
 						return true
 					}
 				}
@@ -339,6 +394,14 @@ func handlePublicRedirect(c *gin.Context) bool {
 				if v, ok := info[store.FieldPublic]; ok && v == key {
 					log.Printf("!! serving path: <%s>\n", c.Request.RequestURI)
 					sh0r7H.ServeHTTP(c.Writer, c.Request)
+					{
+						span := trace.SpanFromContext(c.Request.Context())
+						if span.IsRecording() {
+							span.SetAttributes(attribute.String("referrer", c.Request.Referer()))
+							span.SetAttributes(attribute.String("which", webappCommon.ShortPublic.String()))
+							span.SetAttributes(attribute.String("key", key))
+						}
+					}
 					return true
 				}
 			}
@@ -357,6 +420,14 @@ func handleRemoveRedirect(c *gin.Context) bool {
 					if v, ok := info[store.FieldRemove]; ok && v == key {
 						log.Printf("!! serving path: <%s>\n", c.Request.RequestURI)
 						sh0r7H.ServeHTTP(c.Writer, c.Request)
+						{
+							span := trace.SpanFromContext(c.Request.Context())
+							if span.IsRecording() {
+								span.SetAttributes(attribute.String("referrer", c.Request.Referer()))
+								span.SetAttributes(attribute.String("which", webappCommon.ShortPublic.String()))
+								span.SetAttributes(attribute.String("key", key))
+							}
+						}
 						return true
 					}
 				}
@@ -461,7 +532,11 @@ func checkSaltTokenStillValid(c *gin.Context) bool {
 	return true
 }
 
-func queryUpdate(c *gin.Context) bool {
+func redirectAppPathWithToken(c *gin.Context) bool {
+	path := c.Request.URL.Path
+	if path != webappCommon.ShortPath {
+		return false
+	}
 	if c.Request.URL.Query().Has(webappCommon.FSaltTokenID) {
 		if checkSaltTokenStillValid(c) {
 			log.Printf("path already has the token seed and it is valid, no need to add it...")
@@ -504,6 +579,13 @@ func queryUpdate(c *gin.Context) bool {
 	redirect.RawQuery = q.Encode()
 	c.Redirect(http.StatusFound, redirect.String())
 	log.Printf("redirect with token seed (%s)\n", redirect)
+	{
+		span := trace.SpanFromContext(c.Request.Context())
+		if span.IsRecording() {
+			span.SetName(path)
+			span.SetAttributes(attribute.String("referrer", c.Request.Referer()))
+		}
+	}
 	return true
 }
 

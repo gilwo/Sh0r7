@@ -185,7 +185,7 @@ func (h *short) OptionsTitle() app.UI {
 		Class("row").
 		Body(
 			app.Div().
-				Class("col-md-offset-2", "col-md-4", "col-sm-4", "col-sm-offset-2", "col-xs-4", "col-xs-offset-2").
+				Class("col-md-offset-2", "col-md-4", "col-sm-4", "col-sm-offset-2", "_col-xs-4", "_col-xs-offset-2").
 				Body(
 					app.H3().
 						Body(
@@ -202,7 +202,7 @@ func (h *short) OptionShortAsData() app.UI {
 		Body(
 			app.Div().
 				Class("form-group").
-				Class("col-md-offset-2", "col-md-6", "col-sm-offset-2", "col-sm-6", "col-xs-offset-1", "col-xs-10").
+				Class("col-md-offset-2", "col-md-6", "col-sm-offset-2", "col-sm-6", "_col-xs-offset-1", "_col-xs-10").
 				Body(
 					app.Div().
 						Class("input-group").
@@ -259,7 +259,7 @@ func (h *short) OptionExpire() app.UI {
 		Body(
 			app.Div().
 				Class("form-group").
-				Class("col-md-offset-2", "col-md-6", "col-sm-offset-2", "col-sm-6", "col-xs-offset-1", "col-xs-10").
+				Class("col-md-offset-2", "col-md-6", "col-sm-offset-2", "col-sm-6", "_col-xs-offset-1", "_col-xs-10").
 				Body(
 					app.Div().
 						ID("shortExpire").
@@ -338,7 +338,7 @@ func (h *short) OptionNamedPublicShort() app.UI {
 		Body(
 			app.Div().
 				Class("form-group").
-				Class("col-md-offset-2", "col-md-6", "col-sm-offset-2", "col-sm-6", "col-xs-offset-1", "col-xs-10").
+				Class("col-md-offset-2", "col-md-6", "col-sm-offset-2", "col-sm-6", "_col-xs-offset-1", "_col-xs-10").
 				Body(
 					app.Div().
 						Class("input-group").
@@ -414,7 +414,7 @@ func (h *short) OptionDescription() app.UI {
 		Body(
 			app.Div().
 				Class("form-group").
-				Class("col-md-offset-2", "col-md-6", "col-sm-offset-2", "col-sm-6", "col-xs-offset-1", "col-xs-10").
+				Class("col-md-offset-2", "col-md-6", "col-sm-offset-2", "col-sm-6", "_col-xs-offset-1", "_col-xs-10").
 				Body(
 					app.Div().
 						Class("input-group").
@@ -482,7 +482,7 @@ func (h *short) OptionPrivate() app.UI {
 		Body(
 			app.Div().
 				Class("form-group").
-				Class("col-md-offset-2", "col-md-6", "col-sm-offset-2", "col-sm-6", "col-xs-offset-1", "col-xs-10").
+				Class("col-md-offset-2", "col-md-6", "col-sm-offset-2", "col-sm-6", "_col-xs-offset-1", "_col-xs-10").
 				Body(
 					app.Div().
 						Class("input-group").
@@ -549,7 +549,7 @@ func (h *short) OptionRemove() app.UI {
 		Body(
 			app.Div().
 				Class("form-group").
-				Class("col-md-offset-2", "col-md-6", "col-sm-offset-2", "col-sm-6", "col-xs-offset-1", "col-xs-10").
+				Class("col-md-offset-2", "col-md-6", "col-sm-offset-2", "col-sm-6", "_col-xs-offset-1", "_col-xs-10").
 				Body(
 					app.Div().
 						Class("input-group").

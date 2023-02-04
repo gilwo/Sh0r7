@@ -45,6 +45,7 @@ type short struct {
 	isRemovePasswordShown  bool   // indicate whether the remove password is shown or hidden - sub option for option 7 (applicable after option 5 is enabled)
 	isNamedPublic          bool   // indicate whether the named public feature is used when creating short - option 9
 	isResultLocked         bool   // indicate that the requested short is password locked
+	isResultUnlockFailed   bool   // indicate that the requested short unlock failed (wrong password)
 	privatePassSalt        string // salt used for password token - for private link
 	publicPassSalt         string // salt used for password token - for public link
 	removePassSalt         string // salt used for password token - for remove link
@@ -90,6 +91,7 @@ func (h *short) RenderPrivate() app.UI {
 			out = map[string]string{"error": err.Error()}
 			keys = []string{"error"}
 		}
+		h.isResultUnlockFailed = err != nil
 	}
 	return app.Div().
 		Class("container").
@@ -99,7 +101,7 @@ func (h *short) RenderPrivate() app.UI {
 				Class("row").
 				Body(
 					app.Div().
-						Class("col-xs-8", "col-xs-offset-2").
+						Class("col-sm-8", "col-sm-offset-2").
 						Body(
 							app.H2().
 								Body(app.Text("private details")),
@@ -109,7 +111,7 @@ func (h *short) RenderPrivate() app.UI {
 				Class("row").
 				Body(
 					app.Div().
-						Class("col-xs-6", "col-xs-offset-3").
+						Class("col-sm-6", "col-sm-offset-3").
 						Body(
 							app.H3().
 								ID("privateTitle").
@@ -158,9 +160,11 @@ func (h *short) RenderPrivate() app.UI {
 											}),
 									),
 							),
+					).ElseIf(h.isResultUnlockFailed,
+						h.showRetry(),
 					),
 					app.Div().
-						Class("col-xs-8", "col-xs-offset-1").
+						Class("col-sm-8", "col-sm-offset-1").
 						Body(
 							app.Table().
 								ID(tableID).
@@ -332,26 +336,8 @@ func (h *short) RenderPublic() app.UI {
 									}),
 							),
 					),
-			).Else(
-				app.Div().
-					Class("passwordError").
-					Body(
-						app.Text("Unlock failed"),
-						app.Button().
-							Title("Retry").
-							ID("").
-							Class("btn", "btn-default").
-							Type("button").
-							Body(
-								app.Text("Retry"),
-							).
-							OnClick(func(ctx app.Context, e app.Event) {
-								retryUrl, _ := url.ParseRequestURI(app.Window().URL().String())
-								retryUrl.Path = retryUrl.Query().Get(webappCommon.FShortKey)
-								retryUrl.RawQuery = ""
-								app.Window().Get("location").Set("href", retryUrl.String())
-							}),
-					),
+			).Else( // conider use elseif with h.isResultUnlockFailed
+				h.showRetry(),
 			),
 		)
 }
@@ -408,26 +394,36 @@ func (h *short) RenderRemove() app.UI {
 									}),
 							),
 					),
-			).Else(
-				app.Div().
-					Class("passwordError").
+			).Else( // conider use elseif with h.isResultUnlockFailed
+				h.showRetry(),
+			),
+		)
+}
+
+func (h *short) showRetry() app.UI {
+	return app.Div().
+		Class("passwordError").
+		Class("container-fluid").
+		Body(
+			app.Div().Class("row").Body(
+				app.Text("Unlock failed"),
+			),
+			app.Div().Class("row").Body(
+				app.Button().
+					Title("Retry").
+					ID("").
+					Class("btn", "btn-default").
+					Type("button").
 					Body(
-						app.Text("Unlock failed"),
-						app.Button().
-							Title("Retry").
-							ID("").
-							Class("btn", "btn-default").
-							Type("button").
-							Body(
-								app.Text("Retry"),
-							).
-							OnClick(func(ctx app.Context, e app.Event) {
-								retryUrl, _ := url.ParseRequestURI(app.Window().URL().String())
-								retryUrl.Path = retryUrl.Query().Get(webappCommon.FShortKey)
-								retryUrl.RawQuery = ""
-								app.Window().Get("location").Set("href", retryUrl.String())
-							}),
-					),
+						app.Text("Retry"),
+					).
+					OnClick(func(ctx app.Context, e app.Event) {
+						retryUrl, _ := url.ParseRequestURI(app.Window().URL().String())
+						retryUrl.Path = retryUrl.Query().Get(webappCommon.FShortKey)
+						retryUrl.RawQuery = ""
+						app.Logf("retry navigate to %s\n", retryUrl.String())
+						app.Window().Get("location").Set("href", retryUrl.String())
+					}),
 			),
 		)
 }
@@ -458,7 +454,7 @@ func (h *short) Render() app.UI {
 				Class("note").
 				Body(
 					app.Div().
-						Class("col-xs-8", "col-xs-offset-2").
+						Class("col-sm-8", "col-sm-offset-2").
 						Body(
 							app.H4().
 								Styles(
@@ -497,7 +493,7 @@ func (h *short) Render() app.UI {
 				Class("shortDo").
 				Body(
 					app.Div().
-						Class("col-xs-10", "col-xs-offset-1", "shortInputWrapper").
+						Class("col-sm-10", "col-sm-offset-1", "shortInputWrapper").
 						Class("shortInputWrapper").
 						Body(
 							app.If(!h.resultReady,
@@ -520,7 +516,7 @@ func (h *short) Render() app.UI {
 							),
 						),
 					app.Div().
-						Class("col-xs-8", "col-xs-offset-2").
+						Class("col-sm-8", "col-sm-offset-2").
 						Class("shortButtonWrapper").
 						Body(
 							app.Div().
@@ -618,7 +614,7 @@ func (h *short) Render() app.UI {
 						Class("row").
 						Body(
 							app.Div().
-								Class("col-xs-6 col-xs-offset-3").
+								Class("col-sm-6 col-sm-offset-3").
 								Class("text-center").
 								Body(
 									app.P().
@@ -636,7 +632,7 @@ func (h *short) Render() app.UI {
 						),
 					app.If(true, //h.debug, // FIXME - problem with where to show message from POST to createshort
 						app.Div().
-							Class("col-xs-8 col-xs-offset-2").
+							Class("col-sm-8 col-sm-offset-2").
 							Body(
 								app.Textarea().
 									Class("syncTextStyle").
@@ -657,32 +653,6 @@ func newShort() *short {
 	return &short{}
 }
 
-func (h *short) load() {
-	lurl := app.Window().URL()
-	app.Logf("url: %#+v\n", lurl)
-	if strings.Contains(lurl.Path, webappCommon.PrivatePath) && lurl.Query().Has(webappCommon.FShortKey) {
-		h.isPrivate = true
-		if lurl.Query().Has(webappCommon.PasswordProtected) {
-			h.privatePassSalt = lurl.Query().Get(webappCommon.PasswordProtected)
-			h.isResultLocked = true
-		}
-	} else if strings.Contains(lurl.Path, webappCommon.RemovePath) && lurl.Query().Has(webappCommon.FShortKey) {
-		h.isRemove = true
-		if lurl.Query().Has(webappCommon.PasswordProtected) {
-			h.removePassSalt = lurl.Query().Get(webappCommon.PasswordProtected)
-			h.isResultLocked = true
-		}
-	} else if strings.Contains(lurl.Path, webappCommon.PublicPath) && lurl.Query().Has(webappCommon.FShortKey) {
-		h.isPublic = true
-		if lurl.Query().Has(webappCommon.PasswordProtected) {
-			h.publicPassSalt = lurl.Query().Get(webappCommon.PasswordProtected)
-			h.isResultLocked = true
-		}
-	} else {
-		h.getStID()
-	}
-	app.Logf("******************************* init")
-}
 func (h *short) load2() {
 	lurl := app.Window().URL()
 	app.Logf("url: %#+v\n", lurl)
@@ -750,24 +720,25 @@ func (h *short) OnInit() {
 	app.Logf("******************************* init - build ver :<%s>, time: <%s>\n", BuildVer, BuildTime)
 }
 func (h *short) OnPreRender(ctx app.Context) {
-	h.load()
 	app.Logf("******************************* prerender")
 }
 func (h *short) OnDisMount() {
 	app.Logf("******************************* dismount")
 }
-func (h *short) OnMount() {
+func (h *short) OnMount(ctx app.Context) {
+	h.load2()
 	app.Logf("******************************* mount")
 }
-func (h *short) OnNav() {
-	h.load()
+func (h *short) OnNav(ctx app.Context) {
+	// h.load()
+	h.load2()
 	app.Logf("******************************* nav")
 }
-func (h *short) OnResize() {
+func (h *short) OnResize(ctx app.Context) {
 	h.ResizeContent()
-	app.Logf("******************************* update")
+	app.Logf("******************************* resize")
 }
-func (h *short) OnUpdate() {
+func (h *short) OnUpdate(ctx app.Context) {
 	app.Logf("******************************* update")
 }
 func (h *short) OnAppUpdate(ctx app.Context) {
@@ -906,9 +877,6 @@ func (h *short) createShort() {
 	h.result = string(r)
 	h.resultReady = true
 
-	app.Logf("******************************* create short result: %s\n", string(body))
-	elem.Set("value", string(body))
-	app.Logf("******************************* create shoty: %#v\n", r)
 	h.Update()
 }
 
@@ -923,11 +891,11 @@ func (h *short) shortLink(which string, from map[string]string) string {
 	host := newURL.String()
 	switch which {
 	case store.FieldPrivate, store.FieldPublic, store.FieldRemove:
-	default:
-		app.Logf("field <%s> not handled\n", which)
-		// error
+		return host + from[which]
 	}
-	return host + from[which]
+	app.Logf("field <%s> not handled\n", which)
+	h.handleError("create short link failed", fmt.Errorf("invalid field <%s> to create short link", which))
+	return ""
 }
 
 func (h *short) copyToClipboard(from string) {
@@ -1254,7 +1222,7 @@ func (h *short) passwordOption(isPassword, isPasswordShown *bool, which string) 
 	}
 	return app.Div().
 		Class("form-group").
-		Class("col-md-offset-2", "col-md-6", "col-sm-offset-2", "col-sm-6", "col-xs-offset-1", "col-xs-10").
+		Class("col-md-offset-2", "col-md-6", "col-sm-offset-2", "col-sm-6", "_col-xs-offset-1", "_col-xs-10").
 		Body(
 			app.Div().
 				Class("input-group").
