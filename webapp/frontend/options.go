@@ -297,21 +297,21 @@ func (h *short) OptionExpire() app.UI {
 								app.Div().Dir("ltr").Body(
 									app.Select().Class("input-group-addon").Class("form-control").ID("expireSelect").Body(
 										app.Option().
-											Value("10m").
-											Body(app.Text("10 minutes")),
+											Value("20m").
+											Body(app.Text("20 minutes")),
 										app.Option().
-											Value("12h").
+											Value("2h").
 											Selected(true).
-											Body(app.Text("12 hours")),
+											Body(app.Text("2 hours")),
+										app.Option().
+											Value("20h").
+											Body(app.Text("20 hours")),
 										app.Option().
 											Value("2d").
 											Body(app.Text("2 days")),
 										app.Option().
 											Value("2w").
 											Body(app.Text("2 weeks")),
-										app.Option().
-											Value("8w").
-											Body(app.Text("2 months")),
 									).OnChange(func(ctx app.Context, e app.Event) {
 										h.expireValue = ctx.JSSrc().Get("value").String()
 										app.Logf("select change value: %v\n", h.expireValue)
