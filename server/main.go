@@ -30,6 +30,7 @@ import (
 
 func init() {
 	common.MainServer = mainServer
+	initUptrace()
 }
 
 var (
@@ -277,7 +278,14 @@ var (
 	OpenTelemetryServiceName string
 )
 
-func init() {
+func initUptrace() {
+	// the system service name that will be shown in uptrace will be in the following form:
+	// [<service name>|<development host>].<deploy type>.sh0r7.me[.debug|.test]
+	// where
+	// service name - relevant for deployed instance
+	// development host - relevant for local development running instance
+	// .debug / .test - relevant for gin mode
+	// deploy type - must be defined
 	prefix := ""
 	version := ""
 	deploy := ""
@@ -299,9 +307,8 @@ func init() {
 		if deploy == "prod" {
 			version = "v.0.0.0-alpha" // TODO : grab from tag
 		}
-	}
-	if _, ok := os.LookupEnv("SH0R7__DEV_ENV"); ok {
-		prefix = os.Getenv("SH0R7_DEV_HOST") + ".dev"
+	} else if _, ok := os.LookupEnv("SH0R7__DEV_ENV"); ok {
+		prefix = os.Getenv("SH0R7_DEV_HOST")
 		version = deploy
 	}
 
