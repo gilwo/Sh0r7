@@ -1,7 +1,6 @@
 package store
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -44,7 +43,7 @@ func Maintainence() {
 			continue
 		}
 
-		v, ok := info["created"]
+		v, ok := info[FieldTime]
 		if !ok {
 			log.Printf("failed to get created time value for on key: <%s>\n", k)
 			continue
@@ -56,8 +55,8 @@ func Maintainence() {
 			log.Printf("failed to get parse time <%s>: %s\n", when, err)
 			continue
 		}
-		fmt.Printf("created time for key: <%s> : before parse [%s], after parse [%s]\n", k, when, t)
-		v, ok = info["ttl"]
+		log.Printf("created time for key: <%s> : before parse [%s], after parse [%s]\n", k, when, t)
+		v, ok = info[FieldTTL]
 		if !ok {
 			log.Printf("failed to get ttl value on key: <%s>\n", k)
 			continue
@@ -69,14 +68,18 @@ func Maintainence() {
 		}
 
 		if time.Since(t) > ttl {
-			if _, ok := info["s"]; ok {
+			if _, ok := info[FieldPublic]; ok {
 				log.Printf("all entries related to <%s> are to be deleted\n", k)
-				public := info["s"].(string)
-				private := info["p"].(string) + "p"
-				delete := info["d"].(string) + "d"
-				keysToDelete = append(keysToDelete, private, public, delete)
-				if _, ok := info["url"]; ok {
-					keysToDelete = append(keysToDelete, public+"url")
+				public := info[FieldPublic].(string)
+				keysToDelete = append(keysToDelete, public+SuffixPublic)
+				if private, ok := info[FieldPrivate]; ok {
+					keysToDelete = append(keysToDelete, private.(string)+SuffixPrivate)
+				}
+				if delete, ok := info[FieldRemove]; ok {
+					keysToDelete = append(keysToDelete, delete.(string)+SuffixRemove)
+				}
+				if _, ok := info[FieldURL]; ok {
+					keysToDelete = append(keysToDelete, public+SuffixURL)
 				}
 			} else {
 				keysToDelete = append(keysToDelete, k)

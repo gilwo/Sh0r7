@@ -17,9 +17,6 @@ var (
 	KeyNotFound = errors.New("key not found")
 )
 
-type fieldValue struct {
-	f, v string
-}
 type stringTuple struct {
 	tuple map[string]string
 }
@@ -34,38 +31,6 @@ func NewTupleFromString(in string) (*stringTuple, error) {
 
 func NewTuple() *stringTuple {
 	return &stringTuple{map[string]string{}}
-}
-func initStringTuple(size int, names ...string) (*stringTuple, error) {
-	if len(names) != size {
-		return nil, errors.New("mismatch in size and field names count")
-	}
-	r := &stringTuple{
-		tuple: map[string]string{},
-	}
-	for _, e := range names {
-		if _, ok := r.tuple[e]; ok {
-			return nil, errors.Errorf("field names have duplicates: %v", names)
-		}
-		r.tuple[e] = ""
-	}
-	return r, nil
-}
-func NewStringTuple(values ...*fieldValue) (*stringTuple, error) {
-	f := []string{}
-	for _, e := range values {
-		f = append(f, e.f)
-	}
-	r, err := initStringTuple(len(f), f...)
-	if err != nil {
-		return nil, err
-	}
-	for _, e := range values {
-		err := r.SetCheck(e.f, e.v)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return r, nil
 }
 func (t *stringTuple) AtCheck(field string) (string, error) {
 	// fmt.Printf("content of tuple %#v\n", t)
@@ -94,7 +59,7 @@ func (t *stringTuple) SetCheck(field, value string) error {
 func (t *stringTuple) Keys() []string {
 	r := []string{}
 	for k := range t.tuple {
-		if strings.HasSuffix(k, "url") ||
+		if strings.HasSuffix(k, FieldURL) ||
 			strings.HasSuffix(k, fCompress) {
 			continue
 		}
@@ -148,14 +113,30 @@ func (t *stringTuple) Dump() string {
 }
 
 const (
-	fCompress     = ".compress"
-	FieldTime     = "created"
-	FieldTTL      = "ttl"
-	FieldDATA     = "data"
-	FieldModCount = "changes"
-	FieldModTime  = "changed_time"
-	FieldBlocked  = "blocked"
-	IsBLOCKED     = "true"
+	fCompress        = ".compress"
+	FieldTime        = "created"
+	FieldTTL         = "ttl"
+	FieldDATA        = "data"
+	FieldModCount    = "changes"
+	FieldModTime     = "changed_time"
+	FieldBlocked     = "blocked"
+	FieldDesc        = "description"
+	FieldPrvPassSalt = "privatePasswordSalt"
+	FieldPrvPassTok  = "privatePasswordToken"
+	FieldPubPassSalt = "publicPasswordSalt"
+	FieldPubPassTok  = "publicPasswordToken"
+	FieldRemPassSalt = "removePasswordSalt"
+	FieldRemPassTok  = "removePasswordToken"
+	IsBLOCKED        = "true"
+	FieldPublic      = "pub"
+	FieldNamedPublic = "named public"
+	FieldPrivate     = "prv"
+	FieldRemove      = "rem"
+	FieldURL         = "url"
+	SuffixPublic     = "#pub"
+	SuffixPrivate    = "#prv"
+	SuffixRemove     = "#rem"
+	SuffixURL        = "#url"
 )
 
 func (t *stringTuple) Set2Bytes(field string, value []byte, compress bool) error {
@@ -223,4 +204,12 @@ func (t *stringTuple) MustGet(field string) string {
 
 func (t *stringTuple) FromString(asString string) error {
 	return json.Unmarshal([]byte(asString), &t.tuple)
+}
+
+func (t *stringTuple) ToString() string {
+	r, err := json.Marshal(&t.tuple)
+	if err != nil {
+		return ""
+	}
+	return string(r)
 }

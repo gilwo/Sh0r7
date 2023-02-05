@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"math/rand"
 	"net/http"
 	"os"
 	"os/signal"
@@ -13,12 +12,17 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/uptrace/uptrace-go/uptrace"
+
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 
 	"github.com/gilwo/Sh0r7/common"
 	"github.com/gilwo/Sh0r7/handler"
+	"github.com/gilwo/Sh0r7/metrics"
 	"github.com/gilwo/Sh0r7/shortener"
 	"github.com/gilwo/Sh0r7/store"
 	_ "github.com/gilwo/Sh0r7/webapp"
@@ -26,6 +30,7 @@ import (
 
 func init() {
 	common.MainServer = mainServer
+	initUptrace()
 }
 
 var (
@@ -47,6 +52,11 @@ func mainServer() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+	// metrics.MetricGlobalCounter = metrics.NewMetricGlobal()
+	// metrics.MetricProcessor = metrics.NewMetricContext()
+	// metrics.MetricProcessor.StartProcessing()
+	// metrics.MetricProcessor.EnableDisableDump()
+	adTokenSet()
 	startServer()
 }
 
@@ -62,12 +72,11 @@ func webappInit() error {
 }
 
 func storageInit() error {
-	// Note store initialization happens here
 	envLocal := os.Getenv("SH0R7_STORE_LOCAL")
 	envRedis := os.Getenv("SH0R7_STORE_REDIS")
 	envFallback := os.Getenv("SH0R7_STORE_FALLBACK")
 	if redisUrl := envRedis; redisUrl != "" && !*useLocal {
-		// fmt.Printf("redisURL: %s\n", redisUrl)
+		fmt.Printf("redisURL: %s\n", redisUrl)
 		if store.NewStoreRedis == nil {
 			return errors.New("missing redis storage support")
 		}
@@ -92,7 +101,6 @@ func storageInit() error {
 		return errors.Wrap(err, "store init failed, exiting...\n")
 	}
 	handler.StoreFavicon()
-	adTokenSet()
 	return nil
 }
 
@@ -150,6 +158,7 @@ func startServer() {
 	}()
 	<-ctx.Done()
 	time.Sleep(100 * time.Millisecond)
+	// metrics.MetricProcessor.StopProcessing()
 	fmt.Println("** server down **")
 	// err = GinInit().Run(addr)
 	// if err != nil {
@@ -158,11 +167,37 @@ func startServer() {
 
 }
 
+func ContextWithSignals(parent context.Context, sig ...os.Signal) (ctx context.Context, cancel func()) {
+	ctx, cancel = context.WithCancel(parent)
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, sig...)
+
+	go func() {
+		<-c
+		close(c)
+		cancel()
+	}()
+
+	return ctx, cancel
+}
+
+func exit() {
+	err := recover()
+	if err != nil {
+		fmt.Printf("command failed: %s", err)
+		os.Exit(-1)
+	}
+}
+
 func GinInit() *gin.Engine {
 
 	// gin endpoints
 	// ----------------
 	r := gin.Default()
+	if OpenTelemetryServiceName != "" {
+		r.Use(otelgin.Middleware(OpenTelemetryServiceName))
+	}
+
 	// r.GET("/", func(c *gin.Context) {
 	// 	c.JSON(200, gin.H{
 	// 		"message": "Welcome to the URL Shortener API",
@@ -174,7 +209,7 @@ func GinInit() *gin.Engine {
 	genericHandleShort := func(c *gin.Context) {
 		paramShort := c.Param("short")
 		paramExt := strings.Trim(c.Param("ext"), "/")
-		fmt.Printf("generoc handler: short <%s>, ext <%s>\n", paramShort, paramExt)
+		log.Printf("generic handler: short <%s>, ext <%s>\n", paramShort, paramExt)
 
 		// if common.WebappGenFunc != nil {
 		// 	res := common.WebappGenFunc("SERVE", c)
@@ -182,12 +217,9 @@ func GinInit() *gin.Engine {
 		// 		return
 		// 	}
 		// }
-		if common.WebappGenFunc != nil && common.WebappGenFunc("SERVE", c).(bool) {
-			return
-		}
 
 		if paramShort == "hc" {
-			triggerMaintainence()
+			defer QueueMaintWork()
 			c.String(200, "")
 		} else if paramShort == "favicon.ico" {
 			c.FileFromFS(".", handler.HandleGetFavIcon())
@@ -195,6 +227,10 @@ func GinInit() *gin.Engine {
 			handler.HandleGetShortDataInfo(c)
 		} else if paramExt == "data" {
 			handler.HandleGetOriginData(c)
+		} else if gin.Mode() == gin.DebugMode && paramShort == "dump" && paramExt == "keys" {
+			handler.HandleDumpKeys(c)
+		} else if common.WebappGenFunc != nil && common.WebappGenFunc("SERVE", c).(bool) {
+			return
 		} else {
 			handler.HandleShort(c)
 		}
@@ -233,60 +269,69 @@ func GinInit() *gin.Engine {
 	})
 	// update data on short
 	r.DELETE("/:short", func(c *gin.Context) {
-		handler.DeleteShortData(c)
+		handler.RemoveShortData(c)
 	})
 	return r
 }
 
-func ContextWithSignals(parent context.Context, sig ...os.Signal) (ctx context.Context, cancel func()) {
-	ctx, cancel = context.WithCancel(parent)
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, sig...)
-
-	go func() {
-		<-c
-		close(c)
-		cancel()
-	}()
-
-	return ctx, cancel
-}
-
-func exit() {
-	err := recover()
-	if err != nil {
-		fmt.Printf("command failed: %s", err)
-		os.Exit(-1)
-	}
-}
-
-func triggerMaintainence() {
-	var when time.Duration
-	if gin.Mode() == gin.DebugMode {
-		// when = time.Duration(rand.Intn(5)) * time.Minute
-		when = time.Duration(rand.Intn(5)) * time.Second
-	} else {
-		when = time.Duration(rand.Intn(5))*time.Hour + time.Duration(rand.Intn(60))*time.Minute
-	}
-	go func() {
-	again:
-		log.Printf("maintainence scheduled in %s\n", when)
-		select {
-		case <-mainCtx.Done():
-			log.Println("maintainence aborted")
-		case <-time.After(when):
-			log.Printf("maintainence triggered after %s\n", when)
-			if maintainenceOngoing {
-				log.Printf("maintainence ongoing - rescheduling in %s\n", when)
-				goto again
-			}
-			maintainenceOngoing = true
-			store.Maintainence()
-			maintainenceOngoing = false
-		}
-	}()
-}
-
 var (
-	maintainenceOngoing bool
+	OpenTelemetryServiceName string
 )
+
+func initUptrace() {
+	// the system service name that will be shown in uptrace will be in the following form:
+	// [<service name>|<development host>].<deploy type>.sh0r7.me[.debug|.test]
+	// where
+	// service name - relevant for deployed instance
+	// development host - relevant for local development running instance
+	// .debug / .test - relevant for gin mode
+	// deploy type - must be defined
+	prefix := ""
+	version := ""
+	deploy := ""
+	switch deploy = os.Getenv("SH0R7_DEPLOY"); deploy {
+	case "prod", "dev":
+	case "stage", "test":
+		panic("deploy type not ready yet: " + deploy)
+	case "localdev":
+		if _, ok := os.LookupEnv("RENDER"); ok {
+			panic("invalid deploy type " + deploy + " for render environment")
+		}
+		version = deploy // TODO - add build time ??
+	default:
+		panic("deploy type not familiar: [" + deploy + "]")
+	}
+	if _, ok := os.LookupEnv("RENDER"); ok {
+		prefix = os.Getenv("RENDER_SERVICE_NAME")
+		version = os.Getenv("RENDER_GIT_COMMIT")
+		if deploy == "prod" {
+			version = "v.0.0.0-alpha" // TODO : grab from tag
+		}
+	} else if _, ok := os.LookupEnv("SH0R7__DEV_ENV"); ok {
+		prefix = os.Getenv("SH0R7_DEV_HOST")
+		version = deploy
+	}
+
+	OpenTelemetryServiceName = prefix + "." + deploy + ".sh0r7.me"
+	switch gin.Mode() {
+	case gin.DebugMode:
+		OpenTelemetryServiceName += ".debug"
+	case gin.TestMode:
+		OpenTelemetryServiceName += ".test"
+	case gin.ReleaseMode:
+	}
+	if otelEnv := os.Getenv("SH0R7_OTEL_UPTRACE"); otelEnv != "" {
+		options := []uptrace.Option{}
+		options = append(options,
+			uptrace.WithDSN(otelEnv),
+			uptrace.WithServiceName(OpenTelemetryServiceName),
+			uptrace.WithDeploymentEnvironment("development"),
+		)
+		options = append(options,
+			uptrace.WithServiceVersion(version),
+		)
+		uptrace.ConfigureOpentelemetry(options...)
+		log.Printf("** using uptrace OTEL service using [%s]\n", OpenTelemetryServiceName)
+	}
+	metrics.GlobalMeter = metrics.InitGlobalMeter(OpenTelemetryServiceName)
+}

@@ -1,26 +1,31 @@
-// go:build redis
+//go:build redis
 
 package store
 
 import (
 	"context"
 	"fmt"
+	"log"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/go-redis/redis/v8"
 	"github.com/pkg/errors"
+	"github.com/redis/go-redis/extra/redisotel/v9"
+	"github.com/redis/go-redis/v9"
 )
 
 var (
-	ctx = context.Background()
+	ctx           = context.Background()
+	__prefixRedis string
 )
 
 type StorageRedis struct {
 	redisClient *redis.Client
 	redisUrl    string
+	__prefix    string
 }
 
 func init() {
@@ -30,14 +35,28 @@ func init() {
 func newStoreRedis(redisUrl string) Store {
 	return &StorageRedis{
 		redisUrl: redisUrl,
+		__prefix: os.Getenv("SH0R7_DEPLOY") + "$$",
 	}
 }
+
+func (st *StorageRedis) _pad(short string) string {
+	return st.__prefix + short
+}
+
 func (st *StorageRedis) InitializeStore() error {
 	opts, err := redis.ParseURL(st.redisUrl)
 	if err != nil {
 		return errors.Wrapf(err, "parse url <%s> failed", st.redisUrl)
 	}
 	st.redisClient = redis.NewClient(opts)
+	if os.Getenv("SH0R7_OTEL_UPTRACE") != "" {
+		if err := redisotel.InstrumentTracing(st.redisClient); err != nil {
+			return errors.Wrapf(err, "redis telemetry trace failed")
+		}
+		if err := redisotel.InstrumentMetrics(st.redisClient); err != nil {
+			return errors.Wrapf(err, "redis telemetry metric failed")
+		}
+	}
 
 	pong, err := st.redisClient.Ping(ctx).Result()
 	if err != nil {
@@ -45,12 +64,12 @@ func (st *StorageRedis) InitializeStore() error {
 		return errors.Wrapf(err, "redis ping failed")
 	}
 
-	fmt.Printf("\nRedis started successfully: pong message = {%s}", pong)
+	log.Printf("\nRedis started successfully: pong message = {%s}", pong)
 	return nil
 }
 
 func (st *StorageRedis) UpdateDataMapping(data []byte, short string) error {
-	entry, err := st.redisClient.Get(ctx, short).Result()
+	entry, err := st.redisClient.Get(ctx, st._pad(short)).Result()
 	if err != nil {
 		return errors.Wrapf(err, "redis get failed for key <%s>", short)
 	}
@@ -59,11 +78,6 @@ func (st *StorageRedis) UpdateDataMapping(data []byte, short string) error {
 	if err != nil {
 		return errors.Wrapf(err, "tuple msgunpack failed")
 	}
-
-
-
-
-
 
 	countNumber := 0
 	sn, err := tup.AtCheck("changes")
@@ -77,7 +91,7 @@ func (st *StorageRedis) UpdateDataMapping(data []byte, short string) error {
 	}
 	k, err := tup.Get2(FieldDATA)
 	if err != nil {
-		return fmt.Errorf("some problem in original data extraction")
+		return errors.Errorf("some problem in original data extraction")
 	}
 	// // keep old data
 	tup.Set2(fmt.Sprintf("data_%d", countNumber), k, true)
@@ -90,7 +104,7 @@ func (st *StorageRedis) UpdateDataMapping(data []byte, short string) error {
 	if err != nil {
 		return errors.Wrapf(err, "tuple msgpack failed")
 	}
-	err = st.redisClient.Set(ctx, short, buf, 0).Err()
+	err = st.redisClient.Set(ctx, st._pad(short), buf, 0).Err()
 	if err != nil {
 		return errors.Wrapf(err, "redis set failed for <%s>", short)
 	}
@@ -98,7 +112,7 @@ func (st *StorageRedis) UpdateDataMapping(data []byte, short string) error {
 }
 
 func (st *StorageRedis) SaveDataMapping(data []byte, short string, ttl time.Duration) error {
-	_, err := st.redisClient.Get(ctx, short).Result()
+	_, err := st.redisClient.Get(ctx, st._pad(short)).Result()
 	if err != redis.Nil {
 		return errors.Errorf("entry exist for %s", short)
 	}
@@ -119,7 +133,7 @@ func (st *StorageRedis) SaveDataMapping(data []byte, short string, ttl time.Dura
 		return errors.Wrapf(err, "tuple msgpack failed")
 	}
 
-	err = st.redisClient.Set(ctx, short, buf, 0).Err()
+	err = st.redisClient.Set(ctx, st._pad(short), buf, 0).Err()
 	if err != nil {
 		return errors.Wrapf(err, "redis set failed for <%s>", short)
 	}
@@ -128,28 +142,28 @@ func (st *StorageRedis) SaveDataMapping(data []byte, short string, ttl time.Dura
 }
 
 func (st *StorageRedis) CheckExistShortDataMapping(short string) bool {
-	v, err := st.redisClient.Exists(ctx, short).Result()
-	fmt.Printf("exists %s result: %v, %v\n", short, v, err)
+	v, err := st.redisClient.Exists(ctx, st._pad(short)).Result()
+	log.Printf("exists %s result: %v, %v\n", short, v, err)
 	if err != nil || v == 1 {
 		return true
 	}
 	return false
 }
 func (st *StorageRedis) LoadDataMapping(short string) ([]byte, error) {
-	res, err := st.redisClient.Get(ctx, short).Result()
+	res, err := st.redisClient.Get(ctx, st._pad(short)).Result()
 	if err == redis.Nil {
 		return nil, errors.Errorf("entry not exist for %s", short)
 	}
 	tup := stringTuple{}
 	tup.unpackMsgPack([]byte(res))
 	if tup.Get(FieldBlocked) == IsBLOCKED {
-		return nil, fmt.Errorf("not allowed %s", short)
+		return nil, errors.Errorf("not allowed %s", short)
 	}
 	return tup.Get2Bytes(FieldDATA)
 }
 
 func (st *StorageRedis) LoadDataMappingInfo(short string) (map[string]interface{}, error) {
-	res, err := st.redisClient.Get(ctx, short).Result()
+	res, err := st.redisClient.Get(ctx, st._pad(short)).Result()
 	if err == redis.Nil {
 		return nil, errors.Errorf("entry not exist for %s", short)
 	}
@@ -166,7 +180,7 @@ func (st *StorageRedis) LoadDataMappingInfo(short string) (map[string]interface{
 }
 
 func (st *StorageRedis) SetMetaDataMapping(short, key, value string) error {
-	res, err := st.redisClient.Get(ctx, short).Result()
+	res, err := st.redisClient.Get(ctx, st._pad(short)).Result()
 	if err == redis.Nil {
 		return errors.Errorf("entry not exist for %s", short)
 	}
@@ -181,14 +195,14 @@ func (st *StorageRedis) SetMetaDataMapping(short, key, value string) error {
 	if err != nil {
 		return errors.Wrapf(err, "tuple msg pack failed for <%s>", short)
 	}
-	err = st.redisClient.Set(ctx, short, buf, 0).Err()
+	err = st.redisClient.Set(ctx, st._pad(short), buf, 0).Err()
 	if err != nil {
 		return errors.Wrapf(err, "redis set failed for <%s>", short)
 	}
 	return nil
 }
 func (st *StorageRedis) GetMetaDataMapping(short, key string) (string, error) {
-	res, err := st.redisClient.Get(ctx, short).Result()
+	res, err := st.redisClient.Get(ctx, st._pad(short)).Result()
 	if err == redis.Nil {
 		return "", errors.Errorf("entry not exist for %s", short)
 	}
@@ -204,7 +218,7 @@ func (st *StorageRedis) GetMetaDataMapping(short, key string) (string, error) {
 	return r, nil
 }
 func (st *StorageRedis) RemoveDataMapping(short string) error {
-	v, err := st.redisClient.Del(ctx, short).Result()
+	v, err := st.redisClient.Del(ctx, st._pad(short)).Result()
 	if err != nil {
 		if err == redis.Nil {
 			return errors.Wrapf(err, "redis key <%s> not found", short)
@@ -219,7 +233,7 @@ func (st *StorageRedis) RemoveDataMapping(short string) error {
 }
 
 func (st *StorageRedis) GenFunc(v ...interface{}) interface{} {
-	fmt.Printf("!!!!!!!!!! genfunc ... args: <%#v>\n", v)
+	log.Printf("!!!!!!!!!! genfunc ... args: <%#v>\n", v)
 	if len(v) < 1 {
 		return nil
 	}
@@ -230,13 +244,13 @@ func (st *StorageRedis) GenFunc(v ...interface{}) interface{} {
 		}
 		k := v[1].(string)
 		return st.dumpKey(k)
+	case STORE_FUNC_DUMPALL:
+		return st.dumpAll()
 	case STORE_FUNC_DUMPKEYS:
 		return st.dumpKeys()
 	case STORE_FUNC_GETKEYS:
-		fmt.Println("!!!!!!!!!! getkeys ... ")
 		return st.getKeys()
 	case STORE_FUNC_REMOVEKEYS:
-		fmt.Println("!!!!!!!!!! getkeys ... ")
 		if len(v) < 2 {
 			return nil
 		}
@@ -247,7 +261,7 @@ func (st *StorageRedis) GenFunc(v ...interface{}) interface{} {
 }
 
 func (st *StorageRedis) getKeys() []string {
-	r, err := st.redisClient.Keys(ctx, "*").Result()
+	r, err := st.redisClient.Keys(ctx, st.__prefix+"*").Result()
 	if err != nil {
 		return nil
 	}
@@ -258,8 +272,17 @@ func (st *StorageRedis) dumpKeys() string {
 	sort.Strings(r)
 	return strings.Join(r, "\n")
 }
+func (st *StorageRedis) dumpAll() string {
+	r := st.getKeys()
+	sort.Strings(r)
+	res := ""
+	for _, k := range r {
+		res += k + "\n" + st.dumpKey(k) + "\n\n"
+	}
+	return res
+}
 func (st *StorageRedis) dumpKey(k string) string {
-	res, err := st.redisClient.Get(ctx, k).Result()
+	res, err := st.redisClient.Get(ctx, st._pad(k)).Result()
 	if err == redis.Nil {
 		return "invalid"
 	}
@@ -273,7 +296,7 @@ func (st *StorageRedis) dumpKey(k string) string {
 
 // need to test ...
 func (st *StorageRedis) _removeKeys(ks []string) []error {
-	fmt.Printf("** removing keys: %#v\n", ks)
+	log.Printf("** removing keys: %#v\n", ks)
 	v, err := st.redisClient.Del(ctx, ks...).Result()
 	if err != nil {
 		if err == redis.Nil {
@@ -288,17 +311,23 @@ func (st *StorageRedis) _removeKeys(ks []string) []error {
 }
 
 func (st *StorageRedis) removeKeys(ks []string) []error {
-	fmt.Printf("** removing keys: %#v\n", ks)
 	errors := []error{}
+	if len(ks) == 0 {
+		return errors
+	}
+	log.Printf("** removing keys: %#v\n", ks)
 	for _, k := range ks {
 		if err := st.RemoveDataMapping(k); err != nil {
 			errors = append(errors, err)
 		}
 	}
+
 	errs := []string{}
 	for _, e := range errors {
 		errs = append(errs, e.Error())
 	}
-	fmt.Printf("** errors gathered: %#+v\n", strings.Join(errs, "; "))
+	if len(errs) > 0 {
+		log.Printf("** errors gathered: %#+v\n", strings.Join(errs, "; "))
+	}
 	return errors
 }

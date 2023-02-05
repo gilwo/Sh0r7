@@ -12,20 +12,21 @@
     /* font-size: 17px; */
     /* padding-top: 30px; */
     /* padding-bottom: 30px; */
-} */
-
-.logo-img {
-    background-color: bisque;
-    border-radius: 15%;
 }
 
- /* #logoTitle { */
 .row.header {
     padding-top: 30px;
     padding-bottom: 30px;
     /* background-color: palegreen; */
     background-color: #CBA0AE;
 }
+
+.logo-img {
+    /* background-color: bisque; */
+    /* border-radius: 15%; */
+    min-width: max-content;
+}
+
 .row.header h1 {
   font-family: 'Share Tech Mono', monospace;
   font-size: 55px;
@@ -56,6 +57,7 @@
 
  .row.footer {
     background-color: #7D6E83;
+    padding: 10px;
  }
 
  .input-group-addon.fld-title{
@@ -65,7 +67,7 @@ input.form-control.syncTextStyle, .form-control.syncTextStyle, .syncTextStyle, .
     background-color: #dff0d8;
     /* background-color: brown; */
 }
-input.form-control.syncTextStyle#treatData {
+input.form-control.syncTextStyle.onlyText {
     font-weight: bold;
     color: #3c763d;
 }
@@ -90,4 +92,97 @@ table.table.table-hover td.result div.form-group.resultForm {
 #privateTitle {
     font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
     font-weight: bold;
+}
+
+.input-group-addon label {
+    margin: 0px;
+}
+
+.input-grooup-addon input[type=checkbox] {
+    vertical-align: middle;
+}
+
+#tableLocked {
+    filter: blur(10px);
+    z-index: -1;
+}
+
+div#lockedPassword { /*Password {*/
+    position: absolute; top: 55%; left: 50%;
+    /* "COUNTER" WIDTH & HEIGHT OF BOX TO "TRULY CENTER" ON SCREEN */
+    transform: translate(-50%, -50%);
+    /* color: #fff; background: #000; */
+    color: rgb(119, 182, 182); background: rgb(65, 87, 20);
+    padding: 50px;
+    text-align: center;
+    z-index: 1;
+    border-radius: 10px;
+}
+
+div#lockedPassword:after {
+    content: "Locked access";
+    text-transform:capitalize ;
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    font-size: 12px;
+    font-weight: 700;
+    /* color: aliceblue; */
+    color: rgb(205, 209, 213);
+    letter-spacing: 2px;
+}
+
+div#updateApp {
+    position: absolute; top: 55%; left: 50%;
+    transform: translate(-50%, -50%);
+    color: rgb(119, 182, 182); background: rgb(65, 87, 20);
+    padding: 50px;
+    text-align: center;
+    z-index: 1;
+    border-radius: 10px;
+}
+
+div.passwordError {
+    position: absolute; top: 55%; left: 50%;
+    transform: translate(-50%, -50%);
+    color: rgb(246, 16, 114); background: rgb(5, 5, 4);
+    padding: 50px;
+    text-align: center;
+    font-size: x-large;
+    z-index: 1;
+    border-radius: 10px;
+}
+
+.clickLinkAble {
+    cursor: pointer;
+    /* border-bottom */
+}
+
+
+/* for the floating window */
+#movable {
+	position: absolute;
+	background: #0000ff;
+	left: 0px;
+	top: 0px;
+	color: yellow;
+	cursor: help;
+	border-radius: 5px;
+	padding: 5px;
+	display: inline-block;
+}
+
+#grabHere {
+	border-radius:4px;
+	text-align: center;
+	background: black;
+	color: white;
+	cursor: move;
+	padding: 5px;
+}
+
+#movText {
+	min-width: max-content;
+    background-color:rgb(178, 109, 218) ;
+    color: white;
 }
