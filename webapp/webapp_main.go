@@ -68,6 +68,7 @@ var (
 			<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.2/font/bootstrap-icons.css"rel="stylesheet"  >
 			`,
 		},
+		AutoUpdateInterval: 5 * time.Second,
 	}
 
 	webappServedPaths map[string]bool
@@ -162,10 +163,10 @@ func webappgenfunc(args ...interface{}) interface{} {
 		if path == webappCommon.ShortPath {
 			headerUpdate(c)
 		}
-		log.Printf("serving %s\n", c.Request.URL)
 		if redirectAppPathWithToken(c) {
 			return true
 		}
+		log.Printf("serving %s\n", c.Request.URL)
 		sh0r7H.ServeHTTP(c.Writer, c.Request)
 		// collect metrics for app specific served paths (not the go-app framework)
 		{
@@ -559,7 +560,6 @@ func redirectAppPathWithToken(c *gin.Context) bool {
 	log.Printf("seed: <%s> (%d)\n", seed, seedLen)
 	log.Printf("token: <%s> (%d)\n", token, tokenLen)
 	log.Println("/*/*/*/*/*/*/*/*/*/*/*/*/")
-	isDev := c.Request.URL.Query().Has("dev")
 	redirect, err := url.ParseRequestURI(c.Request.RequestURI)
 	if err != nil {
 		log.Printf("failed to parse request uri: %s\n", err)
@@ -572,8 +572,11 @@ func redirectAppPathWithToken(c *gin.Context) bool {
 	// q.Add(webappCommon.FSaltTokenID, fmt.Sprintf("%d", tokenLen))
 	// q.Add(webappCommon.FSaltTokenID, "0")
 	stidValue := fmt.Sprintf("%s$%d$%d", seed, tokenLen, 0)
-	if isDev {
-		stidValue += "$dev"
+	if c.Request.URL.Query().Has("dev") {
+		stidValue += "$##dev##"
+	}
+	if c.Request.URL.Query().Has("exp") {
+		stidValue += "$##exp##"
 	}
 	q.Add(webappCommon.FSaltTokenID, shortener.Base64SE.Encode([]byte(stidValue)))
 	redirect.RawQuery = q.Encode()

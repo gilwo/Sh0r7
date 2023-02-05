@@ -52,8 +52,9 @@ type short struct {
 	passToken              string // the password token used to lock and unlock the short private
 	updateAvailable        bool   // new version available
 
-	isDev         bool
-	isDebugWindow bool
+	isDev          bool
+	isExperimental bool
+	isDebugWindow  bool
 }
 
 const (
@@ -595,7 +596,7 @@ func (h *short) Render() app.UI {
 								h.OptionPublic(),
 								h.OptionPrivate(),
 								h.OptionRemove(),
-								app.If(h.isDev,
+								app.If(h.isExperimental,
 									h.OptionNamedPublicShort(),
 								),
 							),
@@ -630,15 +631,15 @@ func (h *short) Render() app.UI {
 										),
 								),
 						),
-					app.If(true, //h.debug, // FIXME - problem with where to show message from POST to createshort
-						app.Div().
-							Class("col-sm-8 col-sm-offset-2").
-							Body(
-								app.Textarea().
-									Class("syncTextStyle").
-									ID("footerText"),
-							),
-					),
+					// app.If(h.debug,
+					// 	app.Div().
+					// 		Class("col-sm-8 col-sm-offset-2").
+					// 		Body(
+					// 			app.Textarea().
+					// 				Class("syncTextStyle").
+					// 				ID("footerText"),
+					// 		),
+					// ),
 				),
 			app.If(h.isDev,
 				func() app.UI {
@@ -699,8 +700,11 @@ func (h *short) load2() {
 				app.Logf("problem with number convertion: %s\n", err)
 				return
 			}
-			if len(stid) > 3 && stid[3] == "dev" {
+			if webappCommon.SliceContains(stid, "##dev##") {
 				h.isDev = true
+			}
+			if webappCommon.SliceContains(stid, "##exp##") {
+				h.isExperimental = true
 			}
 
 			ua := app.Window().Get("navigator").Get("userAgent").String()
@@ -1161,6 +1165,7 @@ func (h *short) getTitleHeader() app.UI {
 				Class("logo").
 				Body(
 					app.Img().
+						ID("logo").
 						Class("logo-img").
 						Class("img-responsive").
 						Class("clickLinkAble").

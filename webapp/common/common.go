@@ -66,3 +66,16 @@ func (s ShortType) String() (r string) {
 	}
 	return r
 }
+
+type SliceElement interface {
+	string | int | uint | int64 | uint64 | float32 | float64
+}
+
+func SliceContains[SE SliceElement](s []SE, o SE) bool {
+	for _, e := range s {
+		if e == o {
+			return true
+		}
+	}
+	return false
+}
