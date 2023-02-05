@@ -167,7 +167,6 @@ func GenericShort(original string, startOffset, sizeFixed, sizeMin, sizeMax int,
 	for {
 		lPos := startPos()
 		ofs := ofsCalc(N - lPos)
-		fmt.Printf("ofsCalc: %d\n", ofs)
 		if ofs >= sizeMin && N > lPos+ofs {
 			res := original[lPos : lPos+ofs]
 			if checkInStore != nil {

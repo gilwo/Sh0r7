@@ -556,10 +556,7 @@ func redirectAppPathWithToken(c *gin.Context) bool {
 	}
 	seedLen, tokenLen := 32, 40
 	seed, token := generateSeedAndToken(c.Request.Header.Get("User-Agent"), seedLen, tokenLen)
-	log.Println("/*/*/*/*/*/*/*/*/*/*/*/*/")
-	log.Printf("seed: <%s> (%d)\n", seed, seedLen)
-	log.Printf("token: <%s> (%d)\n", token, tokenLen)
-	log.Println("/*/*/*/*/*/*/*/*/*/*/*/*/")
+	log.Printf("generated seed - token : <%s> - <%s>\n", seed, token)
 	redirect, err := url.ParseRequestURI(c.Request.RequestURI)
 	if err != nil {
 		log.Printf("failed to parse request uri: %s\n", err)
@@ -568,9 +565,6 @@ func redirectAppPathWithToken(c *gin.Context) bool {
 	redirect.Path = webappCommon.ShortPath
 	redirect.RawQuery = ""
 	q := redirect.Query()
-	// q.Add(webappCommon.FSaltTokenID, seed)
-	// q.Add(webappCommon.FSaltTokenID, fmt.Sprintf("%d", tokenLen))
-	// q.Add(webappCommon.FSaltTokenID, "0")
 	stidValue := fmt.Sprintf("%s$%d$%d", seed, tokenLen, 0)
 	if c.Request.URL.Query().Has("dev") {
 		stidValue += "$##dev##"

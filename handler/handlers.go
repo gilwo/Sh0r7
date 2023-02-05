@@ -417,7 +417,6 @@ func handleRemove(c *gin.Context) (r resTri) {
 	}
 	accessRes := shortAccessAllowedCheck(c, string(dataKey), common.ShortRemove)
 	if accessRes.IsFalse() {
-		// TODO: addd global counter for locked access failure
 		return r.False()
 	}
 	info, err := store.StoreCtx.LoadDataMappingInfo(string(dataKey) + store.SuffixPublic)
@@ -573,7 +572,6 @@ func handleData(c *gin.Context) (r resTri) {
 
 	accessRes := shortAccessAllowedCheck(c, string(dataKey), common.ShortPublic)
 	if accessRes.IsFalse() {
-		// TODO: addd global counter for locked access failure
 		return r.False()
 	}
 
@@ -622,7 +620,6 @@ func handlePrivateData(c *gin.Context) (r resTri) {
 
 	accessRes := shortAccessAllowedCheck(c, string(dataKey), common.ShortPrivate)
 	if accessRes.IsFalse() {
-		// TODO: addd global counter for locked access failure
 		return r.False()
 	}
 
@@ -676,7 +673,6 @@ func handleUrl(c *gin.Context) (r resTri) {
 	}
 	accessRes := shortAccessAllowedCheck(c, string(dataKey), common.ShortPublic)
 	if accessRes.IsFalse() {
-		// TODO: addd global counter for locked access failure
 		return r.False()
 	}
 	data, err := store.StoreCtx.LoadDataMapping(string(dataKey) + store.SuffixPublic)
@@ -743,6 +739,7 @@ func checkToken(c *gin.Context) bool {
 	return true
 }
 
+// TODO: validate legitimate expiration and override or fail ? (meed to choose)
 func getExpiration(c *gin.Context) time.Duration {
 	expiration := c.Request.Header.Get(common.FExpiration)
 	if expiration == "n" {
@@ -819,7 +816,6 @@ func HandleDumpKeys(c *gin.Context) {
 	c.String(200, "%s", res)
 }
 
-
 // shortAccessAllowedCheck :
 //
 //	True - access locked and unlock succeeded
@@ -886,7 +882,6 @@ func shortAccessAllowedCheck(c *gin.Context, short string, which common.ShortTyp
 	}
 	return r.Nil()
 }
-
 
 func collectInfo(c *gin.Context, name string) string {
 	reqDump, err := httputil.DumpRequest(c.Request, true)
