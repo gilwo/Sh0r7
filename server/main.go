@@ -29,6 +29,9 @@ import (
 )
 
 func init() {
+	if strings.ToLower(os.Getenv("SH0R7_PRODUCTION")) == "true" {
+		gin.SetMode(gin.ReleaseMode)
+	}
 	common.MainServer = mainServer
 	initUptrace()
 }
@@ -124,12 +127,7 @@ func adTokenSet() {
 }
 
 func startServer() {
-	addr := ":9808"
-	envProd := os.Getenv("SH0R7_PRODUCTION")
-	if strings.ToLower(envProd) == "true" {
-		gin.SetMode(gin.ReleaseMode)
-	}
-	addr = ":8080"
+	addr := ":8080"
 	if envAddr := os.Getenv("SH0R7_ADDR"); envAddr != "" {
 		addr = envAddr
 	}
