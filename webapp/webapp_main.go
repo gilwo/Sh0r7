@@ -188,21 +188,6 @@ func webappgenfunc(args ...interface{}) interface{} {
 	return false
 }
 
-func fixPath(c *gin.Context) bool {
-	if c.Request.Referer() != "" {
-		log.Printf("referer not empty (%s)\n", c.Request.Referer())
-		return false
-	}
-	if strings.Contains(c.Request.URL.Path, webappCommon.PrivatePath) {
-		redirect := c.Request.URL
-		redirect.Path = webappCommon.PrivatePath
-		c.Redirect(http.StatusFound, redirect.String())
-		log.Printf("redirect with private (%s)\n", redirect)
-		return true
-	}
-	log.Printf("path not fixed")
-	return false
-}
 
 func checkPrivateRedirect(c *gin.Context) bool {
 	if c.Param("ext") != "" {
@@ -542,12 +527,7 @@ func redirectAppPathWithToken(c *gin.Context) bool {
 		}
 		log.Printf("path token is invalid redirect with new token")
 	}
-	refererUrl, err := url.Parse(c.Request.Referer())
-	if err != nil {
-		log.Printf("skip redirect for url parse failed for referrer... <%s>", c.Request.Referer())
-		return false
-	}
-	if strings.HasSuffix(refererUrl.Path, "app-worker.js") {
+	if refererUrl, _ := url.Parse(c.Request.Referer()); refererUrl != nil && strings.HasSuffix(refererUrl.Path, "app-worker.js") {
 		log.Printf("skip redirect for referrer url <%s>", c.Request.Referer())
 		return false
 	}
@@ -570,6 +550,9 @@ func redirectAppPathWithToken(c *gin.Context) bool {
 		stidValue += "$##exp##"
 	}
 	q.Add(webappCommon.FSaltTokenID, shortener.Base64SE.Encode([]byte(stidValue)))
+	if _, ok := os.LookupEnv("SH0R7__DEV_ENV"); ok {
+		q.Add(shortener.Base64SE.Encode([]byte("##dev##$$##dbg##")), "")
+	}
 	redirect.RawQuery = q.Encode()
 	c.Redirect(http.StatusFound, redirect.String())
 	log.Printf("redirect with token seed (%s)\n", redirect)

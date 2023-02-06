@@ -53,6 +53,7 @@ type short struct {
 	updateAvailable        bool   // new version available
 
 	isDev          bool
+	isDebug        bool
 	isExperimental bool
 	isDebugWindow  bool
 }
@@ -64,8 +65,9 @@ const (
 var (
 	ImgSource = "/web/logo.jpg"
 	// imgSource: "logoL.png",
-	BuildVer  string = "dev"
-	BuildTime string = "now"
+	BuildVer          string = "dev"
+	BuildTime         string = "now"
+	ExternalTimeBuild string = "now"
 )
 
 func (h *short) RenderPrivate() app.UI {
@@ -464,10 +466,19 @@ func (h *short) Render() app.UI {
 										"text-align": "left",
 										"width":      "fit-content"}).
 								Body(
-									app.Text(NOTEMESSAGE),
+									app.Text(func() string {
+										r := NOTEMESSAGE
+										if h.isDev {
+											if BuildVer != "" {
+												r += " (" + BuildVer + ")"
+											}
+											r += " " + ExternalTimeBuild
+										}
+										return r
+									}()),
 								),
 						),
-					app.If(h.debug,
+					app.If(h.debug || h.isDev,
 						app.Div().
 							Styles(map[string]string{
 								"position":    "absolute",
@@ -631,15 +642,15 @@ func (h *short) Render() app.UI {
 										),
 								),
 						),
-					// app.If(h.debug,
-					// 	app.Div().
-					// 		Class("col-sm-8 col-sm-offset-2").
-					// 		Body(
-					// 			app.Textarea().
-					// 				Class("syncTextStyle").
-					// 				ID("footerText"),
-					// 		),
-					// ),
+					app.If(h.debug || h.isDev,
+						app.Div().
+							Class("col-sm-8 col-sm-offset-2").
+							Body(
+								app.Textarea().
+									Class("syncTextStyle").
+									ID("footerText"),
+							),
+					),
 				),
 			app.If(h.isDev,
 				func() app.UI {
@@ -655,6 +666,7 @@ func newShort() *short {
 }
 
 func (h *short) load2() {
+	h.logInit()
 	lurl := app.Window().URL()
 	app.Logf("url: %#+v\n", lurl)
 	if strings.Contains(lurl.Path, webappCommon.PrivatePath) && lurl.Query().Has(webappCommon.FShortKey) {
@@ -719,6 +731,30 @@ func (h *short) load2() {
 	}
 	app.Logf("load2....\n")
 }
+
+func (h *short) logInit() {
+	lurl := app.Window().URL()
+	for k := range lurl.Query() {
+		decQuery, _ := shortener.Base64SE.Decode(k)
+		decQueryFields := strings.Split(string(decQuery), "$$")
+		if webappCommon.SliceContains(decQueryFields, "##dev##") {
+			h.isDev = true
+		}
+		if webappCommon.SliceContains(decQueryFields, "##dbg##") {
+			h.isDebug = true
+		}
+	}
+
+	if h.isDebug || h.isDev {
+		orgLog := app.DefaultLogger
+		app.DefaultLogger = func(format string, v ...any) {
+			orgLog("[%s]: "+format,
+				append([]any{time.Now().Format(time.RFC3339)}, v...)...)
+		}
+		app.Logf("webapp run with isDebug: %v and isDev: %v\n", h.isDebug, h.isDev)
+	}
+}
+
 func (h *short) OnInit() {
 	h.load2()
 	app.Logf("******************************* init - build ver :<%s>, time: <%s>\n", BuildVer, BuildTime)
@@ -734,7 +770,6 @@ func (h *short) OnMount(ctx app.Context) {
 	app.Logf("******************************* mount")
 }
 func (h *short) OnNav(ctx app.Context) {
-	// h.load()
 	h.load2()
 	app.Logf("******************************* nav")
 }
