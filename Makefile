@@ -30,8 +30,6 @@ build-web:
 	-X 'github.com/gilwo/Sh0r7/webapp/frontend.BuildTime=${SOURCE_DATE_EPOCH2}' \
 	-X 'github.com/gilwo/Sh0r7/webapp/frontend.ExternalTimeBuild=${SOURCE_DATE_EPOCH2}'" \
 	-o web/app.wasm webapp/front/front_main.go
-	@export GIT_COMMIT=$(git log --pretty=format:"%h" -n 1 webapp/common webapp/front webapp/frontend/)
-	GOOS=js GOARCH=wasm go build -ldflags "-X 'github.com/gilwo/Sh0r7/webapp/frontend.BuildVer=${GIT_COMMIT}'" -o web/app.wasm webapp/front/front_main.go
 
 build-web-prod:
 	GOOS=js GOARCH=wasm go build -tags prod -o web/app.wasm webapp/front/front_main.go
