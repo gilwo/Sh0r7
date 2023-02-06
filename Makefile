@@ -32,7 +32,11 @@ build-web:
 	-o web/app.wasm webapp/front/front_main.go
 
 build-web-prod:
-	GOOS=js GOARCH=wasm go build -tags prod -o web/app.wasm webapp/front/front_main.go
+	GOOS=js GOARCH=wasm go build -ldflags \
+	"-X 'github.com/gilwo/Sh0r7/webapp/frontend.BuildVer=${VERSION}' \
+	-X 'github.com/gilwo/Sh0r7/webapp/frontend.BuildTime=${SOURCE_DATE_EPOCH2}' \
+	-X 'github.com/gilwo/Sh0r7/webapp/frontend.ExternalTimeBuild=${SOURCE_DATE_EPOCH2}'" \
+	-tags prod -o web/app.wasm webapp/front/front_main.go
 
 build:
 	go build -tags webapp main.go
