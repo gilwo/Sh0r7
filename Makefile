@@ -1,7 +1,24 @@
+ifndef VERSION
+    VERSION = $(shell git describe --always --long --dirty)
+endif
+
+# https://wiki.debian.org/ReproducibleBuilds/TimestampsProposal
+ifndef SOURCE_DATE_EPOCH
+    SOURCE_DATE_EPOCH = `git log -1 --format=%ct`
+    SOURCE_DATE_EPOCH2 = `git diff --quiet && git log -1 --format=%ct || date +%s_dirty`
+endif
+
+
 GIT_COMMIT := $(shell git log --pretty=format:"%h" -n 1 webapp/common webapp/front webapp/frontend/)
 BUILD_TIME := $(shell date)
 
 all: build-web build
+
+test:
+	@echo SOURCE_DATE_EPOCH: ${SOURCE_DATE_EPOCH}
+	@echo SOURCE_DATE_EPOCH2: ${SOURCE_DATE_EPOCH2}
+	@echo VERSION: ${VERSION}
+
 
 web: build-web
 
