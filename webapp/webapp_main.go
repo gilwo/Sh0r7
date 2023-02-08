@@ -460,7 +460,7 @@ func checkSaltTokenStillValid(c *gin.Context) bool {
 		app.Logf("problem with stid : %s\n", err)
 		return false
 	}
-	stid = strings.Split(string(x), "$")
+	stid = strings.Split(string(x), "$$")
 	seed := stid[0]
 	tokenLen, err := strconv.Atoi(stid[1])
 	if err != nil {
@@ -542,16 +542,22 @@ func redirectAppPathWithToken(c *gin.Context) bool {
 	redirect.Path = webappCommon.ShortPath
 	redirect.RawQuery = ""
 	q := redirect.Query()
-	stidValue := fmt.Sprintf("%s$%d$%d", seed, tokenLen, 0)
-	if c.Request.URL.Query().Has("dev") {
-		stidValue += "$##dev##"
+	stidValue := fmt.Sprintf("%s$$%d$$%d", seed, tokenLen, 0)
+	if c.Request.URL.Query().Has("dev") || common.IsDevEnv {
+		stidValue += "$$##dev##"
 	}
 	if c.Request.URL.Query().Has("exp") {
-		stidValue += "$##exp##"
+		stidValue += "$$##exp##"
+	}
+	if common.IsDevEnv {
+		stidValue += "$$##dbg##"
 	}
 	q.Add(webappCommon.FSaltTokenID, shortener.Base64SE.Encode([]byte(stidValue)))
-	if _, ok := os.LookupEnv("SH0R7__DEV_ENV"); ok {
-		q.Add(shortener.Base64SE.Encode([]byte("##dev##$$##dbg##")), "")
+	// one an occasion when there is an explicit request for token (it probably mean that something went wrong in the redirecting logic along the way - caching or proxying or whatever...)
+	if strings.Contains(c.Request.Header.Get(webappCommon.FRequestTokenSeed), "#*$$") {
+		c.Writer.Header().Add(webappCommon.FSaltTokenID, shortener.Base64SE.Encode([]byte(stidValue)))
+		c.Status(http.StatusOK)
+		return true
 	}
 	redirect.RawQuery = q.Encode()
 	c.Redirect(http.StatusFound, redirect.String())

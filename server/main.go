@@ -288,8 +288,8 @@ func initUptrace() {
 	version := ""
 	deploy := ""
 	switch deploy = os.Getenv("SH0R7_DEPLOY"); deploy {
-	case "prod", "dev":
-	case "stage", "test":
+	case "production", "development":
+	case "staging", "testing":
 		panic("deploy type not ready yet: " + deploy)
 	case "localdev":
 		if _, ok := os.LookupEnv("RENDER"); ok {
@@ -302,10 +302,12 @@ func initUptrace() {
 	if _, ok := os.LookupEnv("RENDER"); ok {
 		prefix = os.Getenv("RENDER_SERVICE_NAME")
 		version = os.Getenv("RENDER_GIT_COMMIT")
-		if deploy == "prod" {
+		if deploy == "production" {
 			version = "v.0.0.0-alpha" // TODO : grab from tag
 		}
 	} else if _, ok := os.LookupEnv("SH0R7__DEV_ENV"); ok {
+		log.Default().SetFlags(log.Flags() | log.Llongfile)
+		common.IsDevEnv = true
 		prefix = os.Getenv("SH0R7_DEV_HOST")
 		version = deploy
 	}
@@ -323,7 +325,7 @@ func initUptrace() {
 		options = append(options,
 			uptrace.WithDSN(otelEnv),
 			uptrace.WithServiceName(OpenTelemetryServiceName),
-			uptrace.WithDeploymentEnvironment("development"),
+			uptrace.WithDeploymentEnvironment(deploy),
 		)
 		options = append(options,
 			uptrace.WithServiceVersion(version),

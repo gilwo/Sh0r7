@@ -149,15 +149,21 @@ func handleCreateShortModRemove(data, namedPublic string, isPrivate, isRemove, i
 // TODO: add proper cleanup on failed creation (for any reason... )
 func HandleCreateShortData(c *gin.Context) {
 	fail := false
+	tokenFail := false
 	defer func() {
 		if fail {
-			metrics.GlobalMeter.IncMeterCounter(metrics.CreationFailed)
+			if tokenFail {
+				metrics.GlobalMeter.IncMeterCounter(metrics.CreationFailedToken)
+			} else {
+				metrics.GlobalMeter.IncMeterCounter(metrics.CreationFailed)
+			}
 		} else {
 			metrics.GlobalMeter.IncMeterCounter(metrics.Created)
 		}
 	}()
 	if !checkToken(c) {
 		fail = true
+		tokenFail = true
 		return
 	}
 	d, err := c.GetRawData()
@@ -255,15 +261,21 @@ func HandleUploadFile(c *gin.Context) {
 // TODO: add proper cleanup on failed creation (for any reason... )
 func HandleCreateShortUrl(c *gin.Context) {
 	fail := false
+	tokenFail := false
 	defer func() {
 		if fail {
-			metrics.GlobalMeter.IncMeterCounter(metrics.CreationFailed)
+			if tokenFail {
+				metrics.GlobalMeter.IncMeterCounter(metrics.CreationFailedToken)
+			} else {
+				metrics.GlobalMeter.IncMeterCounter(metrics.CreationFailed)
+			}
 		} else {
 			metrics.GlobalMeter.IncMeterCounter(metrics.Created)
 		}
 	}()
 	if !checkToken(c) {
 		fail = true
+		tokenFail = true
 		return
 	}
 	d, err := c.GetRawData()

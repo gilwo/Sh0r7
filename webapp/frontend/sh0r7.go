@@ -432,9 +432,6 @@ func (h *short) showRetry() app.UI {
 }
 
 func (h *short) Render() app.UI {
-	if h.updateAvailable {
-		return h.RenderUpdate()
-	}
 	if h.isPrivate {
 		return h.RenderPrivate()
 	}
@@ -553,7 +550,7 @@ func (h *short) Render() app.UI {
 													app.Logf("expire value: %v\n", h.expireValue)
 												}
 												if v != "" {
-													ctx.Async(h.createShort)
+													h.createShort(ctx)
 												}
 											}),
 									).Else(
@@ -665,7 +662,88 @@ func newShort() *short {
 	return &short{}
 }
 
-func (h *short) load2() {
+func (h *short) parseSTID(ctx app.Context, stid string) {
+	x, err := shortener.Base64SE.Decode(stid)
+	if err != nil {
+		app.Logf("problem with stid : %s\n", err)
+		return
+	}
+	stidArr := strings.Split(string(x), "$$")
+	seed := stidArr[0]
+	tokenLen, err := strconv.Atoi(stidArr[1])
+	if err != nil {
+		app.Logf("problem with number convertion: %s\n", err)
+		return
+	}
+	tokenStartPos, err := strconv.Atoi(stidArr[2])
+	if err != nil {
+		app.Logf("problem with number convertion: %s\n", err)
+		return
+	}
+	if webappCommon.SliceContains(stidArr, "##dbg##") {
+		h.isDebug = true
+		if ctx != nil {
+			ctx.SessionStorage().Set("dbg", true)
+		}
+	}
+	if webappCommon.SliceContains(stidArr, "##dev##") {
+		h.isDev = true
+		if ctx != nil {
+			ctx.SessionStorage().Set("dev", true)
+		}
+	}
+	if webappCommon.SliceContains(stidArr, "##exp##") {
+		h.isExperimental = true
+		if ctx != nil {
+			ctx.SessionStorage().Set("exp", true)
+		}
+	}
+
+	ua := app.Window().Get("navigator").Get("userAgent").String()
+
+	token := shortener.GenerateTokenTweaked(ua+seed, tokenStartPos, tokenLen, 0)
+	if token == "" {
+		app.Logf("problem with token generation\n")
+		return
+	}
+	h.sessionToken = token
+	if ctx != nil {
+		app.Logf("setting token on local storage\n")
+		ctx.SessionStorage().Set("token", token)
+	}
+}
+
+func (h *short) reload(ctx app.Context) {
+	var err error
+	lurl := app.Window().URL()
+	lurl.Path = "/"
+	lurl.RawQuery = "reload"
+
+	client := http.Client{
+		Timeout: time.Duration(5 * time.Second),
+	}
+	req, err := http.NewRequest(http.MethodGet, lurl.String(), nil)
+	if err != nil {
+		app.Logf("failed to create new request: %s\n", err)
+		return
+	}
+	req.Header.Set("Content-Type", "text/plain")
+	req.Header.Set(webappCommon.FRequestTokenSeed, uuid.NewString()+"#*$$"+uuid.NewString())
+	resp, err := client.Do(req)
+	if err != nil {
+		app.Logf("failed to invoke request: %s\n", err)
+		return
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		app.Logf("response not ok: %v\n", resp.StatusCode)
+		return
+	}
+	stid := resp.Header.Get(webappCommon.FSaltTokenID)
+	h.parseSTID(ctx, stid)
+}
+
+func (h *short) load2(ctx app.Context) {
 	h.logInit()
 	lurl := app.Window().URL()
 	app.Logf("url: %#+v\n", lurl)
@@ -689,44 +767,18 @@ func (h *short) load2() {
 		}
 	} else {
 		if lurl.Query().Has(webappCommon.FSaltTokenID) {
-			qVals := lurl.Query()
-			stid, ok := qVals[webappCommon.FSaltTokenID]
+			stid, ok := lurl.Query()[webappCommon.FSaltTokenID]
 			if !ok {
 				app.Logf("problem with stid: %#v\n", stid)
 				return
 			}
-			x, err := shortener.Base64SE.Decode(stid[0])
-			if err != nil {
-				app.Logf("problem with stid : %s\n", err)
-				return
-			}
-			stid = strings.Split(string(x), "$")
-			seed := stid[0]
-			tokenLen, err := strconv.Atoi(stid[1])
-			if err != nil {
-				app.Logf("problem with number convertion: %s\n", err)
-				return
-			}
-			tokenStartPos, err := strconv.Atoi(stid[2])
-			if err != nil {
-				app.Logf("problem with number convertion: %s\n", err)
-				return
-			}
-			if webappCommon.SliceContains(stid, "##dev##") {
-				h.isDev = true
-			}
-			if webappCommon.SliceContains(stid, "##exp##") {
-				h.isExperimental = true
-			}
+			h.parseSTID(ctx, stid[0])
+		} else {
+			if ctx != nil && h.sessionToken == "" {
+				err := ctx.SessionStorage().Get("token", &h.sessionToken)
+				app.Logf("getting token from local storage: <%s>, err: %v\n", h.sessionToken, err)
 
-			ua := app.Window().Get("navigator").Get("userAgent").String()
-
-			token := shortener.GenerateTokenTweaked(ua+seed, tokenStartPos, tokenLen, 0)
-			if token == "" {
-				app.Logf("problem with token generation\n")
-				return
 			}
-			h.sessionToken = token
 		}
 	}
 	app.Logf("load2....\n")
@@ -756,7 +808,7 @@ func (h *short) logInit() {
 }
 
 func (h *short) OnInit() {
-	h.load2()
+	h.load2(nil)
 	app.Logf("******************************* init - build ver :<%s>, time: <%s>\n", BuildVer, BuildTime)
 }
 func (h *short) OnPreRender(ctx app.Context) {
@@ -766,11 +818,16 @@ func (h *short) OnDisMount() {
 	app.Logf("******************************* dismount")
 }
 func (h *short) OnMount(ctx app.Context) {
-	h.load2()
+	h.load2(ctx)
 	app.Logf("******************************* mount")
 }
 func (h *short) OnNav(ctx app.Context) {
-	h.load2()
+	h.load2(ctx)
+	ctx.SessionStorage().Get("exp", &h.isExperimental)
+	ctx.SessionStorage().Get("dev", &h.isDev)
+	ctx.SessionStorage().Get("dbg", &h.isDebug)
+	ctx.SessionStorage().Get("token", &h.sessionToken)
+	ctx.SessionStorage().Clear()
 	app.Logf("******************************* nav")
 }
 func (h *short) OnResize(ctx app.Context) {
@@ -806,7 +863,7 @@ func (h *short) handleError(msg string, err error) {
 	}
 }
 
-func (h *short) createShort() {
+func (h *short) createShort(ctx app.Context) {
 	var err error
 	app.Logf("!!URL: %+#v\n", app.Window().URL())
 	appUrl := app.Window().URL()
@@ -898,6 +955,7 @@ func (h *short) createShort() {
 	}
 	if resp.StatusCode != http.StatusOK {
 		h.handleError(fmt.Sprintf("response status: : %v", resp.StatusCode), nil)
+		h.reload(ctx)
 		return
 	}
 
@@ -1208,10 +1266,9 @@ func (h *short) getTitleHeader() app.UI {
 						Alt("Sh0r7 Logo").
 						Width(200).
 						OnClick(func(ctx app.Context, e app.Event) {
-							url := app.Window().URL()
-							url.Path = webappCommon.ShortPath
-							url.RawQuery = ""
-							app.Window().Get("location").Set("href", url.String())
+							lurl := app.Window().URL()
+							lurl.Path = webappCommon.ShortPath
+							app.Window().Get("location").Set("href", lurl.String())
 						}),
 				),
 			app.Div().
@@ -1224,10 +1281,9 @@ func (h *short) getTitleHeader() app.UI {
 						).
 						Class("clickLinkAble").
 						OnClick(func(ctx app.Context, e app.Event) {
-							url := app.Window().URL()
-							url.Path = webappCommon.ShortPath
-							url.RawQuery = ""
-							app.Window().Get("location").Set("href", url.String())
+							lurl := app.Window().URL()
+							lurl.Path = webappCommon.ShortPath
+							app.Window().Get("location").Set("href", lurl.String())
 						}),
 					app.H2().
 						Styles(

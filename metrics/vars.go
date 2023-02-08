@@ -23,23 +23,24 @@ type MeterCounter struct {
 }
 
 const (
-	Created           = "Created"
-	CreationFailed    = "CreationFailed" // consider add what failure counter?!?
-	ShortExpired      = "ShortExpired"
-	ShortRemoved      = "ShortRemoved"
-	RemoveFailed      = "RemoveFailed"
-	InvalidShort      = "InvalidShort"
-	VisitPublic       = "VisitPublic"
-	PublicFailed      = "PublicFailed"
-	VisitPrivate      = "VisitPrivate"
-	PrivateFailed     = "PrivateFailed"
-	PublicNotAuth     = "PublicNotAuth"
-	PrivateNotAuth    = "PrivateNotAuth"
-	RemoveNotAuth     = "RemoveNotAuth"
-	ServedPathCreate  = "ServedPathCreate"
-	ServedPathPublic  = "ServedPathPublic"
-	ServedPathPrivate = "ServedPathPrivate"
-	ServedPathRemove  = "ServedPathRemove"
+	Created             = "Created"
+	CreationFailed      = "CreationFailed"      // consider add what failure counter?!?
+	CreationFailedToken = "CreationFailedToken" // consider add what failure counter?!?
+	ShortExpired        = "ShortExpired"
+	ShortRemoved        = "ShortRemoved"
+	RemoveFailed        = "RemoveFailed"
+	InvalidShort        = "InvalidShort"
+	VisitPublic         = "VisitPublic"
+	PublicFailed        = "PublicFailed"
+	VisitPrivate        = "VisitPrivate"
+	PrivateFailed       = "PrivateFailed"
+	PublicNotAuth       = "PublicNotAuth"
+	PrivateNotAuth      = "PrivateNotAuth"
+	RemoveNotAuth       = "RemoveNotAuth"
+	ServedPathCreate    = "ServedPathCreate"
+	ServedPathPublic    = "ServedPathPublic"
+	ServedPathPrivate   = "ServedPathPrivate"
+	ServedPathRemove    = "ServedPathRemove"
 )
 
 func NewMeterCounter(name string, elements ...string) *MeterCounter {
@@ -51,11 +52,13 @@ func NewMeterCounter(name string, elements ...string) *MeterCounter {
 	}
 	r.meterCtx = global.MeterProvider().Meter(name)
 	for _, e := range elements {
-		r.counters[e], err = r.meterCtx.Int64ObservableCounter(
+		var x instrument.Int64Observable
+		x, err = r.meterCtx.Int64ObservableCounter(
 			name+"."+e,
 			instrument.WithUnit("1"),
 			instrument.WithDescription(e),
 		)
+		r.counters[e] = x
 		if err != nil {
 			panic(errors.Wrapf(err, "failed to create counter for %s", e))
 		}
@@ -98,6 +101,7 @@ func InitGlobalMeter(name string) *MeterCounter {
 	return NewMeterCounter(name+".global.counters",
 		Created,
 		CreationFailed,
+		CreationFailedToken,
 		ShortExpired,
 		ShortRemoved,
 		RemoveFailed,
