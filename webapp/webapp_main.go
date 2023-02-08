@@ -49,11 +49,6 @@ var (
 	sh0r7H *app.Handler = &app.Handler{
 		Name:        "Sh0r7",
 		Description: "Sh0r7 url and data shortener",
-		Icon: app.Icon{
-			// Default: "/web/sh0r7-website-favicon-color.png",
-			Default: "logoS.png",
-			Large:   "logoL.png",
-		},
 		LoadingLabel: "standby",
 		Styles: []string{
 			// "/web/sh0r7-main.css",
@@ -95,11 +90,11 @@ func webappInit() {
 		"/web/main.css":          true,
 	}
 
+	sh0r7H.Icon = app.Icon{
+		Default: frontend.ImgSource,
+		Large:   frontend.ImgSource,
+	}
 	if gin.Mode() == gin.DebugMode {
-		sh0r7H.Icon = app.Icon{
-			Default: frontend.ImgSource,
-			Large:   frontend.ImgSource,
-		}
 		if wd, err := os.Getwd(); err == nil {
 			if f, err := os.Open(wd + frontend.ImgSource); err == nil {
 				webappServedPaths[frontend.ImgSource] = true
