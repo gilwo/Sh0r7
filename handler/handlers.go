@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httputil"
+	"strings"
 	"time"
 
 	"github.com/gilwo/Sh0r7/metrics"
@@ -200,20 +201,7 @@ func verboseShorts(z map[string]string) (r string) {
 }
 
 func HandleUploadFile(c *gin.Context) {
-	adminKey := c.Query(common.FAdminKey)
-	if adminKey == "" {
-		adminKey = c.Request.Header.Get(common.FAdminKey)
-	}
-	adTok := shortener.GenerateTokenTweaked(adminKey, 0, 32, 0)
-	if adTok == "" {
-		adTok = c.Query(common.FAdminToken)
-		if adTok == "" {
-			adTok = c.Request.Header.Get(common.FAdminToken)
-		}
-	}
-	if adTok == "" || !store.StoreCtx.CheckExistShortDataMapping(adTok) {
-		_spawnErrWithCode(c, http.StatusForbidden, errors.Errorf("operation not allowed"))
-		log.Printf("invalid admin token (%s)\n", adTok)
+	if !validateAdmin(c) {
 		return
 	}
 
@@ -823,6 +811,9 @@ func handleCreateHeaders(c *gin.Context, res map[string]string) error {
 }
 
 func HandleDumpKeys(c *gin.Context) {
+	if !validateAdmin(c) {
+		return
+	}
 	res := store.StoreCtx.GenFunc(store.STORE_FUNC_DUMPALL).(string)
 	log.Println("!! dumpall: \n" + res)
 	c.String(200, "%s", res)
@@ -928,4 +919,27 @@ func checkReserveNames(name string) resTri {
 	}
 
 	return r.True()
+}
+
+// validateAdmin check for admin key or admin token, if not exits or failed to validate then update reponse and return false otherwise true
+func validateAdmin(c *gin.Context) bool {
+	var adTok string
+	adminKey := c.Query(strings.ToLower(common.FAdminKey))
+	if adminKey == "" {
+		adminKey = c.Request.Header.Get(strings.ToLower(common.FAdminKey))
+	} else {
+		adTok = shortener.GenerateTokenTweaked(adminKey, 0, 32, 0)
+	}
+	if adminKey == "" {
+		adTok = c.Query(strings.ToLower(common.FAdminToken))
+		if adTok == "" {
+			adTok = c.Request.Header.Get(strings.ToLower(common.FAdminToken))
+		}
+	}
+	if adTok == "" || !store.StoreCtx.CheckExistShortDataMapping(adTok) {
+		_spawnErrWithCode(c, http.StatusForbidden, errors.Errorf("operation not allowed"))
+		log.Printf("invalid admin token (%s)\n", adTok)
+		return false
+	}
+	return true
 }
