@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sync"
 
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel/metric"
@@ -16,10 +17,11 @@ var (
 )
 
 type MeterCounter struct {
-	meterCtx     metric.Meter
-	name         string
-	counters     map[string]instrument.Int64ObservableCounter
-	meterNumbers map[instrument.Int64ObservableCounter]int64
+	meterCtx       metric.Meter
+	name           string
+	counters       *sync.Map // - map[string]instrument.Int64ObservableCounter
+	countersRegist *sync.Map // - map[string]instrument.Int64ObservableCounter
+	meterNumbers   *sync.Map // - map[instrument.Int64ObservableCounter]int64
 }
 
 const (
@@ -46,9 +48,10 @@ const (
 func NewMeterCounter(name string, elements ...string) *MeterCounter {
 	var err error
 	r := &MeterCounter{
-		name:         name,
-		counters:     map[string]instrument.Int64ObservableCounter{},
-		meterNumbers: map[instrument.Int64ObservableCounter]int64{},
+		name: name,
+		counters:       &sync.Map{},
+		countersRegist: &sync.Map{},
+		meterNumbers:   &sync.Map{},
 	}
 	r.meterCtx = global.MeterProvider().Meter(name)
 	for _, e := range elements {
@@ -58,40 +61,56 @@ func NewMeterCounter(name string, elements ...string) *MeterCounter {
 			instrument.WithUnit("1"),
 			instrument.WithDescription(e),
 		)
-		r.counters[e] = x
+		r.counters.Store(e, x)
 		if err != nil {
 			panic(errors.Wrapf(err, "failed to create counter for %s", e))
 		}
-		r.meterNumbers[r.counters[e]] = 0
+		r.meterNumbers.Store(x, int64(0))
 	}
-	for k, v := range r.counters {
-		counterName := k
-		counter := v
+	r.counters.Range(func(key, value any) bool {
+
+		counterName := key.(string)
+		counter := value.(instrument.Int64ObservableCounter)
 		regist, err := r.meterCtx.RegisterCallback(func(ctx context.Context, o metric.Observer) error {
-			o.ObserveInt64(counter, r.meterNumbers[counter])
+			v, ok := r.meterNumbers.Load(counter)
+			if !ok {
+				panic("key not exists in map")
+			}
+			o.ObserveInt64(counter, v.(int64))
 			return nil
 		}, counter)
 		if err != nil {
 			panic(errors.Wrapf(err, "failed to register meter callback for %s (%s)", name, counterName))
 		}
-		regist = regist // TODO: FIXME ... handle properly
-	}
+		r.countersRegist.Store(counterName, regist)
+		return true
+	})
 	return r
 }
 
 func (mc *MeterCounter) Dump() string {
 	s := ""
-	for k, e := range mc.counters {
-		s += fmt.Sprintf("%s: %d\n", k, mc.meterNumbers[e])
-	}
+	mc.counters.Range(func(key, value any) bool {
+		counterName := key.(string)
+		counter := value.(instrument.Int64ObservableCounter)
+		v, ok := mc.meterNumbers.Load(counter)
+		if !ok {
+			panic("key not found in map")
+		}
+		s += fmt.Sprintf("%s: %d\n", counterName, v)
+		return true
+	})
 	return s
 }
 
 func (mc *MeterCounter) IncMeterCounter(name string) {
-	if v, ok := mc.counters[name]; ok {
-		if _, ok = mc.meterNumbers[v]; ok {
-			mc.meterNumbers[v] = mc.meterNumbers[v] + 1
-			return
+	v, ok := mc.counters.Load(name)
+	if ok {
+		vCounter := v.(instrument.Int64ObservableCounter)
+		v, ok = mc.meterNumbers.Load(vCounter)
+		if ok {
+			vNum := v.(int64)
+			mc.meterNumbers.Store(vCounter, vNum+1)
 		}
 	}
 	log.Printf("error on metric counter %s:%s\n", mc.name, name)
