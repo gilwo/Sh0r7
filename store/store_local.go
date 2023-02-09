@@ -196,7 +196,11 @@ func (st *StorageLocal) dumpAll() string {
 	return res
 }
 func (st *StorageLocal) dumpKey(k string) string {
-	if v, ok := st.cacheSync.Load(st._pad(k)); ok {
+	v, ok := st.cacheSync.Load(k)
+	if !ok {
+		v, ok = st.cacheSync.Load(st._pad(k))
+	}
+	if ok {
 		tup := v.(*stringTuple)
 		return tup.Dump()
 	}

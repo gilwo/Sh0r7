@@ -282,9 +282,14 @@ func (st *StorageRedis) dumpAll() string {
 	return res
 }
 func (st *StorageRedis) dumpKey(k string) string {
-	res, err := st.redisClient.Get(ctx, st._pad(k)).Result()
+	res, err := st.redisClient.Get(ctx, k).Result()
 	if err == redis.Nil {
-		return "invalid"
+		res, err = st.redisClient.Get(ctx, st._pad(k)).Result()
+		if err == redis.Nil {
+			return "invalid"
+		} else if err != nil {
+			return "error"
+		}
 	}
 	tup := NewTuple()
 	err = tup.unpackMsgPack([]byte(res))
