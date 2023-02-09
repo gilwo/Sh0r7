@@ -319,7 +319,7 @@ func (h *short) OptionExpire() app.UI {
 								),
 								app.Div().Class("input-group-addon"),
 							).Else(
-								app.Input().Class("form-control").ReadOnly(true).Value("Default expiration (12 hours)").
+								app.Input().Class("form-control").ReadOnly(true).Value("Default expiration (2 hours)").
 									OnClick(func(ctx app.Context, e app.Event) {
 										elem := app.Window().GetElementByID("checkboxExpire")
 										elem.Set("checked", true)

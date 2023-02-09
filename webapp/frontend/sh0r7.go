@@ -143,7 +143,10 @@ func (h *short) RenderPrivate() app.UI {
 													ID("resultUserPassword").
 													Class("form-control").
 													Type("password").
-													Placeholder("Password"),
+													Placeholder("Password").
+													OnKeyDown(preventEnter).
+													OnKeyPress(preventEnter).
+													OnKeyUp(preventEnter),
 											),
 
 										app.Button().
@@ -296,7 +299,12 @@ func (h *short) RenderPublic() app.UI {
 			} else {
 				return app.Div().
 					Body(
-						app.Text(out[store.FieldDATA]),
+						app.Pre().
+							ContentEditable(false).
+							}).
+							Body(
+								app.Text(out[store.FieldDATA]),
+							),
 					)
 			}
 		}
@@ -319,7 +327,10 @@ func (h *short) RenderPublic() app.UI {
 											ID("resultUserPassword").
 											Class("form-control").
 											Type("password").
-											Placeholder("Password"),
+											Placeholder("Password").
+											OnKeyDown(preventEnter).
+											OnKeyPress(preventEnter).
+											OnKeyUp(preventEnter),
 									),
 
 								app.Button().
@@ -377,7 +388,10 @@ func (h *short) RenderRemove() app.UI {
 											ID("resultUserPassword").
 											Class("form-control").
 											Type("password").
-											Placeholder("Password"),
+											Placeholder("Password").
+											OnKeyDown(preventEnter).
+											OnKeyPress(preventEnter).
+											OnKeyUp(preventEnter),
 									),
 
 								app.Button().
@@ -1465,4 +1479,11 @@ func (h *short) DebugWindow() app.UI {
 				Body(app.Text("messages goes here...")),
 		)
 	return r
+}
+
+func preventEnter(ctx app.Context, e app.Event) {
+	keyCode := e.Get("keyCode").Int()
+	if keyCode == 13 { // preventing enter
+		e.PreventDefault()
+	}
 }

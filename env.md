@@ -31,16 +31,18 @@ valid `ip:addr` to override default
 ### *SH0R7_EXPIRATION*
 amount of time for default expiration of shorts - any valid duration (parsed by go ParseDuration) to override default
 
+--
 ## Deployment
 ### *SH0R7_DEPLOY*
 indicate the deployment type:
-- `prod` : production service
-- `dev` : development service
+- `production` : production service
+- `developmenty` : development service
+- `staging` : staging service
+- `testing` : test service
 - `localdev` : run as local development service
 
 ## Dev 
 ---
-### *__DEV_ENV*
 ### *SH0R7__DEV_ENV*
 enable some dev helper stuff
 ### *SH0R7_DEV_HOST*
