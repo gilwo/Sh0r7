@@ -301,7 +301,6 @@ func (h *short) RenderPublic() app.UI {
 					Body(
 						app.Pre().
 							ContentEditable(false).
-							}).
 							Body(
 								app.Text(out[store.FieldDATA]),
 							),
