@@ -293,7 +293,7 @@ func (st *StorageRedis) dumpKey(k string) string {
 	}
 	tup := NewTuple()
 	err = tup.unpackMsgPack([]byte(res))
-	if err != nil {
+	if err == nil {
 		return tup.Dump()
 	}
 	return "empty"
