@@ -853,6 +853,8 @@ func (h *short) OnUpdate(ctx app.Context) {
 func (h *short) OnAppUpdate(ctx app.Context) {
 	h.updateAvailable = ctx.AppUpdateAvailable()
 	app.Logf("******************************* app update: %v\n", h.updateAvailable)
+	app.Log("!!! reloading ...")
+	ctx.Reload() // TODO:  maybe do it async .. ?, maybe dont force update .. ?
 }
 
 func urlCheck(s string) (string, bool) {

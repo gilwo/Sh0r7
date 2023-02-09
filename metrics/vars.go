@@ -3,7 +3,6 @@ package metrics
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -113,7 +112,6 @@ func (mc *MeterCounter) IncMeterCounter(name string) {
 			mc.meterNumbers.Store(vCounter, vNum+1)
 		}
 	}
-	log.Printf("error on metric counter %s:%s\n", mc.name, name)
 }
 
 func InitGlobalMeter(name string) *MeterCounter {
