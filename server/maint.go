@@ -10,11 +10,30 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type maint struct {
+	added time.Time
+	due   time.Duration
+}
+
+func (m maint) String() string {
+	return "added: " + m.added.Format(time.RFC3339) + ", due: " + m.added.Add(m.due).Format(time.RFC3339)
+}
+
+func DumpMaintList() []string {
+	r := []string{}
+	for _, e := range maintList() {
+		r = append(r, e.String())
+	}
+	log.Printf("maintlist:\n%s\n", r)
+	return r
+}
+
 var (
 	processQueueChan chan (*maintQueueElem)
 	quit             chan (any)
 	done             chan (any)
 	queueCountA      atomic.Int32
+	maintList        func() []maint
 )
 
 const (
@@ -35,6 +54,7 @@ func init() {
 	processQueueChan = make(chan *maintQueueElem, PROCESS_QUEUE_MAX)
 	quit = make(chan any)
 	done = make(chan any)
+	maintList = func() []maint { return nil }
 }
 
 func QueueMaintWork() {
@@ -61,6 +81,9 @@ func addToQueue(e *maintQueueElem) bool {
 	}
 	processQueueChan <- e
 	queueCountA.Add(1)
+	l := maintList()
+	maintList = func() []maint { return append(l, maint{added: time.Now(), due: e.when}) }
+
 	log.Printf("queue have %d works\n", queueCountA.Load())
 	return true
 }
@@ -71,6 +94,10 @@ func workProcessor() {
 	case <-time.After(b.when):
 		log.Printf("maintainence triggered after %s\n", b.when)
 		store.Maintainence()
+		l := maintList()
+		maintList = func() []maint {
+			return append([]maint{}, l[1:]...)
+		}
 	case <-quit:
 		defer close(done)
 		return

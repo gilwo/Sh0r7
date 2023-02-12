@@ -810,6 +810,15 @@ func handleCreateHeaders(c *gin.Context, res map[string]string) error {
 	return nil
 }
 
+func HandleDumpMaint(c *gin.Context, dumpFunc func() []string) {
+	if !validateAdmin(c) {
+		return
+	}
+	res := strings.Join(dumpFunc(), "\n")
+	log.Println("!! dump maint listl: \n" + res)
+	c.String(200, "%s", res)
+}
+
 func HandleDumpKeys(c *gin.Context) {
 	if !validateAdmin(c) {
 		return

@@ -218,7 +218,11 @@ func GinInit() *gin.Engine {
 
 		if paramShort == "hc" {
 			defer QueueMaintWork()
-			c.String(200, "")
+			if paramExt == "dump" {
+				handler.HandleDumpMaint(c, DumpMaintList)
+				return
+			}
+			c.Status(200)
 		} else if paramShort == "favicon.ico" {
 			c.FileFromFS(".", handler.HandleGetFavIcon())
 		} else if paramExt == "info" {
