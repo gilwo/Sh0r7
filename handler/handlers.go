@@ -908,7 +908,7 @@ func checkReserveNames(name string) resTri {
 	r := ResTri()
 
 	switch name {
-	case "web", "favicon.ico", "admin", "create-short-date",
+	case "web", "favicon.ico", "admin", "create-short-data",
 		"create-short-url", "app.css", "wasm_exec.js", "app.js",
 		"dump",
 		common.ShortPath,
