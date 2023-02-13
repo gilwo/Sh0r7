@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -29,6 +30,9 @@ import (
 )
 
 func init() {
+	n, e := strconv.ParseInt(common.BuildTime, 10, 64)
+	t := time.Unix(n, 0).UTC()
+	log.Printf("BuildVersion: <%s> time: <%v> (%v)\n", common.BuildVersion, t, e)
 	if strings.ToLower(os.Getenv("SH0R7_PRODUCTION")) == "true" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -299,7 +303,7 @@ func initUptrace() {
 		if _, ok := os.LookupEnv("RENDER"); ok {
 			panic("invalid deploy type " + deploy + " for render environment")
 		}
-		version = deploy // TODO - add build time ??
+		version = common.BuildTime
 	default:
 		panic("deploy type not familiar: [" + deploy + "]")
 	}
@@ -307,13 +311,13 @@ func initUptrace() {
 		prefix = os.Getenv("RENDER_SERVICE_NAME")
 		version = os.Getenv("RENDER_GIT_COMMIT")
 		if deploy == "production" {
-			version = "v.0.0.0-alpha" // TODO : grab from tag
+			version = common.BuildVersion
 		}
 	} else if _, ok := os.LookupEnv("SH0R7__DEV_ENV"); ok {
 		log.Default().SetFlags(log.Flags() | log.Llongfile)
 		common.IsDevEnv = true
 		prefix = os.Getenv("SH0R7_DEV_HOST")
-		version = deploy
+		version = common.SourceTime
 	}
 
 	OpenTelemetryServiceName = prefix + "." + deploy + ".sh0r7.me"

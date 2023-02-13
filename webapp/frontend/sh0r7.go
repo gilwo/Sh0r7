@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilwo/Sh0r7/common"
 	"github.com/gilwo/Sh0r7/shortener"
 	"github.com/gilwo/Sh0r7/store"
 	webappCommon "github.com/gilwo/Sh0r7/webapp/common"
@@ -65,9 +66,6 @@ const (
 var (
 	ImgSource = "/web/logo.jpg"
 	// imgSource: "logoL.png",
-	BuildVer          string = "dev"
-	BuildTime         string = "now"
-	ExternalTimeBuild string = "now"
 )
 
 func (h *short) RenderPrivate() app.UI {
@@ -479,10 +477,15 @@ func (h *short) Render() app.UI {
 									app.Text(func() string {
 										r := NOTEMESSAGE
 										if h.isDev {
-											if BuildVer != "" {
-												r += " (" + BuildVer + ")"
+											if common.BuildVersion != "" {
+												r += " (" + common.BuildVersion + ")"
 											}
-											r += " " + ExternalTimeBuild
+											t := common.SourceTime
+											n, e := strconv.ParseInt(strings.TrimSuffix(t, "*"), 10, 64)
+											if e == nil {
+												t = time.Unix(n, 0).UTC().String()
+											}
+											r += " " + t
 										}
 										return r
 									}()),
@@ -822,7 +825,7 @@ func (h *short) logInit() {
 
 func (h *short) OnInit() {
 	h.load2(nil)
-	app.Logf("******************************* init - build ver :<%s>, time: <%s>\n", BuildVer, BuildTime)
+	app.Logf("******************************* init - build version :<%s>, time: <%s>\n", common.BuildVersion, common.BuildTime)
 }
 func (h *short) OnPreRender(ctx app.Context) {
 	app.Logf("******************************* prerender")
