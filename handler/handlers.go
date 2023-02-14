@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httputil"
+	"net/url"
 	"strings"
 	"time"
 
@@ -582,7 +583,23 @@ func handleData(c *gin.Context) (r resTri) {
 		_spawnErrWithCode(c, http.StatusInternalServerError, errMsg)
 		return r.False()
 	}
-	c.String(200, "%s", data)
+	if c.Request.Header.Get("xRedirect") == "no" {
+		c.String(200, "%s", data)
+	} else if c.Request.URL.Query().Has("app") {
+		redirect, err := url.ParseRequestURI(c.Request.RequestURI)
+		if err != nil {
+			log.Printf("failed to parse request uri: %s\n", err)
+			c.Status(http.StatusInternalServerError)
+			return r.False()
+		}
+		redirect.Path = common.PublicPath
+		redirect.RawQuery = common.FShortKey + "=" + short
+		c.Redirect(http.StatusFound, redirect.String())
+	} else {
+		c.HTML(http.StatusOK, "public-show-no-lock", gin.H{
+			"Data": string(data),
+		})
+	}
 
 	return r.True()
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 	"os"
@@ -277,7 +278,22 @@ func GinInit() *gin.Engine {
 	r.DELETE("/:short", func(c *gin.Context) {
 		handler.RemoveShortData(c)
 	})
+	registerTemplates(r)
 	return r
+}
+
+func registerTemplates(r *gin.Engine) {
+	templateShowPublic, err := template.New("public-show-no-lock").Parse(`<!doctype html>
+	<html lang="en">
+	<head>
+	<link type="text/css" rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+	</head><body>
+	<div><pre contenteditable="false">{{.Data}}</pre></div>
+	</body></html>`)
+	if err != nil {
+		panic(err)
+	}
+	r.SetHTMLTemplate(templateShowPublic)
 }
 
 var (

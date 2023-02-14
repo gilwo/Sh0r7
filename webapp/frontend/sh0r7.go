@@ -802,8 +802,16 @@ func (h *short) load2(ctx app.Context) {
 
 func (h *short) logInit() {
 	lurl := app.Window().URL()
-	for k := range lurl.Query() {
-		decQuery, _ := shortener.Base64SE.Decode(k)
+	for k, v := range lurl.Query() {
+		var decQuery []byte
+		if len(v) > 0 {
+			if len(v) > 1 {
+				app.Logf("skipping non first values for key %s\n", k)
+			}
+			decQuery, _ = shortener.Base64SE.Decode(v[0])
+		} else {
+			decQuery, _ = shortener.Base64SE.Decode(k)
+		}
 		decQueryFields := strings.Split(string(decQuery), "$$")
 		if webappCommon.SliceContains(decQueryFields, "##dev##") {
 			h.isDev = true

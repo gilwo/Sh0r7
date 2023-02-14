@@ -16,7 +16,7 @@ type maint struct {
 }
 
 func (m maint) String() string {
-	return "added: " + m.added.Format(time.RFC3339) + ", due: " + m.added.Add(m.due).Format(time.RFC3339)
+	return "added: " + m.added.Format(time.RFC3339) + ", due: " + m.due.String()
 }
 
 func DumpMaintList() []string {
