@@ -1,5 +1,4 @@
 ifndef VERSION
-    # VERSION = $(shell git describe --always --long --dirty)
     VERSION = `[ -e .version ] && cat .version || git describe --always --long --dirty`
 endif
 
@@ -11,8 +10,11 @@ endif
 
 
 BUILD_TIME_EPOCH = $(shell date +%s)
-GIT_COMMIT := $(shell git log --pretty=format:"%h" -n 1 webapp/common webapp/front webapp/frontend/)
-BUILD_TIME := $(shell date)
+
+LDFLAGS=-ldflags \
+	"-X 'github.com/gilwo/Sh0r7/common.BuildVersion=${VERSION}' \
+	-X 'github.com/gilwo/Sh0r7/common.SourceTime=${SOURCE_DATE_EPOCH2}' \
+	-X 'github.com/gilwo/Sh0r7/common.BuildTime=${BUILD_TIME_EPOCH}'"
 
 all: build-web build
 
@@ -28,17 +30,11 @@ web: build-web
 webprod: build-web-prod
 
 build-web: echo-version
-	GOOS=js GOARCH=wasm go build -ldflags \
-	"-X 'github.com/gilwo/Sh0r7/common.BuildVersion=${VERSION}' \
-	-X 'github.com/gilwo/Sh0r7/common.SourceTime=${SOURCE_DATE_EPOCH2}' \
-	-X 'github.com/gilwo/Sh0r7/common.BuildTime=${BUILD_TIME_EPOCH}'" \
+	GOOS=js GOARCH=wasm go build ${LDFLAGS} \
 	-o web/app.wasm webapp/front/front_main.go
 
 build-web-prod: echo-version
-	GOOS=js GOARCH=wasm go build -ldflags \
-	"-X 'github.com/gilwo/Sh0r7/common.BuildVersion=${VERSION}' \
-	-X 'github.com/gilwo/Sh0r7/common.SourceTime=${SOURCE_DATE_EPOCH2}' \
-	-X 'github.com/gilwo/Sh0r7/common.BuildTime=${BUILD_TIME_EPOCH}'" \
+	GOOS=js GOARCH=wasm go build ${LDFLAGS} \
 	-tags prod -o web/app.wasm webapp/front/front_main.go
 
 build:
@@ -47,10 +43,7 @@ build:
 run: run-local
 
 run-local: build-web
-	go run -ldflags \
-	"-X 'github.com/gilwo/Sh0r7/common.BuildVersion=${VERSION}' \
-	-X 'github.com/gilwo/Sh0r7/common.SourceTime=${SOURCE_DATE_EPOCH2}' \
-	-X 'github.com/gilwo/Sh0r7/common.BuildTime=${BUILD_TIME_EPOCH}'" \
+	go run ${LDFLAGS}  \
 	-tags webapp main.go -webapp -local
 
 get-version:
@@ -69,11 +62,7 @@ else
 endif
 
 deploy: get-version build-web-prod
-	go build -tags netgo,webapp,prod,redis -ldflags '-s -w' -ldflags \
-	"-X 'github.com/gilwo/Sh0r7/common.BuildVersion=${VERSION}' \
-	-X 'github.com/gilwo/Sh0r7/common.SourceTime=${SOURCE_DATE_EPOCH2}' \
-	-X 'github.com/gilwo/Sh0r7/common.BuildTime=${BUILD_TIME_EPOCH}'" \
-	-o app
+	go build -tags netgo,webapp,prod,redis -ldflags '-s -w' ${LDFLAGS} -o app
 
 run-prod-local: deploy
 	./app -webapp -local
