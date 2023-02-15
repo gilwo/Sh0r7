@@ -284,12 +284,12 @@ func GinInit() *gin.Engine {
 
 func registerTemplates(r *gin.Engine) {
 	templateShowPublic, err := template.New("public-show-no-lock").Parse(`<!doctype html>
-	<html lang="en">
-	<head>
-	<link type="text/css" rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
-	</head><body>
-	<div><pre contenteditable="false">{{.Data}}</pre></div>
-	</body></html>`)
+<html lang="en"><head>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover">
+<link type="text/css" rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+</head><body>
+<div><pre contenteditable="false">{{.Data}}</pre></div>
+</body></html>`)
 	if err != nil {
 		panic(err)
 	}
