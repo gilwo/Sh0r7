@@ -214,21 +214,7 @@ func GinInit() *gin.Engine {
 		paramExt := strings.Trim(c.Param("ext"), "/")
 		log.Printf("generic handler: short <%s>, ext <%s>\n", paramShort, paramExt)
 
-		// if common.WebappGenFunc != nil {
-		// 	res := common.WebappGenFunc("SERVE", c)
-		// 	if res.(bool) {
-		// 		return
-		// 	}
-		// }
-
-		if paramShort == "hc" {
-			defer QueueMaintWork()
-			if paramExt == "dump" {
-				handler.HandleDumpMaint(c, DumpMaintList)
-				return
-			}
-			c.Status(200)
-		} else if paramShort == "favicon.ico" {
+		if paramShort == "favicon.ico" {
 			c.FileFromFS(".", handler.HandleGetFavIcon())
 		} else if paramExt == "info" {
 			handler.HandleGetShortDataInfo(c)
@@ -245,6 +231,19 @@ func GinInit() *gin.Engine {
 	r.GET("/", genericHandleShort)
 	r.GET("/:short", genericHandleShort)
 	r.GET("/:short/*ext", genericHandleShort)
+
+	handleHealthCheck := func(c *gin.Context) {
+		if time.Now().Unix()%10 >= 5 {
+			defer QueueMaintWork()
+		}
+		if strings.Trim(c.Param("hcparam"), "/") == "dump" {
+			handler.HandleDumpMaint(c, DumpMaintList)
+			return
+		}
+		c.Status(200)
+	}
+	r.GET("/hc", handleHealthCheck)
+	r.GET("/hc/*hcparam", handleHealthCheck)
 
 	// create short for url
 	r.POST("/create-short-url", func(c *gin.Context) {
