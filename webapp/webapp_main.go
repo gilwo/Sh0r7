@@ -445,17 +445,21 @@ func checkSaltTokenStillValid(c *gin.Context) bool {
 	if len(qVals) < 1 { // all values under the same field
 		return false
 	}
-	stid, ok := qVals[webappCommon.FSaltTokenID]
+	stidQuery, ok := qVals[webappCommon.FSaltTokenID]
 	if !ok {
 		log.Printf("not field %s\n", webappCommon.FSaltTokenID)
 		return false
 	}
-	x, err := shortener.Base64SE.Decode(stid[0])
+	x, err := shortener.Base64SE.Decode(stidQuery[0])
 	if err != nil {
 		app.Logf("problem with stid : %s\n", err)
 		return false
 	}
-	stid = strings.Split(string(x), "$$")
+	stid := strings.Split(string(x), "$$")
+	if len(stid) < 3 {
+		log.Printf("stid string malformed <%s>\n", string(x))
+		return false
+	}
 	seed := stid[0]
 	tokenLen, err := strconv.Atoi(stid[1])
 	if err != nil {
