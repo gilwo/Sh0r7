@@ -308,7 +308,7 @@ func initUptrace() {
 	// .debug / .test - relevant for gin mode
 	// deploy type - must be defined
 	prefix := ""
-	version := ""
+	version := common.BuildVersion
 	deploy := ""
 	switch deploy = os.Getenv("SH0R7_DEPLOY"); deploy {
 	case "production", "development":
@@ -318,21 +318,20 @@ func initUptrace() {
 		if _, ok := os.LookupEnv("RENDER"); ok {
 			panic("invalid deploy type " + deploy + " for render environment")
 		}
-		version = common.BuildTime
+		version += ":build@" + common.BuildTime
 	default:
 		panic("deploy type not familiar: [" + deploy + "]")
 	}
 	if _, ok := os.LookupEnv("RENDER"); ok {
 		prefix = os.Getenv("RENDER_SERVICE_NAME")
-		version = os.Getenv("RENDER_GIT_COMMIT")
-		if deploy == "production" {
-			version = common.BuildVersion
+		if len(version) == 0 {
+			version = os.Getenv("RENDER_GIT_COMMIT")
 		}
 	} else if _, ok := os.LookupEnv("SH0R7__DEV_ENV"); ok {
 		log.Default().SetFlags(log.Flags() | log.Llongfile)
 		common.IsDevEnv = true
 		prefix = os.Getenv("SH0R7_DEV_HOST")
-		version = common.SourceTime
+		version += ":source@" + common.SourceTime
 	}
 
 	OpenTelemetryServiceName = prefix + "." + deploy + ".sh0r7.me"
