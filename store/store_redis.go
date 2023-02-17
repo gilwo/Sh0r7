@@ -218,7 +218,7 @@ func (st *StorageRedis) GetMetaDataMapping(short, key string) (string, error) {
 	return r, nil
 }
 func (st *StorageRedis) RemoveDataMapping(short string) error {
-	v, err := st.redisClient.Del(ctx, st._pad(short)).Result()
+	v, err := st.redisClient.Unlink(ctx, st._pad(short)).Result()
 	if err != nil {
 		if err == redis.Nil {
 			return errors.Wrapf(err, "redis key <%s> not found", short)
@@ -302,7 +302,7 @@ func (st *StorageRedis) dumpKey(k string) string {
 // need to test ...
 func (st *StorageRedis) _removeKeys(ks []string) []error {
 	log.Printf("** removing keys: %#v\n", ks)
-	v, err := st.redisClient.Del(ctx, ks...).Result()
+	v, err := st.redisClient.Unlink(ctx, ks...).Result()
 	if err != nil {
 		if err == redis.Nil {
 			return []error{errors.Wrapf(err, "redis key not found")}
