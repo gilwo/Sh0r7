@@ -7,6 +7,8 @@ import (
 
 	"github.com/gilwo/Sh0r7/store"
 	"github.com/maxence-charriere/go-app/v9/pkg/app"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 func (h *short) shortCreationOutput() app.UI {
@@ -471,7 +473,7 @@ func (h *short) OptionPublic() app.UI {
 		ID("shortOption6Wrapper").
 		Class("row").
 		Body(
-			h.passwordOption(&h.isPublicPassword, &h.isPublicPasswordShown, "public"),
+			h.passwordOption("public"),
 		)
 }
 
@@ -537,7 +539,7 @@ func (h *short) OptionPrivate() app.UI {
 						),
 				),
 			app.If(h.isOptionPrivate,
-				h.passwordOption(&h.isPrivatePassword, &h.isPrivatePasswordShown, "private"),
+				h.passwordOption("private"),
 			),
 		)
 }
@@ -603,7 +605,104 @@ func (h *short) OptionRemove() app.UI {
 						),
 				),
 			app.If(h.isOptionRemove,
-				h.passwordOption(&h.isRemovePassword, &h.isRemovePasswordShown, "remove"),
+				h.passwordOption("remove"),
 			),
+		)
+}
+
+func (h *short) passwordOption(which string) app.HTMLDiv {
+	var isPassword, isPasswordShown *bool
+	whichTitle := cases.Title(language.English).String(which)
+
+	switch which {
+	case "public":
+		isPassword = &h.isPublicPassword
+		isPasswordShown = &h.isPublicPasswordShown
+	case "private":
+		isPassword = &h.isPrivatePassword
+		isPasswordShown = &h.isPrivatePasswordShown
+	case "remove":
+		isPassword = &h.isRemovePassword
+		isPasswordShown = &h.isRemovePasswordShown
+	}
+	return app.Div().
+		Class("form-group").
+		Class("col-md-offset-2", "col-md-6", "col-sm-offset-2", "col-sm-6", "_col-xs-offset-1", "_col-xs-10").
+		Body(
+			app.Div().
+				Class("input-group").
+				Class(func() string {
+					if *isPassword {
+						return "has-success"
+					}
+					return "has-warning"
+				}()).
+				Title("limit access to "+which+" link with password").
+				ID(which+"AccessPassword").
+				Body(
+					app.Label().
+						Class("input-group-addon").
+						Body(
+							app.Input().
+								Type("checkbox").
+								ID("checkbox"+whichTitle+"Password").
+								Value("").
+								OnClick(func(ctx app.Context, e app.Event) {
+									elem := ctx.JSSrc()
+									app.Logf("checkbox element: <%s>\n", elem.Get("id").String())
+									*isPassword = ctx.JSSrc().Get("checked").Bool()
+									app.Logf("chkbox: setting %s to %v\n", which, *isPassword)
+								}),
+						),
+					app.If(*isPassword,
+						app.Div().Class("input-group-addon").Body(
+							app.Label().Body(
+								app.Text(whichTitle+" password"),
+							).OnClick(func(ctx app.Context, e app.Event) {
+								elem := app.Window().GetElementByID("checkbox" + whichTitle + "Password")
+								elem.Set("checked", false)
+								*isPassword = false
+								app.Logf("password addon: setting %s to %v\n", which, *isPassword)
+							}),
+						),
+						app.Input().
+							Class("form-control").
+							Class("syncTextStyle").
+							ID(which+"PasswordText").
+							Value("").
+							ReadOnly(false).Type("password"),
+						func() app.UI {
+							classIcon := "glyphicon glyphicon-eye-close"
+							return app.Label().Class("input-group-addon").
+								Body(
+									app.Span().
+										ID(which + "PasswordReveal").
+										Class(classIcon),
+								).
+								OnClick(func(ctx app.Context, e app.Event) {
+									*isPasswordShown = !*isPasswordShown
+									inputType := "password"
+									classIcon = "glyphicon glyphicon-eye-close"
+									if *isPasswordShown {
+										inputType = "text"
+										classIcon = "glyphicon glyphicon-eye-open"
+									}
+									el := app.Window().GetElementByID(which + "PasswordText")
+									el.Set("type", inputType)
+									jui := app.Window().GetElementByID(which + "PasswordReveal")
+									class := jui.Get("attributes").Get("class")
+									class.Set("value", classIcon)
+								})
+						}(),
+					).Else(
+						app.Input().Class("form-control").ReadOnly(true).Value("No password on "+which+" link").
+							OnClick(func(ctx app.Context, e app.Event) {
+								elem := app.Window().GetElementByID("checkbox" + whichTitle + "Password")
+								elem.Set("checked", true)
+								*isPassword = true
+								app.Logf("no password: setting %s to %v\n", which, *isPassword)
+							}),
+					),
+				),
 		)
 }

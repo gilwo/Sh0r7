@@ -18,8 +18,6 @@ import (
 	webappCommon "github.com/gilwo/Sh0r7/webapp/common"
 	"github.com/google/uuid"
 	"github.com/maxence-charriere/go-app/v9/pkg/app"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 )
 
 type short struct {
@@ -1324,101 +1322,6 @@ func (h *short) getTitleHeader() app.UI {
 								),
 							app.Text(" only URLs!"),
 						),
-				),
-		)
-}
-
-func (h *short) passwordOption(isPassword, isPasswordShown *bool, which string) app.HTMLDiv {
-	whichTitle := cases.Title(language.English).String(which)
-
-	switch which {
-	case "public":
-		isPassword = &h.isPublicPassword
-		isPasswordShown = &h.isPublicPasswordShown
-	case "private":
-		isPassword = &h.isPrivatePassword
-		isPasswordShown = &h.isPrivatePasswordShown
-	case "remove":
-		isPassword = &h.isRemovePassword
-		isPasswordShown = &h.isRemovePasswordShown
-	}
-	return app.Div().
-		Class("form-group").
-		Class("col-md-offset-2", "col-md-6", "col-sm-offset-2", "col-sm-6", "_col-xs-offset-1", "_col-xs-10").
-		Body(
-			app.Div().
-				Class("input-group").
-				Class(func() string {
-					if *isPassword {
-						return "has-success"
-					}
-					return "has-warning"
-				}()).
-				Title("limit access to "+which+" link with password").
-				ID(which+"AccessPassword").
-				Body(
-					app.Label().
-						Class("input-group-addon").
-						Body(
-							app.Input().
-								Type("checkbox").
-								ID("checkbox"+whichTitle+"Password").
-								Value("").
-								OnClick(func(ctx app.Context, e app.Event) {
-									elem := ctx.JSSrc()
-									app.Logf("checkbox element: <%s>\n", elem.Get("id").String())
-									*isPassword = ctx.JSSrc().Get("checked").Bool()
-									app.Logf("chkbox: setting %s to %v\n", which, *isPassword)
-								}),
-						),
-					app.If(*isPassword,
-						app.Div().Class("input-group-addon").Body(
-							app.Label().Body(
-								app.Text(whichTitle+" password"),
-							).OnClick(func(ctx app.Context, e app.Event) {
-								elem := app.Window().GetElementByID("checkbox" + whichTitle + "Password")
-								elem.Set("checked", false)
-								*isPassword = false
-								app.Logf("password addon: setting %s to %v\n", which, *isPassword)
-							}),
-						),
-						app.Input().
-							Class("form-control").
-							Class("syncTextStyle").
-							ID(which+"PasswordText").
-							Value("").
-							ReadOnly(false).Type("password"),
-						func() app.UI {
-							classIcon := "glyphicon glyphicon-eye-close"
-							return app.Label().Class("input-group-addon").
-								Body(
-									app.Span().
-										ID(which + "PasswordReveal").
-										Class(classIcon),
-								).
-								OnClick(func(ctx app.Context, e app.Event) {
-									*isPasswordShown = !*isPasswordShown
-									inputType := "password"
-									if *isPasswordShown {
-										inputType = "text"
-										classIcon = "glyphicon glyphicon-eye-open"
-									}
-									el := app.Window().GetElementByID(which + "PasswordText")
-									el.Set("type", inputType)
-									jui := app.Window().GetElementByID(which + "PasswordReveal")
-									attrs := jui.Get("attributes")
-									attrs.Set("class", classIcon)
-								})
-						}(),
-					).Else(
-						app.Input().Class("form-control").ReadOnly(true).Value("No password on "+which+" link").
-							OnClick(func(ctx app.Context, e app.Event) {
-								elem := app.Window().GetElementByID("checkbox" + whichTitle + "Password")
-								elem.Set("checked", true)
-								*isPassword = true
-								app.Logf("no password: setting %s to %v\n", which, *isPassword)
-							}),
-					),
 				),
 		)
 }
