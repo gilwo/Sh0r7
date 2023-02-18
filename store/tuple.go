@@ -137,6 +137,7 @@ const (
 	SuffixPrivate    = "#prv"
 	SuffixRemove     = "#rem"
 	SuffixURL        = "#url"
+	FieldEncrypt     = "encrypt"
 )
 
 func (t *stringTuple) Set2Bytes(field string, value []byte, compress bool) error {

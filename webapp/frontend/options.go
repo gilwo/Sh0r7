@@ -251,6 +251,9 @@ func (h *short) OptionShortAsData() app.UI {
 							),
 						),
 				),
+			app.If(h.isShortAsData,
+				h.passwordOption("encrypt"),
+			),
 		)
 }
 
@@ -613,17 +616,27 @@ func (h *short) OptionRemove() app.UI {
 func (h *short) passwordOption(which string) app.HTMLDiv {
 	var isPassword, isPasswordShown *bool
 	whichTitle := cases.Title(language.English).String(which)
-
+	var hooverTitle, unsetDescription string
 	switch which {
-	case "public":
-		isPassword = &h.isPublicPassword
-		isPasswordShown = &h.isPublicPasswordShown
-	case "private":
-		isPassword = &h.isPrivatePassword
-		isPasswordShown = &h.isPrivatePasswordShown
-	case "remove":
-		isPassword = &h.isRemovePassword
-		isPasswordShown = &h.isRemovePasswordShown
+	case "encrypt":
+		isPassword = &h.isDataEncryptPassword
+		isPasswordShown = &h.isDataEncryptPasswordShown
+		hooverTitle = "encrypt data"
+		unsetDescription = "encryption password not set"
+	case "public", "private", "remove":
+		switch which {
+		case "public":
+			isPassword = &h.isPublicPassword
+			isPasswordShown = &h.isPublicPasswordShown
+		case "private":
+			isPassword = &h.isPrivatePassword
+			isPasswordShown = &h.isPrivatePasswordShown
+		case "remove":
+			isPassword = &h.isRemovePassword
+			isPasswordShown = &h.isRemovePasswordShown
+		}
+		hooverTitle = "limit access to " + which + " link with password"
+		unsetDescription = "No password on " + which + " link"
 	}
 	return app.Div().
 		Class("form-group").
@@ -637,7 +650,7 @@ func (h *short) passwordOption(which string) app.HTMLDiv {
 					}
 					return "has-warning"
 				}()).
-				Title("limit access to "+which+" link with password").
+				Title(hooverTitle).
 				ID(which+"AccessPassword").
 				Body(
 					app.Label().
@@ -695,7 +708,7 @@ func (h *short) passwordOption(which string) app.HTMLDiv {
 								})
 						}(),
 					).Else(
-						app.Input().Class("form-control").ReadOnly(true).Value("No password on "+which+" link").
+						app.Input().Class("form-control").ReadOnly(true).Value(unsetDescription).
 							OnClick(func(ctx app.Context, e app.Event) {
 								elem := app.Window().GetElementByID("checkbox" + whichTitle + "Password")
 								elem.Set("checked", true)

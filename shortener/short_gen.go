@@ -1,8 +1,11 @@
 package shortener
 
 import (
+	"bytes"
+	"crypto/cipher"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"math/big"
@@ -12,6 +15,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/itchyny/base58-go"
 	"golang.org/x/crypto/sha3"
+	"golang.org/x/crypto/twofish"
 )
 
 func GenerateToken(data string) string {
@@ -188,4 +192,76 @@ func GenericShort(original string, startOffset, sizeFixed, sizeMin, sizeMax int,
 			return ""
 		}
 	}
+}
+
+func EncryptData(data []byte, key string) []byte {
+	if len(data) == 0 {
+		return nil
+	}
+	keyb := sha3Of(key)
+	cipherKey, iv, pad := keyb[:32], keyb[32:48], keyb[48:56]
+	log.Printf("key<%s>\n\t- cipherKey: <%s>\n\t- iv: <%s>\n\t- pad: <%s>\n",
+		key,
+		hex.EncodeToString(cipherKey),
+		hex.EncodeToString(iv),
+		hex.EncodeToString(pad))
+	twofishC, err := twofish.NewCipher(cipherKey)
+	if err != nil {
+		log.Printf("problem with twofish cipher creation : %v\n", err)
+		return nil
+	}
+	src := data
+	cbc := cipher.NewCBCEncrypter(twofishC, iv)
+	extraNeeded := cbc.BlockSize()
+	if rem := len(data) % cbc.BlockSize(); rem > 0 {
+		extraNeeded += cbc.BlockSize() - rem
+	}
+	pad = append(pad, byte(extraNeeded))
+	src = append(pad, append(make([]byte, extraNeeded-len(pad)), data...)...)
+	dst := make([]byte, len(src))
+	_dst := dst
+	_src := src
+	for len(_src) > 0 {
+		cbc.CryptBlocks(_dst[:cbc.BlockSize()], _src[:cbc.BlockSize()])
+		_dst = _dst[cbc.BlockSize():]
+		_src = _src[cbc.BlockSize():]
+	}
+	return dst
+}
+
+func DecryptData(data []byte, key string) []byte {
+	if len(data) == 0 {
+		return nil
+	}
+	keyb := sha3Of(key)
+	cipherKey, iv, pad := keyb[:32], keyb[32:48], keyb[48:56]
+	log.Printf("key<%s>\n\t- cipherKey: <%s>\n\t- iv: <%s>\n\t- pad: <%s>\n",
+		key,
+		hex.EncodeToString(cipherKey),
+		hex.EncodeToString(iv),
+		hex.EncodeToString(pad))
+	twofishC, err := twofish.NewCipher(cipherKey)
+	if err != nil {
+		log.Printf("problem with twofish cipher creation : %v\n", err)
+		return nil
+	}
+	src := data
+	cbc := cipher.NewCBCDecrypter(twofishC, iv)
+
+	dst := make([]byte, len(data))
+	_dst := dst
+	_src := src
+	for len(_src) > 0 {
+		cbc.CryptBlocks(_dst[:cbc.BlockSize()], _src[:cbc.BlockSize()])
+		_dst = _dst[cbc.BlockSize():]
+		_src = _src[cbc.BlockSize():]
+	}
+	if !bytes.HasPrefix(dst, pad) {
+		log.Printf("decryped data missing pad")
+		return nil
+	}
+	leftOver := bytes.TrimPrefix(dst, pad)
+	padLength := uint8(leftOver[0])
+	dst = dst[padLength:]
+	return dst
 }

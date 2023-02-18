@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -17,6 +18,7 @@ import (
 	"github.com/gilwo/Sh0r7/store"
 	"github.com/gilwo/Sh0r7/webapp/common"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/karrick/tparse"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel/attribute"
@@ -183,6 +185,14 @@ func HandleCreateShortData(c *gin.Context) {
 		fail = true
 		_spawnErr(c, err)
 		return
+	}
+	if len(c.Request.Header.Get(common.FDataEncrypted)) > 0 {
+		if err := store.StoreCtx.SetMetaDataMapping(res[store.FieldPublic]+store.SuffixPublic, store.FieldEncrypt, "true"); err != nil {
+			log.Printf("failed to set encryption indication")
+			fail = true
+			_spawnErr(c, err)
+			return
+		}
 	}
 	err = handleCreateHeaders(c, res)
 	if err != nil {
@@ -582,6 +592,10 @@ func handleData(c *gin.Context) (r resTri) {
 		log.Printf("failed to get info for public: <%s> - %s\n", dataKey, err)
 		_spawnErrWithCode(c, http.StatusInternalServerError, errMsg)
 		return r.False()
+	}
+	if _, err := store.StoreCtx.GetMetaDataMapping(string(dataKey)+store.SuffixPublic, store.FieldEncrypt); err == nil {
+		c.Writer.Header().Add(common.FDataEncrypted, uuid.NewString())
+		data = []byte(hex.EncodeToString(data))
 	}
 	if c.Request.Header.Get("xRedirect") == "no" {
 		c.String(200, "%s", data)

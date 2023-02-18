@@ -22,34 +22,36 @@ import (
 
 type short struct {
 	app.Compo
-	result                 string
-	resultMap              map[string]string
-	resultReady            bool
-	sessionToken           string // token used for the loaded session - life time of <SH0R7_WEBAPP_TOKEN_EXPIRATION_SHORT_LIVE>
-	expireValue            string
-	debug                  bool
-	isPrivate              bool   // indicate short url is private
-	isPublic               bool   // indicate short url is public
-	isRemove               bool   // indicate short url is remove
-	isShortAsData          bool   // indicate whether the input should be treated as data and not auto identify - option 1
-	isExpireChecked        bool   // indicate whether the expiration feature is used - option 2
-	isDescription          bool   // indicate whether the description feature is used when creating short - option 3
-	isOptionPrivate        bool   // indicate whether the short private link feature is used when creating short - option 8
-	isPrivatePassword      bool   // indicate whether the private password feature is used when creating short - option 4
-	isPrivatePasswordShown bool   // indicate whether the private password is shown or hidden - sub option for option 4
-	isPublicPassword       bool   // indicate whether the public password feature is used when creating short - option 6
-	isPublicPasswordShown  bool   // indicate whether the public password is shown or hidden - sub option for option 6
-	isOptionRemove         bool   // indicate whether the short remove link feature is used when creating short - option 5
-	isRemovePassword       bool   // indicate whether the remove password feature is used when creating short - option 7 (applicable after option 5 is enabled)
-	isRemovePasswordShown  bool   // indicate whether the remove password is shown or hidden - sub option for option 7 (applicable after option 5 is enabled)
-	isNamedPublic          bool   // indicate whether the named public feature is used when creating short - option 9
-	isResultLocked         bool   // indicate that the requested short is password locked
-	isResultUnlockFailed   bool   // indicate that the requested short unlock failed (wrong password)
-	privatePassSalt        string // salt used for password token - for private link
-	publicPassSalt         string // salt used for password token - for public link
-	removePassSalt         string // salt used for password token - for remove link
-	passToken              string // the password token used to lock and unlock the short private
-	updateAvailable        bool   // new version available
+	result                     string
+	resultMap                  map[string]string
+	resultReady                bool
+	sessionToken               string // token used for the loaded session - life time of <SH0R7_WEBAPP_TOKEN_EXPIRATION_SHORT_LIVE>
+	expireValue                string
+	debug                      bool
+	isPrivate                  bool   // indicate short url is private
+	isPublic                   bool   // indicate short url is public
+	isRemove                   bool   // indicate short url is remove
+	isShortAsData              bool   // indicate whether the input should be treated as data and not auto identify - option 1
+	isDataEncryptPassword      bool   // indicate whether the input should be encrypted - option 1.1
+	isDataEncryptPasswordShown bool   // indicate whether the encrypt password is shown or hidden - option 1.1.1
+	isExpireChecked            bool   // indicate whether the expiration feature is used - option 2
+	isDescription              bool   // indicate whether the description feature is used when creating short - option 3
+	isOptionPrivate            bool   // indicate whether the short private link feature is used when creating short - option 8
+	isPrivatePassword          bool   // indicate whether the private password feature is used when creating short - option 4
+	isPrivatePasswordShown     bool   // indicate whether the private password is shown or hidden - sub option for option 4
+	isPublicPassword           bool   // indicate whether the public password feature is used when creating short - option 6
+	isPublicPasswordShown      bool   // indicate whether the public password is shown or hidden - sub option for option 6
+	isOptionRemove             bool   // indicate whether the short remove link feature is used when creating short - option 5
+	isRemovePassword           bool   // indicate whether the remove password feature is used when creating short - option 7 (applicable after option 5 is enabled)
+	isRemovePasswordShown      bool   // indicate whether the remove password is shown or hidden - sub option for option 7 (applicable after option 5 is enabled)
+	isNamedPublic              bool   // indicate whether the named public feature is used when creating short - option 9
+	isResultLocked             bool   // indicate that the requested short is password locked
+	isResultUnlockFailed       bool   // indicate that the requested short unlock failed (wrong password)
+	privatePassSalt            string // salt used for password token - for private link
+	publicPassSalt             string // salt used for password token - for public link
+	removePassSalt             string // salt used for password token - for remove link
+	passToken                  string // the password token used to lock and unlock the short private
+	updateAvailable            bool   // new version available
 
 	isDev          bool
 	isDebug        bool
@@ -576,6 +578,8 @@ func (h *short) Render() app.UI {
 												h.resultReady = false
 												// reset the options
 												h.isShortAsData = false
+												h.isDataEncryptPassword = false
+												h.isDataEncryptPasswordShown = false
 												h.isExpireChecked = false
 												h.isDescription = false
 												h.isNamedPublic = false
@@ -900,6 +904,7 @@ func (h *short) createShort(ctx app.Context) {
 	destCreate := dest.String()
 	app.Logf("!!! new dest: %s\n", destCreate)
 	payload := []byte(data)
+	isEnc := false
 
 	if url, ok := urlCheck(data); ok && !h.isShortAsData {
 
@@ -913,6 +918,7 @@ func (h *short) createShort(ctx app.Context) {
 		}
 	} else {
 		destCreate += "/create-short-data"
+		payload, isEnc = h.encryptPayload(payload)
 	}
 
 	client := http.Client{
@@ -923,6 +929,9 @@ func (h *short) createShort(ctx app.Context) {
 	if err != nil {
 		h.handleError("new request", err)
 		return
+	}
+	if isEnc {
+		req.Header.Set(webappCommon.FDataEncrypted, uuid.NewString()) // the value doesnt really matter
 	}
 	if eDesc := app.Window().GetElementByID("shortDescription"); !eDesc.IsNull() {
 		if desc := eDesc.Get("value").String(); desc != "" {
@@ -1401,4 +1410,15 @@ func preventEnter(ctx app.Context, e app.Event) {
 	if keyCode == 13 { // preventing enter
 		e.PreventDefault()
 	}
+}
+
+func (h *short) encryptPayload(data []byte) (ret []byte, isEnc bool) {
+	ret = data
+	if encryptPass := app.Window().GetElementByID("encryptPasswordText"); h.isDataEncryptPassword && !encryptPass.IsNull() {
+		if encKey := encryptPass.Get("value").String(); encKey != "" {
+			ret = shortener.EncryptData([]byte(data), encKey)
+			isEnc = true
+		}
+	}
+	return
 }
