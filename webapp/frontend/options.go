@@ -217,17 +217,22 @@ func (h *short) OptionShortAsData() app.UI {
 						Title("use input as data").
 						ID("shortAsUrl").
 						Body(
-							app.Label().
+							app.Div().
 								Class("input-group-addon").
 								Body(
-									app.Input().
-										ID("checkboxShortAsData").
-										Type("checkbox").
-										Value("").
-										Checked(false).
-										OnClick(func(ctx app.Context, e app.Event) {
-											h.isShortAsData = ctx.JSSrc().Get("checked").Bool()
-										}),
+									app.Label().
+										Class("switch").
+										Body(
+											app.Input().
+												ID("checkboxShortAsData").
+												Type("checkbox").
+												Value("").
+												Checked(false).
+												OnClick(func(ctx app.Context, e app.Event) {
+													h.isShortAsData = ctx.JSSrc().Get("checked").Bool()
+												}),
+											app.Span().Class("slider round"),
+										),
 								),
 							app.If(h.isShortAsData,
 								app.Input().
@@ -277,17 +282,22 @@ func (h *short) OptionExpire() app.UI {
 						}()).
 						Title("Set expiration for the short url").
 						Body(
-							app.Label().
+							app.Div().
 								Class("input-group-addon").
 								Body(
-									app.Input().
-										Type("checkbox").
-										ID("checkboxExpire").
-										Value("").
-										Checked(false).
-										OnClick(func(ctx app.Context, e app.Event) {
-											h.isExpireChecked = ctx.JSSrc().Get("checked").Bool()
-										}),
+									app.Label().
+										Class("switch").
+										Body(
+											app.Input().
+												Type("checkbox").
+												ID("checkboxExpire").
+												Value("").
+												Checked(false).
+												OnClick(func(ctx app.Context, e app.Event) {
+													h.isExpireChecked = ctx.JSSrc().Get("checked").Bool()
+												}),
+											app.Span().Class("slider round"),
+										),
 								),
 							app.If(h.isExpireChecked,
 								app.Div().Class("input-group-addon").Body(
@@ -356,17 +366,22 @@ func (h *short) OptionNamedPublicShort() app.UI {
 						Title("Use own short name (some characters are invalid) (minimum 10 chars)").
 						ID("shortNamedPublicShortWrapper").
 						Body(
-							app.Label().
+							app.Div().
 								Class("input-group-addon").
 								Body(
-									app.Input().
-										Type("checkbox").
-										ID("checkboxNamedPublicShort").
-										Value("").
-										Checked(false).
-										OnClick(func(ctx app.Context, e app.Event) {
-											h.isNamedPublic = ctx.JSSrc().Get("checked").Bool()
-										}),
+									app.Label().
+										Class("switch").
+										Body(
+											app.Input().
+												Type("checkbox").
+												ID("checkboxNamedPublicShort").
+												Value("").
+												Checked(false).
+												OnClick(func(ctx app.Context, e app.Event) {
+													h.isNamedPublic = ctx.JSSrc().Get("checked").Bool()
+												}),
+											app.Span().Class("slider round"),
+										),
 								),
 							app.If(h.isNamedPublic,
 								app.Div().Class("input-group-addon").Body(
@@ -432,17 +447,22 @@ func (h *short) OptionDescription() app.UI {
 						Title("short description for this short").
 						ID("shortDescriptionWrapper").
 						Body(
-							app.Label().
+							app.Div().
 								Class("input-group-addon").
 								Body(
-									app.Input().
-										Type("checkbox").
-										ID("checkboxDescription").
-										Value("").
-										Checked(false).
-										OnClick(func(ctx app.Context, e app.Event) {
-											h.isDescription = ctx.JSSrc().Get("checked").Bool()
-										}),
+									app.Label().
+										Class("switch").
+										Body(
+											app.Input().
+												Type("checkbox").
+												ID("checkboxDescription").
+												Value("").
+												Checked(false).
+												OnClick(func(ctx app.Context, e app.Event) {
+													h.isDescription = ctx.JSSrc().Get("checked").Bool()
+												}),
+											app.Span().Class("slider round"),
+										),
 								),
 							app.If(h.isDescription,
 								app.Div().Class("input-group-addon").Body(
@@ -500,22 +520,27 @@ func (h *short) OptionPrivate() app.UI {
 						Title("Enable short private link").
 						ID("optionPrivateID").
 						Body(
-							app.Label().
+							app.Div().
 								Class("input-group-addon").
 								Body(
-									app.Input().
-										ID("checkboxOptionPrivate").
-										Type("checkbox").
-										Value("").
-										Checked(false).
-										OnClick(func(ctx app.Context, e app.Event) {
-											app.Logf("checkbox ID click: %s\n", ctx.JSSrc().Get("id").String())
-											h.isOptionPrivate = ctx.JSSrc().Get("checked").Bool()
-											if !h.isOptionPrivate {
-												h.isPrivatePassword = false
-												h.isPrivatePasswordShown = false
-											}
-										}),
+									app.Label().
+										Class("switch").
+										Body(
+											app.Input().
+												ID("checkboxOptionPrivate").
+												Type("checkbox").
+												Value("").
+												Checked(false).
+												OnClick(func(ctx app.Context, e app.Event) {
+													app.Logf("checkbox ID click: %s\n", ctx.JSSrc().Get("id").String())
+													h.isOptionPrivate = ctx.JSSrc().Get("checked").Bool()
+													if !h.isOptionPrivate {
+														h.isPrivatePassword = false
+														h.isPrivatePasswordShown = false
+													}
+												}),
+											app.Span().Class("slider round"),
+										),
 								),
 							app.If(h.isOptionPrivate,
 								app.Input().
@@ -567,21 +592,26 @@ func (h *short) OptionRemove() app.UI {
 						Title("Enable short removal link").
 						ID("optionRemoveID").
 						Body(
-							app.Label().
+							app.Div().
 								Class("input-group-addon").
 								Body(
-									app.Input().
-										ID("checkboxOptionRemove").
-										Type("checkbox").
-										Value("").
-										Checked(false).
-										OnClick(func(ctx app.Context, e app.Event) {
-											h.isOptionRemove = ctx.JSSrc().Get("checked").Bool()
-											if !h.isOptionRemove {
-												h.isRemovePassword = false
-												h.isRemovePasswordShown = false
-											}
-										}),
+									app.Label().
+										Class("switch").
+										Body(
+											app.Input().
+												ID("checkboxOptionRemove").
+												Type("checkbox").
+												Value("").
+												Checked(false).
+												OnClick(func(ctx app.Context, e app.Event) {
+													h.isOptionRemove = ctx.JSSrc().Get("checked").Bool()
+													if !h.isOptionRemove {
+														h.isRemovePassword = false
+														h.isRemovePasswordShown = false
+													}
+												}),
+											app.Span().Class("slider round"),
+										),
 								),
 							app.If(h.isOptionRemove,
 								app.Input().
@@ -653,19 +683,24 @@ func (h *short) passwordOption(which string) app.HTMLDiv {
 				Title(hooverTitle).
 				ID(which+"AccessPassword").
 				Body(
-					app.Label().
+					app.Div().
 						Class("input-group-addon").
 						Body(
-							app.Input().
-								Type("checkbox").
-								ID("checkbox"+whichTitle+"Password").
-								Value("").
-								OnClick(func(ctx app.Context, e app.Event) {
-									elem := ctx.JSSrc()
-									app.Logf("checkbox element: <%s>\n", elem.Get("id").String())
-									*isPassword = ctx.JSSrc().Get("checked").Bool()
-									app.Logf("chkbox: setting %s to %v\n", which, *isPassword)
-								}),
+							app.Label().
+								Class("switch").
+								Body(
+									app.Input().
+										Type("checkbox").
+										ID("checkbox"+whichTitle+"Password").
+										Value("").
+										OnClick(func(ctx app.Context, e app.Event) {
+											elem := ctx.JSSrc()
+											app.Logf("checkbox element: <%s>\n", elem.Get("id").String())
+											*isPassword = ctx.JSSrc().Get("checked").Bool()
+											app.Logf("chkbox: setting %s to %v\n", which, *isPassword)
+										}),
+									app.Span().Class("slider round"),
+								),
 						),
 					app.If(*isPassword,
 						app.Div().Class("input-group-addon").Body(
