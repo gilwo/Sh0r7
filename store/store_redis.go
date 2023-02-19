@@ -43,6 +43,10 @@ func (st *StorageRedis) _pad(short string) string {
 	return st.__prefix + short
 }
 
+func (st *StorageRedis) _padStrip(short string) string {
+	return strings.TrimPrefix(short, st.__prefix)
+}
+
 func (st *StorageRedis) InitializeStore() error {
 	opts, err := redis.ParseURL(st.redisUrl)
 	if err != nil {
@@ -264,6 +268,9 @@ func (st *StorageRedis) getKeys() []string {
 	r, err := st.redisClient.Keys(ctx, st.__prefix+"*").Result()
 	if err != nil {
 		return nil
+	}
+	for i := range r {
+		r[i] = st._padStrip(r[i])
 	}
 	return r
 }

@@ -33,6 +33,10 @@ func (st *StorageLocal) _pad(short string) string {
 	return st.__prefix + short
 }
 
+func (st *StorageLocal) _padStrip(short string) string {
+	return strings.TrimPrefix(short, st.__prefix)
+}
+
 func (st *StorageLocal) InitializeStore() error {
 	st.cacheSync = &sync.Map{}
 	return nil
@@ -176,7 +180,7 @@ func (st *StorageLocal) GenFunc(v ...interface{}) interface{} {
 func (st *StorageLocal) getKeys() []string {
 	r := []string{}
 	st.cacheSync.Range(func(key, value any) bool {
-		r = append(r, key.(string))
+		r = append(r, st._padStrip(key.(string)))
 		return true
 	})
 	return r
