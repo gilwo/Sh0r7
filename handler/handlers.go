@@ -599,7 +599,7 @@ func handleData(c *gin.Context) (r resTri) {
 	}
 	if c.Request.Header.Get("xRedirect") == "no" {
 		c.String(200, "%s", data)
-	} else if c.Request.URL.Query().Has("app") {
+	} else if c.Request.URL.Query().Has("app") || c.Writer.Header().Get(common.FDataEncrypted) != "" {
 		redirect, err := url.ParseRequestURI(c.Request.RequestURI)
 		if err != nil {
 			log.Printf("failed to parse request uri: %s\n", err)

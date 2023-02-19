@@ -2,6 +2,7 @@ package frontend
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -297,11 +298,45 @@ func (h *short) RenderPublic() app.UI {
 			} else {
 				return app.Div().
 					Body(
-						app.Pre().
+						app.Pre().ID("publicData").
 							ContentEditable(false).
 							Body(
 								app.Text(out[store.FieldDATA]),
 							),
+						app.If(h.isDataEncryptPassword,
+							app.Div().
+								Class().
+								Body(
+									app.Text("data is encrypted"),
+									app.Br(),
+									h.passwordOption("encrypt").
+										OnChange(func(ctx app.Context, e app.Event) {
+											fmt.Printf("something changed\n")
+											dataLoc := app.Window().GetElementByID("publicData")
+											if h.isDataEncryptPassword {
+												data := dataLoc.Get("innerText").String()
+												if data == "error" {
+													return
+												}
+												dataBuf, err := hex.DecodeString(data)
+												if err == nil {
+													dec, isDec := h.decryptPayload(dataBuf)
+													if isDec {
+														app.Logf("dec data: <%s>\n", string(dec))
+														dataLoc.Set("innerText", string(dec))
+													} else {
+														app.Logf("failed to decrypt data")
+														dataLoc.Set("innerText", "error")
+													}
+												} else {
+													app.Logf("problem with decode string, %s", err)
+												}
+											} else {
+												dataLoc.Set("innerText", out[store.FieldDATA])
+											}
+										}),
+								),
+						),
 					)
 			}
 		}
@@ -1146,6 +1181,8 @@ func (h *short) getPublicShort(passToken string) (map[string]string, []string, e
 		app.Logf("failed to read response body: %s\n", err)
 		return nil, nil, err
 	}
+	encInd := resp.Header.Get(webappCommon.FDataEncrypted)
+	h.isDataEncryptPassword = (len(encInd) == len(uuid.NewString()))
 	app.Logf("resp body: <%s>\n", string(body))
 	tup, err := store.NewTupleFromString(string(body))
 	if err != nil {
@@ -1418,6 +1455,19 @@ func (h *short) encryptPayload(data []byte) (ret []byte, isEnc bool) {
 		if encKey := encryptPass.Get("value").String(); encKey != "" {
 			ret = shortener.EncryptData([]byte(data), encKey)
 			isEnc = true
+		}
+	}
+	return
+}
+
+func (h *short) decryptPayload(data []byte) (ret []byte, isDec bool) {
+	ret = data
+	if encryptPass := app.Window().GetElementByID("encryptPasswordText"); h.isDataEncryptPassword && !encryptPass.IsNull() {
+		if encKey := encryptPass.Get("value").String(); encKey != "" {
+			ret = shortener.DecryptData([]byte(data), encKey)
+			if len(ret) > 0 {
+				isDec = true
+			}
 		}
 	}
 	return
