@@ -33,6 +33,8 @@ type short struct {
 	isPublic                   bool   // indicate short url is public
 	isRemove                   bool   // indicate short url is remove
 	isShortAsData              bool   // indicate whether the input should be treated as data and not auto identify - option 1
+	publicData                 string // holds retrieved data of public link
+	publicUrl                  string // holds retrieved url of public link
 	isDataEncryptPassword      bool   // indicate whether the input should be encrypted - option 1.1
 	isDataEncryptPasswordShown bool   // indicate whether the encrypt password is shown or hidden - option 1.1.1
 	isExpireChecked            bool   // indicate whether the expiration feature is used - option 2
@@ -58,6 +60,7 @@ type short struct {
 	isDebug        bool
 	isExperimental bool
 	isDebugWindow  bool
+	isLoaded       bool
 }
 
 const (
@@ -285,60 +288,37 @@ func (h *short) RenderPrivate() app.UI {
 }
 
 func (h *short) RenderPublic() app.UI {
+	app.Logf("publicData: <%s>\n", h.publicData)
+	if r := h.RenderPublicWithPassword(); r != nil {
+		app.Logf("rending publicwith password")
+		return r
+	}
 	if !h.isResultLocked {
-		app.Logf("triggering getPublicShort with passtoekn : <%s>\n", h.passToken)
-		out, _, err := h.getPublicShort(h.passToken)
-		app.Logf("getpublic short result: <%v>\n", out)
-		if err != nil {
-			app.Logf("error getting public data (%s)\n", err)
-		} else {
-			if _, ok := out[store.FieldURL]; ok {
-				app.Window().Get("location").Set("href", out[store.FieldURL])
-				return app.Main().Body(app.Div().Class().Body(app.Text("...")))
-			} else {
-				return app.Div().
-					Body(
-						app.Pre().ID("publicData").
-							ContentEditable(false).
-							Body(
-								app.Text(out[store.FieldDATA]),
-							),
-						app.If(h.isDataEncryptPassword,
-							app.Div().
-								Class().
-								Body(
-									app.Text("data is encrypted"),
-									app.Br(),
-									h.passwordOption("encrypt").
-										OnChange(func(ctx app.Context, e app.Event) {
-											fmt.Printf("something changed\n")
-											dataLoc := app.Window().GetElementByID("publicData")
-											if h.isDataEncryptPassword {
-												data := dataLoc.Get("innerText").String()
-												if data == "error" {
-													return
-												}
-												dataBuf, err := hex.DecodeString(data)
-												if err == nil {
-													dec, isDec := h.decryptPayload(dataBuf)
-													if isDec {
-														app.Logf("dec data: <%s>\n", string(dec))
-														dataLoc.Set("innerText", string(dec))
-													} else {
-														app.Logf("failed to decrypt data")
-														dataLoc.Set("innerText", "error")
-													}
-												} else {
-													app.Logf("problem with decode string, %s", err)
-												}
-											} else {
-												dataLoc.Set("innerText", out[store.FieldDATA])
-											}
-										}),
-								),
-						),
-					)
+		if len(h.publicData+h.publicUrl) == 0 {
+			app.Logf("triggering getPublicShort with passtoekn : <%s>\n", h.passToken)
+			err := h.getPublicShort(h.passToken)
+			if err != nil {
+				app.Logf("error getting public data (%s)\n", err)
 			}
+		}
+		if len(h.publicUrl) > 0 {
+			app.Window().Get("location").Set("href", h.publicUrl)
+			return app.Main().Body(app.Div().Class().Body(app.Text("...")))
+		} else {
+			if h.isDataEncryptPassword {
+				return h.RenderPublicWithPassword()
+			}
+			return app.Div().
+				Body(
+					app.Pre().ID("publicData").
+						ContentEditable(false).
+						OnContextMenu(func(ctx app.Context, e app.Event) {
+							app.Logf("context menu triggered\n")
+						}).
+						Body(
+							app.Text(h.publicData),
+						),
+				)
 		}
 	}
 	return app.Div().
@@ -518,7 +498,7 @@ func (h *short) Render() app.UI {
 											t := common.SourceTime
 											n, e := strconv.ParseInt(strings.TrimSuffix(t, "*"), 10, 64)
 											if e == nil {
-												t = time.Unix(n, 0).UTC().String()
+												t = time.Unix(n, 0).String()
 											}
 											r += " " + t
 										}
@@ -797,6 +777,10 @@ func (h *short) reload(ctx app.Context) {
 }
 
 func (h *short) load2(ctx app.Context) {
+	if h.isLoaded {
+		return
+	}
+	defer func() { h.isLoaded = true }()
 	h.logInit()
 	lurl := app.Window().URL()
 	app.Logf("url: %#+v\n", lurl)
@@ -1144,7 +1128,7 @@ func (h *short) getStID() {
 	}
 }
 
-func (h *short) getPublicShort(passToken string) (map[string]string, []string, error) {
+func (h *short) getPublicShort(passToken string) error {
 
 	var err error
 	url := app.Window().URL()
@@ -1157,7 +1141,7 @@ func (h *short) getPublicShort(passToken string) (map[string]string, []string, e
 	req, err := http.NewRequest(http.MethodGet, url.String(), nil)
 	if err != nil {
 		app.Logf("failed to create new request: %s\n", err)
-		return nil, nil, err
+		return err
 	}
 	if passToken != "" {
 		req.Header.Set(webappCommon.FPubPassToken, passToken)
@@ -1168,18 +1152,18 @@ func (h *short) getPublicShort(passToken string) (map[string]string, []string, e
 	resp, err := client.Do(req)
 	if err != nil {
 		app.Logf("failed to invoke request: %s\n", err)
-		return nil, nil, err
+		return err
 	}
 
 	if resp.StatusCode != http.StatusOK {
 		app.Logf("response not ok: %v\n", resp.StatusCode)
-		return nil, nil, fmt.Errorf("status: %v", resp.StatusCode)
+		return fmt.Errorf("status: %v", resp.StatusCode)
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		app.Logf("failed to read response body: %s\n", err)
-		return nil, nil, err
+		return err
 	}
 	encInd := resp.Header.Get(webappCommon.FDataEncrypted)
 	h.isDataEncryptPassword = (len(encInd) == len(uuid.NewString()))
@@ -1187,14 +1171,13 @@ func (h *short) getPublicShort(passToken string) (map[string]string, []string, e
 	tup, err := store.NewTupleFromString(string(body))
 	if err != nil {
 		app.Logf("failed to parse body: %s\n", err)
-		return map[string]string{
-			store.FieldDATA: string(body),
-		}, []string{store.FieldDATA}, nil
+		h.publicData = string(body)
+	} else {
+		h.publicUrl = tup.Get(store.FieldURL)
 	}
-	return map[string]string{
-		store.FieldURL: tup.Get(store.FieldURL),
-	}, []string{store.FieldURL}, nil
+	return nil
 }
+
 func (h *short) getRemoveShort(passToken string) (map[string]string, []string, error) {
 
 	var err error
@@ -1471,4 +1454,47 @@ func (h *short) decryptPayload(data []byte) (ret []byte, isDec bool) {
 		}
 	}
 	return
+}
+
+func (h *short) RenderPublicWithPassword() (ret app.UI) {
+	if len(h.publicData) > 0 {
+		h.isDataEncryptPassword = true
+		ret = app.Div().
+			Body(
+				app.Pre().ID("publicData").
+					ContentEditable(false).
+					Body(
+						app.Text(h.publicData),
+					),
+				app.Div().
+					Class().
+					Body(
+						app.Text("data is encrypted"),
+						app.Br(),
+						h.passwordOption("encrypt").
+							OnChange(func(ctx app.Context, e app.Event) {
+								dataLoc := app.Window().GetElementByID("publicData")
+								if h.isDataEncryptPassword {
+									dataBuf, err := hex.DecodeString(h.publicData)
+									if err == nil {
+										dec, isDec := h.decryptPayload(dataBuf)
+										if isDec {
+											app.Logf("dec data: <%s>\n", string(dec))
+											dataLoc.Set("innerText", string(dec))
+										} else {
+											app.Logf("failed to decrypt data")
+											dataLoc.Set("innerText", "error")
+										}
+									} else {
+										app.Logf("problem with decode string, %s", err)
+										dataLoc.Set("innerText", "error")
+									}
+								} else {
+									dataLoc.Set("innerText", h.publicData)
+								}
+							}),
+					),
+			)
+	}
+	return ret
 }

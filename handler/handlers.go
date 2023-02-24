@@ -964,17 +964,23 @@ func checkReserveNames(name string) resTri {
 // validateAdmin check for admin key or admin token, if not exits or failed to validate then update reponse and return false otherwise true
 func validateAdmin(c *gin.Context) bool {
 	var adTok string
-	adminKey := c.Query(strings.ToLower(common.FAdminKey))
+	adminKey := c.Query(common.FAdminKey)
 	if adminKey == "" {
-		adminKey = c.Request.Header.Get(strings.ToLower(common.FAdminKey))
-	} else {
-		adTok = shortener.GenerateTokenTweaked(adminKey, 0, 32, 0)
+		v, ok := c.Request.Header[http.CanonicalHeaderKey(common.FAdminKey)]
+		if ok && len(v) > 0 {
+			adminKey = v[0]
+		}
 	}
 	if adminKey == "" {
-		adTok = c.Query(strings.ToLower(common.FAdminToken))
+		adTok = c.Query(common.FAdminToken)
 		if adTok == "" {
-			adTok = c.Request.Header.Get(strings.ToLower(common.FAdminToken))
+			v, ok := c.Request.Header[http.CanonicalHeaderKey(common.FAdminToken)]
+			if ok && len(v) > 0 {
+				adTok = v[0]
+			}
 		}
+	} else {
+		adTok = shortener.GenerateTokenTweaked(adminKey, 0, 32, 0)
 	}
 	if adTok == "" || !store.StoreCtx.CheckExistShortDataMapping(adTok) {
 		_spawnErrWithCode(c, http.StatusForbidden, errors.Errorf("operation not allowed"))

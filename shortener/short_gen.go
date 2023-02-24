@@ -247,6 +247,9 @@ func DecryptData(data []byte, key string) []byte {
 	}
 	src := data
 	cbc := cipher.NewCBCDecrypter(twofishC, iv)
+	if len(data) < 2*cbc.BlockSize() {
+		return nil
+	}
 
 	dst := make([]byte, len(data))
 	_dst := dst

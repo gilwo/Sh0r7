@@ -256,8 +256,10 @@ func (h *short) OptionShortAsData() app.UI {
 							),
 						),
 				),
-			app.If(h.isShortAsData,
-				h.passwordOption("encrypt"),
+			app.If(h.isExperimental || h.isDev,
+				app.If(h.isShortAsData,
+					h.passwordOption("encrypt"),
+				),
 			),
 		)
 }
