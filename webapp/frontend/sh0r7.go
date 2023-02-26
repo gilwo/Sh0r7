@@ -506,6 +506,13 @@ func (h *short) Render() app.UI {
 									}()),
 								),
 						),
+					app.If(h.isDev,
+						app.Div().
+							ID("signup").
+							Class("col-sm-1").
+							Body(
+								h.renderAccount(),
+							)),
 					app.If(h.debug || h.isDev,
 						app.Div().
 							Styles(map[string]string{
