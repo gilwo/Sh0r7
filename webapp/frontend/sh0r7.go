@@ -506,13 +506,6 @@ func (h *short) Render() app.UI {
 									}()),
 								),
 						),
-					app.If(h.isDev,
-						app.Div().
-							ID("signup").
-							Class("col-sm-1").
-							Body(
-								h.renderAccount(),
-							)),
 					app.If(h.debug || h.isDev,
 						app.Div().
 							Styles(map[string]string{
@@ -526,6 +519,11 @@ func (h *short) Render() app.UI {
 							),
 					),
 				),
+			app.Div().
+				Class("row").
+				Class("marker").
+				ID("navBar"),
+			h.navBar3(),
 			app.Div().
 				Class("row").
 				Class("marker").
@@ -1505,3 +1503,70 @@ func (h *short) RenderPublicWithPassword() (ret app.UI) {
 	}
 	return ret
 }
+
+func (h *short) navBar3() app.UI {
+	return app.Div().
+		Class("row").
+		Class("nav").
+		Body(
+			app.Div().
+				Class("col-sm-8", "col-sm-offset-2").
+				Class("col-xs-8", "col-xs-offset-4").
+				Body(
+					app.Ul().
+						Class("nav nav-pills navbar-right _nav-justified").
+						Body(
+							app.Li().
+								Class().
+								Role("presentation").
+								Body(
+									app.A().
+										Href("#").
+										Body(
+											app.Text("Sign In"),
+										).
+										OnClick(func(ctx app.Context, e app.Event) {
+											jui := app.Window().GetElementByID("id02")
+											style := jui.Get("style")
+											style.Set("display", "block")
+											// prevent main view interaction (scroll) when modal is open
+											html := app.Window().Get("document").Get("children").Index(0)
+											html.Get("style").Set("overflow", "hidden")
+										}),
+									h.renderSignIn2(),
+								).
+								OnMouseOut(func(ctx app.Context, e app.Event) {
+									ctx.JSSrc().Get("attributes").Get("class").Set("value", "")
+								}).
+								OnMouseOver(func(ctx app.Context, e app.Event) {
+									ctx.JSSrc().Get("attributes").Get("class").Set("value", "active")
+								}),
+							app.Li().
+								Class().
+								Role("presentation").
+								Body(
+									app.A().
+										Href("#").
+										Body(
+											app.Text("Sign Up"),
+										).
+										OnClick(func(ctx app.Context, e app.Event) {
+											jui := app.Window().GetElementByID("id01")
+											style := jui.Get("style")
+											style.Set("display", "block")
+											// prevent main view interaction (scroll) when modal is open
+											html := app.Window().Get("document").Get("children").Index(0)
+											html.Get("style").Set("overflow", "hidden")
+										}),
+									h.renderSignUp2(),
+								).
+								OnMouseOut(func(ctx app.Context, e app.Event) {
+									ctx.JSSrc().Get("attributes").Get("class").Set("value", "")
+								}).
+								OnMouseOver(func(ctx app.Context, e app.Event) {
+									ctx.JSSrc().Get("attributes").Get("class").Set("value", "active")
+								}),
+						),
+				))
+}
+

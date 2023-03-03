@@ -14,6 +14,14 @@
     /* padding-bottom: 30px; */
 }
 
+.row.nav {
+  background-color: #FD8A8A;
+}
+
+.row.marker {
+    margin: 1px;
+}
+
 .row.header {
     padding-top: 30px;
     padding-bottom: 30px;
@@ -250,7 +258,7 @@ input:checked + .slider:before {
 }
 
 /* =============================================== */
-/* singup and login */
+/* =========== singup and login ================== */
 /* Full-width input fields */
 input[type=text], input[type=password] {
   width: 100%;
@@ -290,7 +298,7 @@ button:hover {
 }
 
 /* Float cancel and signup buttons and add an equal width */
-.cancelbtn, .signupbtn {
+.cancelbtn, .signupbtn, .signinbtn {
   float: left;
   width: 50%;
   margin-bottom: 10px;
@@ -313,6 +321,10 @@ button:hover {
   overflow: auto; /* Enable scroll if needed */
   background-color: #474e5d;
   padding-top: 50px;
+  opacity: 95%;
+  -webkit-transform: translate3d(0,0,1px);
+  transform: translate3d(0,0,1px);
+
 }
 
 /* Modal Content/Box */
@@ -330,7 +342,7 @@ hr {
 }
 
 /* The Close Button (x) */
-.close {
+.closeModal {
   position: absolute;
   right: 35px;
   top: 15px;
@@ -339,8 +351,8 @@ hr {
   color: #f1f1f1;
 }
 
-.close:hover,
-.close:focus {
+.closeModal:hover,
+.closeModal:focus {
   color: #f44336;
   cursor: pointer;
 }
@@ -354,7 +366,7 @@ hr {
 
 /* Change styles for cancel button and signup button on extra small screens */
 @media screen and (max-width: 300px) {
-  .cancelbtn, .signupbtn {
+  .cancelbtn, .signupbtn, .signinbtn {
      width: 100%;
   }
 }
