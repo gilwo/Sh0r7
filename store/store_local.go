@@ -15,7 +15,9 @@ import (
 
 type StorageLocal struct {
 	cacheSync *sync.Map
+	lockSync  *sync.Map
 	__prefix  string
+	__lock    string
 }
 
 var __prefixLocal string
@@ -26,6 +28,7 @@ func init() {
 func newStoreLocal() Store {
 	return &StorageLocal{
 		__prefix: os.Getenv("SH0R7_DEPLOY") + "$$",
+		__lock:   "##.lock",
 	}
 }
 
@@ -37,8 +40,13 @@ func (st *StorageLocal) _padStrip(short string) string {
 	return strings.TrimPrefix(short, st.__prefix)
 }
 
+func (st *StorageLocal) _padLock(short string) string {
+	return st.__prefix + short + st.__lock
+}
+
 func (st *StorageLocal) InitializeStore() error {
 	st.cacheSync = &sync.Map{}
+	st.lockSync = &sync.Map{}
 	return nil
 }
 
@@ -88,7 +96,23 @@ func (st *StorageLocal) SaveDataMapping(data []byte, short string, ttl time.Dura
 		t.Set(FieldTTL, ttl.String())
 	} // ttl < 0 - dont use ttl at all
 
-	return func() error { st.cacheSync.Store(st._pad(short), t); return nil }()
+	st.cacheSync.Store(st._pad(short), t)
+	return nil
+}
+
+func (st *StorageLocal) CheckExistShortDataMappingAndLock(short string) bool {
+	if _, ok := st.lockSync.Load(st._padLock(short)); ok {
+		return true
+	}
+	if _, ok := st.cacheSync.Load(st._pad(short)); ok {
+		return true
+	}
+	err := st.SaveDataMapping([]byte(""), st._padLock(short), time.Minute)
+	if err != nil {
+		log.Printf("failed saving lock indication for short [%s], err: %v\n", st._padLock(short), err)
+		return false
+	}
+	return false
 }
 func (st *StorageLocal) CheckExistShortDataMapping(short string) bool {
 	if _, ok := st.cacheSync.Load(st._pad(short)); ok {
@@ -166,8 +190,10 @@ func (st *StorageLocal) GenFunc(v ...interface{}) interface{} {
 	case STORE_FUNC_DUMPKEYS:
 		return st.dumpKeys()
 	case STORE_FUNC_GETKEYS:
+		// log.Println("!!!!!!!!!! getkeys ... ")
 		return st.getKeys()
 	case STORE_FUNC_REMOVEKEYS:
+		// log.Println("!!!!!!!!!! getkeys ... ")
 		if len(v) < 2 {
 			return nil
 		}

@@ -53,3 +53,13 @@ func (r *_resTri) IsFalse() bool {
 func (r *_resTri) IsNil() bool {
 	return r.v == nil
 }
+
+// // ------------------
+
+// type ServeResult int
+
+// const (
+// 	ServeHandled ServeResult = iota
+// 	ServeFailed
+// 	ServeSkipped
+// )

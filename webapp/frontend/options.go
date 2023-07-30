@@ -245,6 +245,8 @@ func (h *short) OptionShortAsData() app.UI {
 										elem := app.Window().GetElementByID("checkboxShortAsData")
 										elem.Set("checked", false)
 										h.isShortAsData = false
+										h.isDataEncryptPassword = false
+										h.isDataEncryptPasswordShown = false
 									}),
 							).Else(
 								app.Input().Class("form-control").ReadOnly(true).Value("Automatic treat input as data or Url").
@@ -259,6 +261,7 @@ func (h *short) OptionShortAsData() app.UI {
 			app.If(h.isExperimental || h.isDev,
 				app.If(h.isShortAsData,
 					h.passwordOption("encrypt"),
+					// h.encryptDataOption(&h.isDataEncryptPassword, &h.isDataEncryptPasswordShown, "encrypt"),
 				),
 			),
 		)
@@ -329,6 +332,9 @@ func (h *short) OptionExpire() app.UI {
 										app.Option().
 											Value("2w").
 											Body(app.Text("2 weeks")),
+										// app.Option().
+										// 	Value("8w").
+										// 	Body(app.Text("2 months")),
 									).OnChange(func(ctx app.Context, e app.Event) {
 										h.expireValue = ctx.JSSrc().Get("value").String()
 										app.Logf("select change value: %v\n", h.expireValue)
@@ -405,14 +411,19 @@ func (h *short) OptionNamedPublicShort() app.UI {
 										el := ctx.JSSrc()
 										value := el.Get("value").String()
 										valueUnescaped, _ := url.PathUnescape(value)
+										// app.Logf("named public: <%v>\n", value)
 										RESERVED_CHARS := "/?&#;"
 										if strings.ContainsAny(value, RESERVED_CHARS) ||
 											strings.ContainsAny(valueUnescaped, RESERVED_CHARS) {
+											// app.Logf("contains invalid char\n")
 											shortButton.Set("disabled", true)
+											// shortButton.Set("textContent", "boo")
 											el.Get("classList").Call("remove", "syncTextStyle")
 											el.Get("classList").Call("add", "errorTextStyle")
 										} else {
+											// app.Logf("valid char\n")
 											shortButton.Set("disabled", false)
+											// shortButton.Set("textContent", "hort it")
 											el.Get("classList").Call("remove", "errorTextStyle")
 											el.Get("classList").Call("add", "syncTextStyle")
 										}
@@ -685,6 +696,15 @@ func (h *short) passwordOption(which string) app.HTMLDiv {
 				Title(hooverTitle).
 				ID(which+"AccessPassword").
 				Body(
+					// <div class="material-switch pull-right">
+					// 	<input id="someSwitchOptionPrimary" name="someSwitchOption001" type="checkbox"/>
+					// 	<label for="someSwitchOptionPrimary" class="label-primary"></label>
+					// </div>
+					// app.Div().
+					// 	Class("material-switch", "pull-right").Body(
+					// 	app.Input().ID("someSwitchOptionPrimary").Name("someSwitchOption001").Type("checkbox"),
+					// 	app.Label().For("someSwitchOptionPrimary").Class("label-primary"),
+					// ),
 					app.Div().
 						Class("input-group-addon").
 						Body(

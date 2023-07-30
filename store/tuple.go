@@ -17,6 +17,9 @@ var (
 	KeyNotFound = errors.New("key not found")
 )
 
+//	type fieldValue struct {
+//		f, v string
+//	}
 type stringTuple struct {
 	tuple map[string]string
 }
@@ -32,6 +35,40 @@ func NewTupleFromString(in string) (*stringTuple, error) {
 func NewTuple() *stringTuple {
 	return &stringTuple{map[string]string{}}
 }
+
+// func initStringTuple(size int, names ...string) (*stringTuple, error) {
+// 	if len(names) != size {
+// 		return nil, errors.New("mismatch in size and field names count")
+// 	}
+// 	r := &stringTuple{
+// 		tuple: map[string]string{},
+// 	}
+// 	for _, e := range names {
+// 		if _, ok := r.tuple[e]; ok {
+// 			return nil, errors.Errorf("field names have duplicates: %v", names)
+// 		}
+// 		r.tuple[e] = ""
+// 	}
+// 	return r, nil
+// }
+
+//	func NewStringTuple(values ...*fieldValue) (*stringTuple, error) {
+//		f := []string{}
+//		for _, e := range values {
+//			f = append(f, e.f)
+//		}
+//		r, err := initStringTuple(len(f), f...)
+//		if err != nil {
+//			return nil, err
+//		}
+//		for _, e := range values {
+//			err := r.SetCheck(e.f, e.v)
+//			if err != nil {
+//				return nil, err
+//			}
+//		}
+//		return r, nil
+//	}
 func (t *stringTuple) AtCheck(field string) (string, error) {
 	// fmt.Printf("content of tuple %#v\n", t)
 	if v, ok := t.tuple[field]; ok {

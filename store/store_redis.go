@@ -1,4 +1,4 @@
-//go:build redis
+// --go:build redis
 
 package store
 
@@ -26,6 +26,7 @@ type StorageRedis struct {
 	redisClient *redis.Client
 	redisUrl    string
 	__prefix    string
+	__lock      string
 }
 
 func init() {
@@ -36,6 +37,7 @@ func newStoreRedis(redisUrl string) Store {
 	return &StorageRedis{
 		redisUrl: redisUrl,
 		__prefix: os.Getenv("SH0R7_DEPLOY") + "$$",
+		__lock:   "##.lock",
 	}
 }
 
@@ -45,6 +47,10 @@ func (st *StorageRedis) _pad(short string) string {
 
 func (st *StorageRedis) _padStrip(short string) string {
 	return strings.TrimPrefix(short, st.__prefix)
+}
+
+func (st *StorageRedis) _padLock(short string) string {
+	return st.__prefix + short + st.__lock
 }
 
 func (st *StorageRedis) InitializeStore() error {
@@ -143,6 +149,28 @@ func (st *StorageRedis) SaveDataMapping(data []byte, short string, ttl time.Dura
 	}
 
 	return nil
+}
+
+func (st *StorageRedis) CheckExistShortDataMappingAndLock(short string) bool {
+	err := st.redisClient.Exists(ctx, st._padLock(short)).Err()
+	if err == redis.Nil {
+		return true
+	}
+	if err != nil {
+		log.Printf("error getting lock inmdication for short [%s], err: %v\n", st._padLock(short), err)
+	}
+	v, err := st.redisClient.Exists(ctx, st._pad(short)).Result()
+	log.Printf("exists %s result: %v, %v\n", short, v, err)
+	if err != nil || v == 1 {
+		return true
+	}
+
+	err = st.SaveDataMapping([]byte(""), st._padLock(short), time.Minute)
+	if err != nil {
+		log.Printf("failed saving lock indication for short [%s], err: %v\n", st._padLock(short), err)
+		return false
+	}
+	return false
 }
 
 func (st *StorageRedis) CheckExistShortDataMapping(short string) bool {
@@ -253,8 +281,10 @@ func (st *StorageRedis) GenFunc(v ...interface{}) interface{} {
 	case STORE_FUNC_DUMPKEYS:
 		return st.dumpKeys()
 	case STORE_FUNC_GETKEYS:
+		// log.Println("!!!!!!!!!! getkeys ... ")
 		return st.getKeys()
 	case STORE_FUNC_REMOVEKEYS:
+		// log.Println("!!!!!!!!!! getkeys ... ")
 		if len(v) < 2 {
 			return nil
 		}

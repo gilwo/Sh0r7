@@ -3,17 +3,23 @@ package shortener
 import (
 	"bytes"
 	"crypto/cipher"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	crand "crypto/rand"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"log"
 	"math/big"
 	"math/rand"
+	"strings"
 
 	"github.com/gilwo/Sh0r7/store"
 	"github.com/google/uuid"
 	"github.com/itchyny/base58-go"
+	"golang.org/x/crypto/argon2"
 	"golang.org/x/crypto/sha3"
 	"golang.org/x/crypto/twofish"
 )
@@ -106,8 +112,11 @@ func sha256Of(input string) []byte {
 	return algorithm.Sum(nil)
 }
 func sha3Of(input string) []byte {
+	// log.Printf("&&& sha30 input: <%s>\n", input)
 	h := make([]byte, 64)
 	sha3.ShakeSum256(h, []byte(input))
+	// log.Printf("&&& sha30 res: <%#v>\n", h)
+	// log.Printf("&&& sha30 encode to string: <%s>\n", base64.StdEncoding.EncodeToString(h))
 	return h
 }
 
@@ -155,11 +164,17 @@ func GenericShort(original string, startOffset, sizeFixed, sizeMin, sizeMax int,
 		return rand.Intn(N)
 	}
 	ofsCalc := func(r int) int {
+		// fmt.Printf("sizefixed: %d, r: %d\n", sizeFixed, r)
 		if sizeFixed == 0 {
 			return rand.Intn(func() int {
+				// if r <= sizeMax {
+				// 	return r
+				// }
 				if r >= sizeMax {
+					// fmt.Printf("r>sizemiax: (%d>%d)\n", r, sizeMax)
 					return sizeMax
 				}
+				// fmt.Printf("r<=sizemiax: (%d>%d)\n", r, sizeMax)
 				return r
 			}() + 1) // half open - so we need to add +1 to the half closed side to include that
 		}
@@ -171,6 +186,7 @@ func GenericShort(original string, startOffset, sizeFixed, sizeMin, sizeMax int,
 	for {
 		lPos := startPos()
 		ofs := ofsCalc(N - lPos)
+		// fmt.Printf("ofsCalc: %d\n", ofs)
 		if ofs >= sizeMin && N > lPos+ofs {
 			res := original[lPos : lPos+ofs]
 			if checkInStore != nil {
@@ -193,6 +209,167 @@ func GenericShort(original string, startOffset, sizeFixed, sizeMin, sizeMax int,
 		}
 	}
 }
+
+var (
+	Env   string = "dev"
+	isDev bool   = __isDev(Env)
+)
+
+func __isDev(in string) bool {
+	if in == "dev" {
+		return true
+	}
+	return false
+}
+
+// func __Vargon2Generic(variant, pass, salt, keylen string) (string, error) {
+// 	aVersion := argon2.Version
+// 	aVariant := variant
+// 	if aVariant != "i" && aVariant != "id" {
+// 		msg := "only \"i\" and \"id\" variants are available"
+// 		if isDev {
+// 			panic(msg)
+// 		}
+// 		return "", fmt.Errorf(msg)
+// 	}
+// 	var foo func(password, salt []byte, time, memory uint32, threads uint8, keyLen uint32) []byte
+// 	if aVariant == "i" {
+// 		foo = argon2.Key
+// 	} else { // "id"
+// 		foo = argon2.IDKey
+// 	}
+// 	aTime := 5
+// 	aMemory := 4 * 1024
+// 	aParallel := 1
+// 	aSalt := salt
+// 	if len(aSalt) < 8 {
+// 		msg := "salt len must be at least 8 character long"
+// 		if isDev {
+// 			panic(msg)
+// 		}
+// 		return "", fmt.Errorf(msg)
+// 	}
+// 	aKeyLen, err := strconv.Atoi(keylen)
+// 	if err != nil {
+// 		if isDev {
+// 			panic(err)
+// 		}
+// 		return "", err
+// 	}
+// 	hash := foo([]byte(pass), []byte(aSalt), uint32(aTime), uint32(aMemory), uint8(aParallel), uint32(aKeyLen))
+// 	encodedHash := fmt.Sprintf("$argon2%s$v=%d$m=%d,t=%d,p=%d$%s$%s",
+// 		aVariant, aVersion,
+// 		aMemory, aTime, aParallel,
+// 		base64.RawStdEncoding.Strict().EncodeToString([]byte(aSalt)),
+// 		base64.RawStdEncoding.Strict().EncodeToString([]byte(hash)))
+// 	return encodedHash, nil
+// }
+
+func __argon2Generic(variant, pass, salt string, keylen uint32) (string, error) {
+	aVersion := argon2.Version
+	aVariant := variant
+	if aVariant != "i" && aVariant != "id" {
+		msg := "only \"i\" and \"id\" variants are available"
+		if isDev {
+			panic(msg)
+		}
+		return "", fmt.Errorf(msg)
+	}
+	var foo func(password, salt []byte, time, memory uint32, threads uint8, keyLen uint32) []byte
+	if aVariant == "i" {
+		foo = argon2.Key
+	} else { // "id"
+		foo = argon2.IDKey
+	}
+	aTime := 5
+	aMemory := 4 * 1024
+	aParallel := 1
+	aSalt := salt
+	if len(aSalt) < 8 {
+		msg := "salt len must be at least 8 character long"
+		if isDev {
+			panic(msg)
+		}
+		return "", fmt.Errorf(msg)
+	}
+	aKeyLen := keylen
+	// aKeyLen, err := strconv.Atoi(keylen)
+	// if err != nil {
+	// 	if isDev {
+	// 		panic(err)
+	// 	}
+	// 	return "", err
+	// }
+	hash := foo([]byte(pass), []byte(aSalt), uint32(aTime), uint32(aMemory), uint8(aParallel), uint32(aKeyLen))
+	encodedHash := fmt.Sprintf("$argon2%s$v=%d$m=%d,t=%d,p=%d$%s$%s",
+		aVariant, aVersion,
+		aMemory, aTime, aParallel,
+		base64.RawStdEncoding.Strict().EncodeToString([]byte(aSalt)),
+		base64.RawStdEncoding.Strict().EncodeToString([]byte(hash)))
+	return encodedHash, nil
+}
+
+// Argon2I - preferred for hasing passwords
+func Argon2I(pass, salt string, keylen uint32) string {
+	res, _ := __argon2Generic("i", pass, salt, keylen)
+	return res
+}
+
+func Argon2ID(pass, salt string, keylen uint32) string {
+	res, _ := __argon2Generic("id", pass, salt, keylen)
+	return res
+}
+
+func DecodeArgonHashSalt(encodedHash string) string {
+	vals := strings.Split(encodedHash, "$")
+	if len(vals) != 6 {
+		return ""
+	}
+
+	salt, err := base64.RawStdEncoding.Strict().DecodeString(vals[4])
+	if err != nil {
+		return ""
+	}
+	return string(salt)
+
+}
+
+//ref ...
+// func decodeHash(encodedHash string) (p *params, salt, hash []byte, err error) {
+// 	vals := strings.Split(encodedHash, "$")
+// 	if len(vals) != 6 {
+// 		return nil, nil, nil, ErrInvalidHash
+// 	}
+
+// 	var version int
+// 	_, err = fmt.Sscanf(vals[2], "v=%d", &version)
+// 	if err != nil {
+// 		return nil, nil, nil, err
+// 	}
+// 	if version != argon2.Version {
+// 		return nil, nil, nil, ErrIncompatibleVersion
+// 	}
+
+// 	p = &params{}
+// 	_, err = fmt.Sscanf(vals[3], "m=%d,t=%d,p=%d", &p.memory, &p.iterations, &p.parallelism)
+// 	if err != nil {
+// 		return nil, nil, nil, err
+// 	}
+
+// 	salt, err = base64.RawStdEncoding.Strict().DecodeString(vals[4])
+// 	if err != nil {
+// 		return nil, nil, nil, err
+// 	}
+// 	p.saltLength = uint32(len(salt))
+
+// 	hash, err = base64.RawStdEncoding.Strict().DecodeString(vals[5])
+// 	if err != nil {
+// 		return nil, nil, nil, err
+// 	}
+// 	p.keyLength = uint32(len(hash))
+
+//		return p, salt, hash, nil
+//	}
 
 func EncryptData(data []byte, key string) []byte {
 	if len(data) == 0 {
@@ -254,6 +431,7 @@ func DecryptData(data []byte, key string) []byte {
 	dst := make([]byte, len(data))
 	_dst := dst
 	_src := src
+	log.Printf("src len :%d\n", len(_src))
 	for len(_src) > 0 {
 		cbc.CryptBlocks(_dst[:cbc.BlockSize()], _src[:cbc.BlockSize()])
 		_dst = _dst[cbc.BlockSize():]
@@ -268,3 +446,154 @@ func DecryptData(data []byte, key string) []byte {
 	dst = dst[padLength:]
 	return dst
 }
+
+func CreateECKeyPairString() (string, string, error) {
+	if kPair, err := ecdsa.GenerateKey(elliptic.P384(), crand.Reader); err != nil {
+		return "", "", err
+	} else if prvEncoded, err := x509.MarshalECPrivateKey(kPair); err != nil {
+		return "", "", err
+	} else if pubEncoded, err := x509.MarshalPKIXPublicKey(&kPair.PublicKey); err != nil {
+		return "", "", err
+	} else {
+		return hex.EncodeToString(prvEncoded), hex.EncodeToString(pubEncoded), nil
+	}
+}
+
+func TransformECKeyPrivateString(prv string) *ecdsa.PrivateKey {
+	if prvData, err := hex.DecodeString(prv); err != nil {
+		return nil
+	} else if prvKey, err := x509.ParseECPrivateKey(prvData); err != nil {
+		return nil
+	} else {
+		return prvKey
+	}
+}
+
+func TransformECKeyPublicString(pub string) *ecdsa.PublicKey {
+	if pubData, err := hex.DecodeString(pub); err != nil {
+		return nil
+	} else if genPubKey, err := x509.ParsePKIXPublicKey(pubData); err != nil {
+		return nil
+	} else {
+		return genPubKey.(*ecdsa.PublicKey)
+	}
+}
+
+func TransformECKeyPairString(prv, pub string) *ecdsa.PrivateKey {
+
+	if prvData, err := hex.DecodeString(prv); err != nil {
+		return nil
+	} else if pubData, err := hex.DecodeString(pub); err != nil {
+		return nil
+	} else if prvKey, err := x509.ParseECPrivateKey(prvData); err != nil {
+		return nil
+	} else if genPubKey, err := x509.ParsePKIXPublicKey(pubData); err != nil {
+		return nil
+	} else {
+		pubKey := genPubKey.(*ecdsa.PublicKey)
+		prvKey.PublicKey = *pubKey
+		return prvKey
+	}
+}
+
+func signASN(prv, in string) string {
+	prvK := TransformECKeyPrivateString(prv)
+	if prvK == nil {
+		return ""
+	}
+	hash := sha3Of(in)
+	signatureASN, err := ecdsa.SignASN1(crand.Reader, prvK, hash)
+	if err != nil {
+		return ""
+	}
+	return hex.EncodeToString(signatureASN)
+}
+
+func verifyASN(pub, in, signature string) bool {
+	pubK := TransformECKeyPublicString(pub)
+	if pubK == nil {
+		return false
+	}
+	signData, err := hex.DecodeString(signature)
+	if err != nil {
+		return false
+	}
+	hash := sha3Of(in)
+	return ecdsa.VerifyASN1(pubK, hash, signData)
+}
+
+func sign(prv, pub, in string) string {
+	k := TransformECKeyPairString(prv, pub)
+	if k == nil {
+		return ""
+	}
+	hash := sha3Of(in)
+	r, s, err := ecdsa.Sign(crand.Reader, k, hash)
+	if err != nil {
+		return ""
+	}
+
+	return hex.EncodeToString(r.Bytes()) + hex.EncodeToString(hash) + hex.EncodeToString(s.Bytes())
+
+	// signature := append(r.Bytes(), s.Bytes()...)
+	// return hex.EncodeToString(signature)
+}
+
+func verify(prv, pub, in, signature string) bool {
+	k := TransformECKeyPairString(prv, pub)
+	if k == nil {
+		return false
+	}
+	hash := sha3Of(in)
+
+	z := strings.Split(signature, hex.EncodeToString(hash))
+	r := &big.Int{}
+	s := &big.Int{}
+
+	rin, err := hex.DecodeString(z[0])
+	if err != nil {
+		return false
+	}
+	sin, err := hex.DecodeString(z[1])
+	if err != nil {
+		return false
+	}
+
+	return ecdsa.Verify(&k.PublicKey, hash, r.SetBytes(rin), s.SetBytes(sin))
+}
+
+func main2() {
+	prv, pub, err := CreateECKeyPairString()
+	if err != nil {
+		panic(err)
+	}
+	shoobi := "shoobi doobi"
+	signature := sign(prv, pub, shoobi)
+
+	check := verify(prv, pub, shoobi, signature)
+
+	// kp := TransformECKeyPairString(prv, pub)
+	// if kp == nil {
+	// 	panic("invalid keypair")
+	// }
+	fmt.Printf("check sign/verify: %v\n", check)
+}
+
+func main3() {
+	prv, pub, err := CreateECKeyPairString()
+	if err != nil {
+		panic(err)
+	}
+	shoobi := "shoobi doobi"
+	signature := signASN(prv, shoobi)
+
+	check := verifyASN(pub, shoobi, signature)
+
+	// kp := TransformECKeyPairString(prv, pub)
+	// if kp == nil {
+	// 	panic("invalid keypair")
+	// }
+	fmt.Printf("check sign/verify: %v\n", check)
+}
+
+/// ---------------------------------------------------

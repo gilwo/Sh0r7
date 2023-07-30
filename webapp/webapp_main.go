@@ -1,4 +1,4 @@
-//go:build webapp
+//--//go:build webapp
 
 package webapp
 
@@ -49,11 +49,19 @@ var (
 	sh0r7H *app.Handler = &app.Handler{
 		Name:        "Sh0r7",
 		Description: "Sh0r7 url and data shortener",
+		// Icon:        app.Icon{
+		// Default: "/web/sh0r7-website-favicon-color.png",
+		// Default: "logoS.png",
+		// Large:   "logoL.png",
+		// },
 		LoadingLabel: "standby",
 		Styles: []string{
 			// "/web/sh0r7-main.css",
 			"/web/main.css",
+			// "https://maxcdn.bootstrapcdn.com/bootstrap/4.3/css/bootstrap.min.css",
 			"https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css",
+			// "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css",
+			// "https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css",
 		},
 		Title: "this is Sh0r7",
 		RawHeaders: []string{
@@ -61,9 +69,38 @@ var (
 			<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
 			<link href="https://fonts.googleapis.com/css?family=Cairo&display=swap" rel="stylesheet" />
 			<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.2/font/bootstrap-icons.css"rel="stylesheet"  >
+			<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+			<meta name="viewport" content="width=device-width, initial-scale=1">
+			<script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+			<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js" _integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
 			`,
 		},
-		AutoUpdateInterval: 50 * time.Second,
+		AutoUpdateInterval: 5 * time.Second,
+		// Resources:          app.RemoteBucket("http://seven.local:8111"),
+	}
+
+	clock *app.Handler = &app.Handler{
+		Name:        "clock",
+		Description: "clock",
+		Icon:        app.Icon{
+			// Default: "/web/sh0r7-website-favicon-color.png",
+			// Default: "logoS.png",
+			// Large:   "logoL.png",
+		},
+		LoadingLabel: "clock",
+		Styles:       []string{
+			// "/web/sh0r7-main.css",
+			// "/web/main.css",
+			// "https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css",
+		},
+		Title: "this is clock",
+		// RawHeaders: []string{
+		// 	`
+		// 	<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+		// 	<link href="https://fonts.googleapis.com/css?family=Cairo&display=swap" rel="stylesheet" />
+		// 	<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.2/font/bootstrap-icons.css"rel="stylesheet"  >
+		// 	`,
+		// },
 	}
 
 	webappServedPaths map[string]bool
@@ -77,6 +114,7 @@ func webappInit() {
 	webappCommon.WebappFront()
 
 	webappServedPaths = map[string]bool{
+		webappCommon.ClockPath:   true,
 		webappCommon.ShortPath:   true,
 		webappCommon.PrivatePath: true,
 		webappCommon.PublicPath:  true,
@@ -99,8 +137,12 @@ func webappInit() {
 			if f, err := os.Open(wd + frontend.ImgSource); err == nil {
 				webappServedPaths[frontend.ImgSource] = true
 				f.Close()
+				fmt.Printf("!!serving img, err: %v\n", err)
+			} else {
+				fmt.Printf("!!!! NOT serving img, err: %v\n", err)
 			}
 		}
+		// panic("222")
 	}
 }
 
@@ -135,6 +177,14 @@ func webappgenfunc(args ...interface{}) interface{} {
 			}
 		}
 		if _, ok := webappServedPaths[path]; !ok {
+			// if fixPath(c) {
+			// 	return true
+			// }
+			// log.Printf("referer check: <%s>, url <%s>\n", c.Request.Referer(), c.Request.URL.String())
+			// if c.Request.Referer() == c.Request.URL.String() {
+			// 	log.Printf("referer is self, not serving....\n")
+			// 	return false
+			// }
 			if checkPublicRedirect(c) {
 				return true
 			}
@@ -155,11 +205,24 @@ func webappgenfunc(args ...interface{}) interface{} {
 			}
 			return false
 		}
+		// if path == webappCommon.ShortPath {
+		// 	headerUpdate(c)
+		// }
 		if redirectAppPathWithToken(c) {
+			return true
+		}
+		if path == webappCommon.ClockPath {
+			clock.ServeHTTP(c.Writer, c.Request)
 			return true
 		}
 		log.Printf("serving %s\n", c.Request.URL)
 		sh0r7H.ServeHTTP(c.Writer, c.Request)
+		// if c.Writer.Status() != http.StatusOK && path == frontend.ImgSource {
+		// 	return false
+		// }
+		// if strings.HasSuffix(path, "app.wasm") {
+		// c.Writer.Header().Add("Cache-Control", "no-cahce")
+		// }
 		// collect metrics for app specific served paths (not the go-app framework)
 		{
 			span := trace.SpanFromContext(c.Request.Context())
@@ -183,12 +246,29 @@ func webappgenfunc(args ...interface{}) interface{} {
 	return false
 }
 
+// func fixPath(c *gin.Context) bool {
+// 	if c.Request.Referer() != "" {
+// 		log.Printf("referer not empty (%s)\n", c.Request.Referer())
+// 		return false
+// 	}
+// 	if strings.Contains(c.Request.URL.Path, webappCommon.PrivatePath) {
+// 		redirect := c.Request.URL
+// 		redirect.Path = webappCommon.PrivatePath
+// 		c.Redirect(http.StatusFound, redirect.String())
+// 		log.Printf("redirect with private (%s)\n", redirect)
+// 		return true
+// 	}
+// 	log.Printf("path not fixed")
+// 	return false
+// }
 
 func checkPrivateRedirect(c *gin.Context) bool {
 	if c.Param("ext") != "" {
 		return false
 	}
 	privateKey := c.Param("short")
+	// log.Printf("param short <%s>, param ext <%s> , path: <%s>\n", privateKey, paramExt, c.Request.RequestURI)
+	// privateKey := strings.Trim(c.Request.URL.Path, "/")
 	if dataKey, err := store.StoreCtx.LoadDataMapping(privateKey + store.SuffixPrivate); err == nil {
 		if info, err := store.StoreCtx.LoadDataMappingInfo(string(dataKey) + store.SuffixPublic); err == nil {
 			if v, ok := info[store.FieldPrivate]; ok && v == privateKey {
@@ -198,9 +278,17 @@ func checkPrivateRedirect(c *gin.Context) bool {
 					Path:     webappCommon.PrivatePath,
 					RawQuery: webappCommon.FShortKey + "=" + privateKey,
 				}
+				// redirect := c.Request.URL
+				// redirect.Host = c.Request.Host
+				// redirect.Scheme = c.Request.URL.Scheme
+				// redirect.Path = webappCommon.PrivatePath
+				// redirect.RawQuery = webappCommon.FShortKey + "=" + privateKey
 				if salt, ok := info[store.FieldPrvPassSalt]; ok {
 					redirect.RawQuery += "&" + webappCommon.PasswordProtected + "=" + url.QueryEscape(salt.(string))
 				}
+				// if strings.HasSuffix(c.Request.Referer(), redirect.String()) {
+				// 	return false
+				// }
 				if c.Request.Header.Get(webappCommon.FPrvPassToken) != "" {
 					return false
 				}
@@ -229,11 +317,14 @@ func getPublicInfo(publiceKey string) map[string]interface{} {
 	if info, err := store.StoreCtx.LoadDataMappingInfo(string(publiceKey) + store.SuffixPublic); err == nil {
 		return info
 	}
+	log.Printf("not found info for %s, trying named short\n", publiceKey)
 	// try get the named hash ... ?
 	hashedName := shortener.GenerateShortDataTweakedWithStore2NotRandom(publiceKey+store.SuffixPublic, 0, webappCommon.HashLengthNamedFixedSize, 0, 0, store.StoreCtx)
+	log.Printf("hash for %s: <%s>\n", publiceKey, hashedName)
 	if info, err := store.StoreCtx.LoadDataMappingInfo(string(hashedName) + store.SuffixPublic); err == nil {
 		return info
 	}
+	log.Printf("not found info for hashed name %s\n", publiceKey)
 	return nil
 }
 
@@ -247,7 +338,14 @@ func checkPublicRedirect(c *gin.Context) bool {
 		v, ok := info[store.FieldPublic]
 		v2, ok2 := info[store.FieldNamedPublic]
 		if (ok && v == publiceKey) || (ok2 && v2 == publiceKey) {
+
 			log.Printf("original url: %+#v\n", c.Request.URL)
+			// redirect := &url.URL{
+			// 	Host:     c.Request.Host,
+			// 	Scheme:   c.Request.URL.Scheme,
+			// 	Path:     webappCommon.PublicPath,
+			// 	RawQuery: webappCommon.FShortKey + "=" + publiceKey,
+			// }
 			redirect, err := url.ParseRequestURI(c.Request.RequestURI)
 			if err != nil {
 				log.Printf("failed to parse request uri: %s\n", err)
@@ -440,6 +538,7 @@ func headerUpdate(c *gin.Context) {
 	c.Writer.Header().Add(webappCommon.FSaltTokenID, "0")                         // token start pos
 	log.Println("===========================================")
 }
+
 func checkSaltTokenStillValid(c *gin.Context) bool {
 	qVals := c.Request.URL.Query()
 	if len(qVals) < 1 { // all values under the same field
@@ -526,12 +625,36 @@ func redirectAppPathWithToken(c *gin.Context) bool {
 		}
 		log.Printf("path token is invalid redirect with new token")
 	}
+	// refererUrl, err := url.Parse(c.Request.Referer())
+	// if err != nil {
+	// 	log.Printf("skip redirect for url parse failed for referrer... <%s>", c.Request.Referer())
+	// 	return false
+	// }
+	// if strings.HasSuffix(refererUrl.Path, "app-worker.js") {
+	// 	log.Printf("skip redirect for referrer url <%s>", c.Request.Referer())
+	// 	return false
+	// }
+
 	if refererUrl, _ := url.Parse(c.Request.Referer()); refererUrl != nil && strings.HasSuffix(refererUrl.Path, "app-worker.js") {
 		log.Printf("skip redirect for referrer url <%s>", c.Request.Referer())
 		return false
 	}
+	log.Println("===========================================")
+	log.Printf("referrer : %s\n", c.Request.Referer())
+	log.Printf("request : %s\n", c.Request.Header)
+	log.Printf("request UA: %s\n", c.Request.Header.Get("User-Agent"))
+	log.Printf("request UA2: %s\n", c.Request.UserAgent())
+	log.Printf("clientIP : %s\n", c.ClientIP())
+	log.Printf("client request uri : %s\n", c.Request.RequestURI)
+	log.Printf("client request url : %s\n", c.Request.URL)
+	// seed := generateSeedAndStoreToken(fmt.Sprintf("%s", c.Request.Header))
 	seedLen, tokenLen := 32, 40
 	seed, token := generateSeedAndToken(c.Request.Header.Get("User-Agent"), seedLen, tokenLen)
+	// log.Println("/*/*/*/*/*/*/*/*/*/*/*/*/")
+	// log.Printf("seed: <%s> (%d)\n", seed, seedLen)
+	// log.Printf("token: <%s> (%d)\n", token, tokenLen)
+	// log.Println("/*/*/*/*/*/*/*/*/*/*/*/*/")
+
 	log.Printf("generated seed - token : <%s> - <%s>\n", seed, token)
 	redirect, err := url.ParseRequestURI(c.Request.RequestURI)
 	if err != nil {
@@ -561,6 +684,7 @@ func redirectAppPathWithToken(c *gin.Context) bool {
 	redirect.RawQuery = q.Encode()
 	c.Redirect(http.StatusFound, redirect.String())
 	log.Printf("redirect with token seed (%s)\n", redirect)
+	log.Println("===========================================")
 	{
 		span := trace.SpanFromContext(c.Request.Context())
 		if span.IsRecording() {

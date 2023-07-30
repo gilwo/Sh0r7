@@ -51,8 +51,8 @@ const (
 
 func handleCreateShortModRemove(data, namedPublic string, isPrivate, isRemove, isUrl bool, expiration time.Duration) (shorts map[string]string, err error) {
 	shorts = map[string]string{
-		store.SuffixPublic: shortener.GenerateShortDataTweakedWithStore2(
-			data+store.SuffixPublic, -1, 0, LengthMinShortFree, LengthMaxShortFree, store.StoreCtx),
+		store.SuffixPublic: shortener.GenerateShortDataTweaked3(
+			data+store.SuffixPublic, -1, 0, LengthMinShortFree, LengthMaxShortFree, store.StoreCtx.CheckExistShortDataMappingAndLock),
 	}
 	if namedPublic != "" {
 		decodedNamedPublic, err := shortener.Base64SE.Decode(namedPublic)
@@ -70,16 +70,16 @@ func handleCreateShortModRemove(data, namedPublic string, isPrivate, isRemove, i
 		if checkReserveNames(namedPublic).IsFalse() {
 			return nil, errors.Errorf("named short (%s) cannot be used", namedPublic)
 		}
-		shorts[store.SuffixPublic] = shortener.GenerateShortDataTweakedWithStore2NotRandom(
-			namedPublic+store.SuffixPublic, 0, common.HashLengthNamedFixedSize, 0, 0, store.StoreCtx)
+		shorts[store.SuffixPublic] = shortener.GenerateShortDataTweaked3(
+			namedPublic+store.SuffixPublic, 0, common.HashLengthNamedFixedSize, 0, 0, store.StoreCtx.CheckExistShortDataMappingAndLock)
 	}
 	if isPrivate {
-		shorts[store.SuffixPrivate] = shortener.GenerateShortDataTweakedWithStore2(
-			data+store.SuffixPrivate, -1, 0, LengthMinPrivate, LengthMaxPrivate, store.StoreCtx)
+		shorts[store.SuffixPrivate] = shortener.GenerateShortDataTweaked3(
+			data+store.SuffixPrivate, -1, 0, LengthMinPrivate, LengthMaxPrivate, store.StoreCtx.CheckExistShortDataMappingAndLock)
 	}
 	if isRemove {
-		shorts[store.SuffixRemove] = shortener.GenerateShortDataTweakedWithStore2(
-			data+store.SuffixRemove, -1, 0, LengthMinRemove, LengthMaxRemove, store.StoreCtx)
+		shorts[store.SuffixRemove] = shortener.GenerateShortDataTweaked3(
+			data+store.SuffixRemove, -1, 0, LengthMinRemove, LengthMaxRemove, store.StoreCtx.CheckExistShortDataMappingAndLock)
 	}
 	for k, e := range shorts {
 		if e == "" {
@@ -120,6 +120,7 @@ func handleCreateShortModRemove(data, namedPublic string, isPrivate, isRemove, i
 				e = shorts[store.SuffixPublic]
 			}
 			err = store.StoreCtx.SetMetaDataMapping(shorts[store.SuffixPublic]+store.SuffixPublic, k, e)
+			// err = errors.Errorf("test error - check removal handling")
 			if err != nil {
 				break
 			}
@@ -147,6 +148,10 @@ func handleCreateShortModRemove(data, namedPublic string, isPrivate, isRemove, i
 	if isRemove {
 		res[store.FieldRemove] = shorts[store.SuffixRemove]
 	}
+
+	log.Println("!! dumpall: \n" + store.StoreCtx.GenFunc(store.STORE_FUNC_DUMPKEYS).(string))
+	log.Println("!! dump " + store.StoreCtx.GenFunc(store.STORE_FUNC_DUMP, shorts[store.SuffixPublic]+store.SuffixPublic).(string))
+
 	return res, nil
 }
 
@@ -427,6 +432,7 @@ func handleRemove(c *gin.Context) (r resTri) {
 		return r.False()
 	}
 	accessRes := shortAccessAllowedCheck(c, string(dataKey), common.ShortRemove)
+	log.Printf("############# access for %s is %s\n", short, accessRes)
 	if accessRes.IsFalse() {
 		return r.False()
 	}
@@ -570,6 +576,7 @@ func handleData(c *gin.Context) (r resTri) {
 			{ // a hacky flow - TODO - investigate or rethink
 				// if short fail here, then try to get the data for the full path
 				//  (some elements are stored this way using the storage provider)
+				fmt.Printf("checking <%s> for data mapping\n", c.Request.URL.Path)
 				data, err := store.StoreCtx.LoadDataMapping(c.Request.URL.Path)
 				if err == nil {
 					c.Data(200, "", data)
@@ -610,6 +617,9 @@ func handleData(c *gin.Context) (r resTri) {
 		redirect.RawQuery = common.FShortKey + "=" + short
 		c.Redirect(http.StatusFound, redirect.String())
 	} else {
+		// c.HTML(http.StatusOK, "foozbazz", gin.H{
+		// 	"Bar": string(data),
+		// })
 		c.HTML(http.StatusOK, "public-show-no-lock", gin.H{
 			"Data": string(data),
 		})
@@ -792,6 +802,7 @@ func handleCreateHeaders(c *gin.Context, res map[string]string) error {
 		if !store.StoreCtx.CheckExistShortDataMapping(shortNamed + store.SuffixPublic) {
 			msg := errors.Errorf("there was a problem with short: %s", short)
 			log.Printf("%s, not found when getting data - also for named public option (%s)\n", msg, shortNamed)
+			log.Println("!! dumpall: \n" + store.StoreCtx.GenFunc(store.STORE_FUNC_DUMPKEYS).(string))
 			return errors.Errorf("failed to set password for public link")
 		}
 		short = string(shortNamed)
@@ -964,13 +975,20 @@ func checkReserveNames(name string) resTri {
 // validateAdmin check for admin key or admin token, if not exits or failed to validate then update reponse and return false otherwise true
 func validateAdmin(c *gin.Context) bool {
 	var adTok string
+	log.Printf("query: <%#+v>\n", c.Request.URL.RawQuery)
+	log.Printf("header: <%#+v>\n", c.Request.Header)
 	adminKey := c.Query(common.FAdminKey)
 	if adminKey == "" {
 		v, ok := c.Request.Header[http.CanonicalHeaderKey(common.FAdminKey)]
 		if ok && len(v) > 0 {
 			adminKey = v[0]
 		}
+		// log.Printf("from header : <%+#v>\n", v)
+		// adminKey = c.Request.Header[common.FAdminKey]
+		// } else {
+		// adTok = shortener.GenerateTokenTweaked(adminKey, 0, 32, 0)
 	}
+	log.Printf("adminkey : <%+#v>\n", adminKey)
 	if adminKey == "" {
 		adTok = c.Query(common.FAdminToken)
 		if adTok == "" {
@@ -978,6 +996,7 @@ func validateAdmin(c *gin.Context) bool {
 			if ok && len(v) > 0 {
 				adTok = v[0]
 			}
+			// adTok = c.Request.Header.Get(common.FAdminToken)
 		}
 	} else {
 		adTok = shortener.GenerateTokenTweaked(adminKey, 0, 32, 0)

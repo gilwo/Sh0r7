@@ -19,6 +19,7 @@ func mainfrtonend() {
 	app.Route(common.PrivatePath, short)
 	app.Route(common.PublicPath, short)
 	app.Route(common.RemovePath, short)
+	// app.Route(common.ClockPath, newClock())
 
 	app.RunWhenOnBrowser()
 }

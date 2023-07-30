@@ -7,12 +7,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
+	ecies "github.com/ecies/go/v2"
 	"github.com/gilwo/Sh0r7/common"
 	"github.com/gilwo/Sh0r7/shortener"
 	"github.com/gilwo/Sh0r7/store"
@@ -56,6 +58,10 @@ type short struct {
 	passToken                  string // the password token used to lock and unlock the short private
 	updateAvailable            bool   // new version available
 
+	accountCreateValidContact string // email or phone #
+	accountCreatePass         string // password
+	accountCreateStore        bool   // should the valid Contact details (email / phone #) be saved in server
+
 	isDev          bool
 	isDebug        bool
 	isExperimental bool
@@ -64,12 +70,16 @@ type short struct {
 }
 
 const (
-	NOTEMESSAGE = "Sh0r7 service is still in alpha!"
+	// NOTEMESSAGE = "Sh0r7 service is still in alpha!"
+	NOTEMESSAGE = "Sh0r7 service is in beta!"
 )
 
 var (
 	ImgSource = "/web/logo.jpg"
 	// imgSource: "logoL.png",
+	// BuildVer          string = "dev"
+	// BuildTime         string = "now"
+	// ExternalTimeBuild string = "now"
 )
 
 func (h *short) RenderPrivate() app.UI {
@@ -135,6 +145,9 @@ func (h *short) RenderPrivate() app.UI {
 							ID("lockedPassword").
 							Class().
 							Body(
+								app.Div().
+									Class().
+									Body(app.Text("123"+common.BuildTime)),
 								app.Form().
 									Class("form-inline").
 									Body(
@@ -163,6 +176,9 @@ func (h *short) RenderPrivate() app.UI {
 												elem := app.Window().GetElementByID("resultUserPassword")
 												v := elem.Get("value").String()
 												h.passToken = shortener.GenerateTokenTweaked(v+h.privatePassSalt, 0, 30, 10)
+												app.Logf("pass text: <%s>\n", v)
+												app.Logf("pass salt: <%s>\n", h.privatePassSalt)
+												app.Logf("pass token (calc): <%s>\n", h.passToken)
 												h.isResultLocked = false
 												h.Update()
 											}),
@@ -297,6 +313,7 @@ func (h *short) RenderPublic() app.UI {
 		if len(h.publicData+h.publicUrl) == 0 {
 			app.Logf("triggering getPublicShort with passtoekn : <%s>\n", h.passToken)
 			err := h.getPublicShort(h.passToken)
+			// app.Logf("getpublic short result: <%v>\n", out)
 			if err != nil {
 				app.Logf("error getting public data (%s)\n", err)
 			}
@@ -318,6 +335,65 @@ func (h *short) RenderPublic() app.UI {
 						Body(
 							app.Text(h.publicData),
 						),
+					// app.If(h.isDataEncryptPassword,
+					// 	app.Div().
+					// 		Class().
+					// 		Body(
+					// 			app.Text("data is encrypted"),
+					// 			app.Br(),
+					// 			h.passwordOption("encrypt").
+					// 				OnChange(func(ctx app.Context, e app.Event) {
+					// 					h.skipRender = true
+					// 					fmt.Printf("something changed\n")
+					// 					dataLoc := app.Window().GetElementByID("publicData")
+					// 					if h.isDataEncryptPassword {
+					// 						data := dataLoc.Get("innerText").String()
+					// 						if data == "error" {
+					// 							return
+					// 						}
+					// 						dataBuf, err := hex.DecodeString(data)
+					// 						if err == nil {
+					// 							dec, isDec := h.decryptPayload(dataBuf)
+					// 							if isDec {
+					// 								app.Logf("dec data: <%s>\n", string(dec))
+					// 								dataLoc.Set("innerText", string(dec))
+					// 							} else {
+					// 								app.Logf("failed to decrypt data")
+					// 								dataLoc.Set("innerText", "error")
+					// 							}
+					// 						} else {
+					// 							app.Logf("problem with decode string, %s", err)
+					// 						}
+					// 					} else {
+					// 						dataLoc.Set("innerText", out[store.FieldDATA])
+					// 					}
+					// 				}),
+					// 		),
+					// 	// Body(
+					// 	// 	app.Text("data is encrypted"),
+					// 	// 	app.Br(),
+					// 	// 	h.passwordOption("encrypt").OnChange(func(ctx app.Context, e app.Event) {
+					// 	// 		fmt.Printf("something changed\n")
+					// 	// 		dataLoc := app.Window().GetElementByID("publicData")
+					// 	// 		data := dataLoc.Get("innerText").String()
+					// 	// 		dataBuf, err := hex.DecodeString(data)
+					// 	// 		if err != nil {
+					// 	// 			app.Logf("problem with decode string, %s", err)
+					// 	// 			return
+					// 	// 		}
+					// 	// 		// if encKey := encryptPass.Get("value").String(); encKey != "" {
+					// 	// 		if h.isDataEncryptPassword {
+					// 	// 			dec, isDec := h.decryptPayload(dataBuf)
+					// 	// 			if !isDec {
+					// 	// 				app.Logf("failed to decrypt data")
+					// 	// 				return
+					// 	// 			}
+					// 	// 			app.Logf("dec data: <%s>\n")
+					// 	// 			dataLoc.Set("innerText", string(dec))
+					// 	// 		}
+					// 	// 	}),
+					// 	// ),
+					// ),
 				)
 		}
 	}
@@ -329,6 +405,9 @@ func (h *short) RenderPublic() app.UI {
 					ID("lockedPassword").
 					Class().
 					Body(
+						app.Div().
+							Class().
+							Body(app.Text("##"+common.BuildTime)),
 						app.Form().
 							Class("form-inline").
 							Body(
@@ -357,6 +436,9 @@ func (h *short) RenderPublic() app.UI {
 										elem := app.Window().GetElementByID("resultUserPassword")
 										v := elem.Get("value").String()
 										h.passToken = shortener.GenerateTokenTweaked(v+h.publicPassSalt, 0, 30, 10)
+										app.Logf("pass text: <%s>\n", v)
+										app.Logf("pass salt: <%s>\n", h.publicPassSalt)
+										app.Logf("pass token (calc): <%s>\n", h.passToken)
 										h.isResultLocked = false
 										h.Update()
 									}),
@@ -418,6 +500,9 @@ func (h *short) RenderRemove() app.UI {
 										elem := app.Window().GetElementByID("resultUserPassword")
 										v := elem.Get("value").String()
 										h.passToken = shortener.GenerateTokenTweaked(v+h.removePassSalt, 0, 30, 10)
+										app.Logf("pass text: <%s>\n", v)
+										app.Logf("pass salt: <%s>\n", h.removePassSalt)
+										app.Logf("pass token (calc): <%s>\n", h.passToken)
 										h.isResultLocked = false
 										h.Update()
 									}),
@@ -458,6 +543,9 @@ func (h *short) showRetry() app.UI {
 }
 
 func (h *short) Render() app.UI {
+	// if h.updateAvailable {
+	// 	return h.RenderUpdate()
+	// }
 	if h.isPrivate {
 		return h.RenderPrivate()
 	}
@@ -519,6 +607,7 @@ func (h *short) Render() app.UI {
 							),
 					),
 				),
+			// h.navBar2(),
 			app.Div().
 				Class("row").
 				Class("marker").
@@ -587,6 +676,7 @@ func (h *short) Render() app.UI {
 												}
 												if v != "" {
 													h.createShort(ctx)
+													// ctx.Async(h.createShort)
 												}
 											}),
 									).Else(
@@ -605,16 +695,26 @@ func (h *short) Render() app.UI {
 												h.isNamedPublic = false
 												h.isPublicPassword = false
 												h.isPublicPasswordShown = false
+												// app.Window().GetElementByID("checkboxShortAsData").Set("checked", false)
+												// app.Window().GetElementByID("checkboxExpire").Set("checked", false)
+												// app.Window().GetElementByID("checkboxDescription").Set("checked", false)
+												// app.Window().GetElementByID("checkboxNamedPublicShort").Set("checked", false)
 												if h.isOptionPrivate {
+													// app.Window().GetElementByID("checkboxPrivatePassword").Set("checked", false)
+													// app.Window().GetElementByID("checkboxOptionPrivate").Set("checked", false)
 													h.isOptionPrivate = false
 													h.isPrivatePassword = false
 													h.isPrivatePasswordShown = false
 												}
+												// app.Window().GetElementByID("checkboxPublicPassword").Set("checked", false)
 												if h.isOptionRemove {
+													// app.Window().GetElementByID("checkboxRemovePassword").Set("checked", false)
+													// app.Window().GetElementByID("checkboxOptionRemove").Set("checked", false)
 													h.isOptionRemove = false
 													h.isRemovePassword = false
 													h.isRemovePasswordShown = false
 												}
+												// h.Update()
 											}),
 									),
 								),
@@ -635,6 +735,16 @@ func (h *short) Render() app.UI {
 							Class("container-fluid").
 							Class("shortOptions").
 							Body(
+								// func() []app.UI {
+								// 	ret := []app.UI{h.OptionsTitle()}
+								// 	ret = append(ret, h.OptionShortAsData())
+								// 	ret = append(ret, h.OptionExpire())
+								// 	ret = append(ret, h.OptionDescription())
+								// 	ret = append(ret, h.OptionPublic())
+								// 	ret = append(ret, h.OptionPrivate())
+								// 	ret = append(ret, h.OptionRemove())
+								// 	return ret
+								// }()...,
 								h.OptionsTitle(),
 								h.OptionShortAsData(),
 								h.OptionExpire(),
@@ -737,9 +847,11 @@ func (h *short) parseSTID(ctx app.Context, stid string) {
 		}
 	}
 
+	// app.Logf("******************************* stid from reload: %+#v\n", stid)
 	ua := app.Window().Get("navigator").Get("userAgent").String()
 
 	token := shortener.GenerateTokenTweaked(ua+seed, tokenStartPos, tokenLen, 0)
+	app.Logf("******************************* calculated token: %s\n", token)
 	if token == "" {
 		app.Logf("problem with token generation\n")
 		return
@@ -756,6 +868,7 @@ func (h *short) reload(ctx app.Context) {
 	lurl := app.Window().URL()
 	lurl.Path = "/"
 	lurl.RawQuery = "reload"
+	// var redirectLoc *url.URL
 
 	client := http.Client{
 		Timeout: time.Duration(5 * time.Second),
@@ -767,6 +880,9 @@ func (h *short) reload(ctx app.Context) {
 	}
 	req.Header.Set("Content-Type", "text/plain")
 	req.Header.Set(webappCommon.FRequestTokenSeed, uuid.NewString()+"#*$$"+uuid.NewString())
+	// req.Header.Set("Content-Type", "text/plain")
+	x, err := httputil.DumpRequest(req, true)
+	app.Logf("invoking request: %+#v, err: %v\n", string(x), err)
 	resp, err := client.Do(req)
 	if err != nil {
 		app.Logf("failed to invoke request: %s\n", err)
@@ -777,7 +893,31 @@ func (h *short) reload(ctx app.Context) {
 		app.Logf("response not ok: %v\n", resp.StatusCode)
 		return
 	}
+	// x, err = httputil.DumpResponse(resp, true)
+	// app.Logf("getting response location: %#+v, err: %v\n", string(x), err)
+	// loc, err := resp.Location()
+	// app.Logf("response location: [%#+v], error [%v]\n", loc, err)
+
+	// defer resp.Body.Close()
+	// body, err := io.ReadAll(resp.Body)
+	// if err != nil {
+	// 	h.handleError("response reads", err)
+	// 	return
+	// }
+	// app.Logf("response: %+#v\n", body)
+	// app.Logf("redirect Location: %+#v\n", redirectLoc)
+	x, err = httputil.DumpResponse(resp, true)
+	app.Logf("getting response : %#+v, err: %v\n", string(x), err)
+	app.Logf("header %s : %#+v\n", webappCommon.FSaltTokenID, resp.Header.Values(webappCommon.FSaltTokenID))
 	stid := resp.Header.Get(webappCommon.FSaltTokenID)
+	d, err := shortener.Base64SE.Decode(stid)
+	app.Logf("stid: %v -> %v, error: %v", stid, string(d), err)
+	// for i, e := range strings.Split(stid, ", ") {
+	// 	// stid := resp.Header.Values(webappCommon.FSaltTokenID)
+	// 	// for i, e := range stid {
+	// 	d, err := shortener.Base64SE.Decode(e)
+	// 	app.Logf("stid: %d) %v -> %v, error: %v", i, string(e), string(d), err)
+	// }
 	h.parseSTID(ctx, stid)
 }
 
@@ -824,6 +964,8 @@ func (h *short) load2(ctx app.Context) {
 		}
 	}
 	app.Logf("load2....\n")
+	kpair, _ := ecies.GenerateKey()
+	app.Logf("ecies\nprv: %#+v\npub: %#+v\n", kpair, kpair.PublicKey)
 }
 
 func (h *short) logInit() {
@@ -846,7 +988,9 @@ func (h *short) logInit() {
 			h.isDebug = true
 		}
 	}
+	app.Logf("lurl: <%s>, debug: %v, dev: %v\n", lurl, h.isDebug, h.isDev)
 
+	h.isDebug = true
 	if h.isDebug || h.isDev {
 		orgLog := app.DefaultLogger
 		app.DefaultLogger = func(format string, v ...any) {
@@ -854,6 +998,10 @@ func (h *short) logInit() {
 				append([]any{time.Now().Format(time.RFC3339)}, v...)...)
 		}
 		app.Logf("webapp run with isDebug: %v and isDev: %v\n", h.isDebug, h.isDev)
+	} else {
+		// app.Logf("webapp run with isDebug: %v and isDev: %v\n", h.isDebug, h.isDev)
+		app.Logf("disabling any log messages")
+		app.DefaultLogger = func(format string, v ...any) {}
 	}
 }
 
@@ -886,12 +1034,23 @@ func (h *short) OnResize(ctx app.Context) {
 }
 func (h *short) OnUpdate(ctx app.Context) {
 	app.Logf("******************************* update")
+	app.Logf("******************************* update123")
 }
 func (h *short) OnAppUpdate(ctx app.Context) {
 	h.updateAvailable = ctx.AppUpdateAvailable()
+	app.Logf("11111111111111111111111111111111\n")
 	app.Logf("******************************* app update: %v\n", h.updateAvailable)
+	// ctx.Async(
+	// 	func() {
+	// 	app.Log("3")
+	// 	<-time.After(time.Second)
+	// 	app.Log("2")
+	// 	<-time.After(time.Second)
+	// 	app.Log("1")
+	// 	<-time.After(time.Second)
 	app.Log("!!! reloading ...")
 	ctx.Reload() // TODO:  maybe do it async .. ?, maybe dont force update .. ?
+	// })
 }
 
 func urlCheck(s string) (string, bool) {
@@ -1031,6 +1190,9 @@ func (h *short) createShort(ctx app.Context) {
 	h.result = string(r)
 	h.resultReady = true
 
+	// app.Logf("******************************* create short result: %s\n", string(body))
+	// elem.Set("value", string(body))
+	// app.Logf("******************************* create shoty: %#v\n", r)
 	h.Update()
 }
 
@@ -1176,10 +1338,17 @@ func (h *short) getPublicShort(passToken string) error {
 	tup, err := store.NewTupleFromString(string(body))
 	if err != nil {
 		app.Logf("failed to parse body: %s\n", err)
+		// return map[string]string{
+		// 	store.FieldDATA: string(body),
+		// }, []string{store.FieldDATA}, nil
 		h.publicData = string(body)
 	} else {
 		h.publicUrl = tup.Get(store.FieldURL)
 	}
+
+	// return map[string]string{
+	// 	store.FieldURL: tup.Get(store.FieldURL),
+	// }, []string{store.FieldURL}, nil
 	return nil
 }
 
@@ -1215,6 +1384,22 @@ func (h *short) getRemoveShort(passToken string) (map[string]string, []string, e
 		return nil, nil, fmt.Errorf("status: %v", resp.StatusCode)
 	}
 
+	// body, err := io.ReadAll(resp.Body)
+	// if err != nil {
+	// 	app.Logf("failed to read response body: %s\n", err)
+	// 	return nil, nil, err
+	// }
+	// app.Logf("resp body: <%s>\n", string(body))
+	// tup, err := store.NewTupleFromString(string(body))
+	// if err != nil {
+	// 	app.Logf("failed to parse body: %s\n", err)
+	// 	return map[string]string{
+	// 		store.FieldDATA: string(body),
+	// 	}, []string{store.FieldDATA}, nil
+	// }
+	// return map[string]string{
+	// 	store.FieldURL: tup.Get(store.FieldURL),
+	// }, []string{store.FieldURL}, nil
 	return nil, nil, nil
 }
 
@@ -1252,6 +1437,8 @@ func (h *short) getPrivateInfo(passToken string) (map[string]string, []string, e
 		app.Logf("failed to read response body: %s\n", err)
 		return nil, nil, err
 	}
+	app.Logf("resp body: <%s>\n", string(body))
+
 	tup, err := store.NewTupleFromString(string(body))
 	if err != nil {
 		app.Logf("failed to parse body: %s\n", err)
@@ -1306,13 +1493,21 @@ func (h *short) getPrivateInfo(passToken string) (map[string]string, []string, e
 }
 
 func (h *short) getTitleHeader() app.UI {
+	knock1 := 0
+	knock2 := 0
+	if !h.isExperimental {
+		knock1 = 3
+		knock2 = 3
+	}
 	return app.Div().
 		Class("row").
 		Class("header").
 		ID("logoTitle").
 		Body(
 			app.Div().
+				// Class("col-md-4", "col-md-offset-2", "col-sm-4", "col-sm-offset-2", "col-xs-4", "col-xs-offset-3").
 				Class("col-md-4", "col-md-offset-2", "col-sm-4", "col-sm-offset-2", "col-xs-4", "col-xs-offset-1").
+				// Class("col-xs-4", "col-xs-offset-1").
 				Class("logo").
 				Body(
 					app.Img().
@@ -1324,26 +1519,50 @@ func (h *short) getTitleHeader() app.UI {
 						Alt("Sh0r7 Logo").
 						Width(200).
 						OnClick(func(ctx app.Context, e app.Event) {
+							app.Logf("knock 1 (%d), 2 (%d)\n", knock1, knock2)
+							knock1 -= 1
+							if (knock1 > 0 || knock2 > 0) || h.isExperimental {
+								return
+							}
 							lurl := app.Window().URL()
 							lurl.Path = webappCommon.ShortPath
+							lurl.RawQuery = lurl.RawQuery + "&exp"
 							app.Window().Get("location").Set("href", lurl.String())
+							// ctx.NavigateTo(lurl)
 						}),
 				),
 			app.Div().
+				// Class("col-md-6", "col-md-offset-0", "col-sm-4", "col-sm-offset-0", "col-xs-6", "col-xs-offset-3").
 				Class("col-md-6", "col-md-offset-0", "col-sm-4", "col-sm-offset-0", "col-xs-6", "col-xs-offset-1").
+				// Class("col-xs-6", "col-xs-offset-1").
 				Class("text").
 				Body(
 					app.H1().
 						Body(
 							app.Text("Sh0r7"),
 						).
+						OnMouseOver(func(ctx app.Context, e app.Event) {
+							elem := app.Window().GetElementByID("titleH2")
+							elem.Set("innerText", "the world!!")
+						}).
+						OnMouseOut(func(ctx app.Context, e app.Event) {
+							elem := app.Window().GetElementByID("titleH2")
+							elem.Set("innerText", "the earth562!")
+						}).
 						Class("clickLinkAble").
 						OnClick(func(ctx app.Context, e app.Event) {
+							app.Logf("knock 1 (%d), 2 (%d)\n", knock1, knock2)
+							knock2 -= 1
+							if (knock2 > 0 || knock1 > 0) || h.isExperimental {
+								return
+							}
 							lurl := app.Window().URL()
 							lurl.Path = webappCommon.ShortPath
+							// url.RawQuery = ""
 							app.Window().Get("location").Set("href", lurl.String())
+							// ctx.NavigateTo(lurl)
 						}),
-					app.H2().
+					app.H2().ID("titleH2").
 						Styles(
 							map[string]string{
 								"margin-left": "40px",
@@ -1360,6 +1579,7 @@ func (h *short) getTitleHeader() app.UI {
 		)
 }
 
+// app.Logf("entered password option for %s\n", which)
 func (h *short) RenderUpdate() app.UI {
 	return app.Div().
 		Class("container").
@@ -1422,7 +1642,13 @@ func (h *short) DebugWindow() app.UI {
 			app.Div().
 				ID("grabHere").
 				Body(app.Text("Debug Window")).
-				OnMouseDown(mouseDownFunc).OnMouseUp(mouseUpFunc),
+				OnMouseDown(mouseDownFunc).OnMouseUp(mouseUpFunc).
+				OnDrag(func(ctx app.Context, e app.Event) { app.Logf("drag") }).
+				OnDragEnter(func(ctx app.Context, e app.Event) { app.Logf("drag enter") }).
+				OnDragLeave(func(ctx app.Context, e app.Event) { app.Logf("drag leave") }).
+				OnDragStart(func(ctx app.Context, e app.Event) { app.Logf("drag start ") }).
+				OnDragEnd(func(ctx app.Context, e app.Event) { app.Logf("drag end") }).
+				OnDragOver(func(ctx app.Context, e app.Event) { app.Logf("drag over") }),
 			app.Textarea().
 				ID("movText").
 				Body(app.Text("messages goes here...")),
@@ -1431,8 +1657,12 @@ func (h *short) DebugWindow() app.UI {
 }
 
 func preventEnter(ctx app.Context, e app.Event) {
+	// key := e.Get("key").String()
 	keyCode := e.Get("keyCode").Int()
+	// app.Logf("event key down: [%s]\n", key)
+	// app.Logf("event key down: [%d]\n", keyCode)
 	if keyCode == 13 { // preventing enter
+		// app.Logf("preventing enter...\n")
 		e.PreventDefault()
 	}
 }
@@ -1468,6 +1698,9 @@ func (h *short) RenderPublicWithPassword() (ret app.UI) {
 			Body(
 				app.Pre().ID("publicData").
 					ContentEditable(false).
+					OnContextMenu(func(ctx app.Context, e app.Event) {
+						app.Logf("context menu triggered\n")
+					}).
 					Body(
 						app.Text(h.publicData),
 					),
@@ -1478,8 +1711,11 @@ func (h *short) RenderPublicWithPassword() (ret app.UI) {
 						app.Br(),
 						h.passwordOption("encrypt").
 							OnChange(func(ctx app.Context, e app.Event) {
+								fmt.Printf("something changed\n")
 								dataLoc := app.Window().GetElementByID("publicData")
 								if h.isDataEncryptPassword {
+									// data := dataLoc.Get("innerText").String()
+									// if data != "error" {
 									dataBuf, err := hex.DecodeString(h.publicData)
 									if err == nil {
 										dec, isDec := h.decryptPayload(dataBuf)
@@ -1494,11 +1730,36 @@ func (h *short) RenderPublicWithPassword() (ret app.UI) {
 										app.Logf("problem with decode string, %s", err)
 										dataLoc.Set("innerText", "error")
 									}
+									// }
 								} else {
 									dataLoc.Set("innerText", h.publicData)
 								}
 							}),
 					),
+				// Body(
+				// 	app.Text("data is encrypted"),
+				// 	app.Br(),
+				// 	h.passwordOption("encrypt").OnChange(func(ctx app.Context, e app.Event) {
+				// 		fmt.Printf("something changed\n")
+				// 		dataLoc := app.Window().GetElementByID("publicData")
+				// 		data := dataLoc.Get("innerText").String()
+				// 		dataBuf, err := hex.DecodeString(data)
+				// 		if err != nil {
+				// 			app.Logf("problem with decode string, %s", err)
+				// 			return
+				// 		}
+				// 		// if encKey := encryptPass.Get("value").String(); encKey != "" {
+				// 		if h.isDataEncryptPassword {
+				// 			dec, isDec := h.decryptPayload(dataBuf)
+				// 			if !isDec {
+				// 				app.Logf("failed to decrypt data")
+				// 				return
+				// 			}
+				// 			app.Logf("dec data: <%s>\n")
+				// 			dataLoc.Set("innerText", string(dec))
+				// 		}
+				// 	}),
+				// ),
 			)
 	}
 	return ret
@@ -1516,6 +1777,16 @@ func (h *short) navBar3() app.UI {
 					app.Ul().
 						Class("nav nav-pills navbar-right _nav-justified").
 						Body(
+							// app.Li().
+							// 	Aria("role", "presentation").
+							// 	Class("active").
+							// 	Body(
+							// 		app.A().
+							// 			Href("#").
+							// 			Body(
+							// 				app.Text("Home"),
+							// 			),
+							// 	),
 							app.Li().
 								Class().
 								Role("presentation").
@@ -1529,11 +1800,20 @@ func (h *short) navBar3() app.UI {
 											jui := app.Window().GetElementByID("id02")
 											style := jui.Get("style")
 											style.Set("display", "block")
+											// jui2 := app.Window().Get("style")
+											// jui2.Set("overflow", "hidden")
 											// prevent main view interaction (scroll) when modal is open
 											html := app.Window().Get("document").Get("children").Index(0)
 											html.Get("style").Set("overflow", "hidden")
 										}),
 									h.renderSignIn2(),
+									// h.renderSignIn2().(app.HTMLDiv).
+									// 	OnFocus(func(ctx app.Context, e app.Event) {
+									// 		app.Logf("modal is on - change html and body style...")
+									// 	}).
+									// 	OnBlur(func(ctx app.Context, e app.Event) {
+									// 		app.Logf("modal is off - change html and body style...")
+									// 	}),
 								).
 								OnMouseOut(func(ctx app.Context, e app.Event) {
 									ctx.JSSrc().Get("attributes").Get("class").Set("value", "")
@@ -1569,4 +1849,494 @@ func (h *short) navBar3() app.UI {
 						),
 				))
 }
+func (h *short) navBar2() app.UI {
+	return app.Div().
+		Class("row").
+		Class("nav").
+		Body(
+			app.Div().
+				Class("col-sm-10", "col-sm-offset-1").
+				Body(
+					app.Nav().
+						Class("navbar navbar-default").
+						Body(
+							app.Div().
+								Class("container-fluid").
+								Body(
+									app.Div().
+										Class("navbar-header").
+										Body(
+											app.A().
+												Class("navbar-brand").
+												Href("#").
+												Body(
+													app.Img().
+														Alt("Brand").
+														Src(ImgSource).
+														Height(25).Width(25),
+												),
+										),
+									// ---- start ---
+									app.Div().
+										Class("navbar-collapse collapse in").
+										ID("bs-example-navbar-collapse-1").
+										Aria("expanded", true).
+										Style("", "").
+										Body(
+											app.Ul().
+												Class("nav navbar-nav").
+												Body(
+													app.Li().
+														Class("").
+														Body(
+															app.A().
+																Href("#").
+																Body(
+																	app.Text("Link1"), app.Span().
+																		Class("sr-only").
+																		Body(
+																			app.Text("(current)"),
+																		),
+																),
+														).
+														OnMouseOut(func(ctx app.Context, e app.Event) {
+															ctx.JSSrc().Get("attributes").Get("class").Set("value", "")
+														}).
+														OnMouseOver(func(ctx app.Context, e app.Event) {
+															ctx.JSSrc().Get("attributes").Get("class").Set("value", "active")
+														}),
+													app.Li().
+														Class("").
+														Body(
+															app.A().
+																Href("#").
+																Body(
+																	app.Text("Link2"),
+																),
+														).
+														OnMouseOut(func(ctx app.Context, e app.Event) {
+															ctx.JSSrc().Get("attributes").Get("class").Set("value", "")
+														}).
+														OnMouseOver(func(ctx app.Context, e app.Event) {
+															ctx.JSSrc().Get("attributes").Get("class").Set("value", "active")
+														}),
+												),
+											app.Ul().
+												Class("nav navbar-nav navbar-right").
+												Body(
+													app.Li().
+														Class("").
+														Body(
+															app.A().
+																Href("#").
+																Body(
+																	app.Text("Sign In"),
+																).
+																OnClick(func(ctx app.Context, e app.Event) {
+																	jui := app.Window().GetElementByID("id02")
+																	style := jui.Get("style")
+																	style.Set("display", "block")
+																}),
+															h.renderSignIn2(),
+														).
+														OnMouseOut(func(ctx app.Context, e app.Event) {
+															ctx.JSSrc().Get("attributes").Get("class").Set("value", "")
+														}).
+														OnMouseOver(func(ctx app.Context, e app.Event) {
+															ctx.JSSrc().Get("attributes").Get("class").Set("value", "active")
+														}),
+													app.Li().
+														Class("").
+														Body(
+															app.A().
+																Href("#").
+																Body(
+																	app.Text("Sign Up"),
+																).
+																OnClick(func(ctx app.Context, e app.Event) {
+																	jui := app.Window().GetElementByID("id01")
+																	style := jui.Get("style")
+																	style.Set("display", "block")
+																}),
+															h.renderSignUp2(),
+														).
+														OnMouseOut(func(ctx app.Context, e app.Event) {
+															ctx.JSSrc().Get("attributes").Get("class").Set("value", "")
+														}).
+														OnMouseOver(func(ctx app.Context, e app.Event) {
+															ctx.JSSrc().Get("attributes").Get("class").Set("value", "active")
+														}),
+												),
+										),
+								// ---- end ----
+								),
+						),
+				),
+		)
+}
 
+func (h *short) navBar() app.UI {
+	// return h.newNav()
+	return app.Nav().
+		Class("navbar", "navbar-default").
+		Body(
+			app.Div().
+				Class("container-fluid").
+				Body(
+					// <!-- Brand and toggle get grouped for better mobile display -->
+					app.Div().
+						Class("navbar-header").
+						Body(
+							app.Button().
+								Type("button").
+								Class("navbar-toggle collapsed").
+								DataSet("toggle", "collapse").
+								DataSet("target", "#bs-example-navbar-collapse-1").
+								Aria("expanded", "false").
+								Body(
+									app.Span().Class("sr-only").
+										Body(app.Text("Toggle navigation")),
+									app.Span().Class("icon-bar"),
+									app.Span().Class("icon-bar"),
+									app.Span().Class("icon-bar"),
+								),
+							app.A().
+								Class("navbar-brand").
+								Href("#").
+								Body(
+									app.Text("Brand"),
+								),
+						),
+					// <!-- Collect the nav links, forms, and other content for toggling -->
+					app.Div().
+						Class("collapse navbar-collapse").
+						ID("bs-example-navbar-collapse-1").
+						Body(
+							app.Ul().
+								Class("nav navbar-nav").
+								Body(
+									app.Li().
+										Class("active").
+										Body(
+											app.A().
+												Href("#").
+												Body(
+													app.Text("Link"), app.Span().
+														Class("sr-only").
+														Body(app.Text("(current)")),
+												),
+										),
+									app.Li().
+										Body(app.A().Href("#").Body(app.Text("Link"))),
+									app.Li().
+										Class("dropdown").
+										Body(
+											app.A().
+												Href("#").
+												Class("dropdown-toggle").
+												DataSet("toggle", "dropdown").
+												Aria("role", "button").
+												Aria("haspopup", true).
+												Aria("expanded", "false").
+												Body(
+													app.Text("Dropdown"),
+													app.Span().Class("caret"),
+												),
+											app.Ul().
+												Class("dropdown-menu").
+												Body(
+													app.Li().
+														Body(app.A().Href("#").Body(app.Text("Action"))),
+													app.Li().
+														Body(app.A().Href("#").Body(app.Text("Another action"))),
+													app.Li().
+														Body(app.A().Href("#").Body(app.Text("Something else here"))),
+													app.Li().
+														Aria("role", "separator").
+														Class("divider"),
+													app.Li().
+														Body(app.A().Href("#").Body(app.Text("Separated link"))),
+													app.Li().
+														Aria("role", "separator").
+														Class("divider"),
+													app.Li().
+														Body(app.A().Href("#").Body(app.Text("One more separated link"))),
+												),
+										),
+								),
+							app.Form().
+								Class("navbar-form navbar-left").
+								Body(
+									app.Div().
+										Class("form-group").
+										Body(app.Input().Type("text").Class("form-control").Placeholder("Search")),
+									app.Button().
+										Type("submit").
+										Class("btn btn-default").
+										Body(app.Text("Submit")),
+								),
+							app.Ul().
+								Class("nav navbar-nav navbar-right").
+								Body(
+									app.Li().Body(app.A().Href("#").Body(app.Text("Link"))),
+									app.Li().
+										Class("dropdown").
+										Body(
+											app.A().
+												Href("#").
+												Class("dropdown-toggle").
+												DataSet("toggle", "dropdown").
+												Aria("role", "button").
+												Aria("haspopup", true).
+												Aria("expanded", "false").
+												Body(
+													app.Text("Dropdown"), app.Span().
+														Class("caret"),
+												),
+											app.Ul().
+												Class("dropdown-menu").
+												Body(
+													app.Li().
+														Body(app.A().Href("#").Body(app.Text("Action"))),
+													app.Li().
+														Body(app.A().Href("#").Body(app.Text("Another action"))),
+													app.Li().
+														Body(app.A().Href("#").Body(app.Text("Something else here"))),
+													app.Li().
+														Aria("role", "separator").
+														Class("divider"),
+													app.Li().Body(app.A().Href("#").Body(app.Text("Separated link"))),
+												),
+										),
+								),
+						),
+				),
+		)
+
+	/*
+			<div class="navbar">
+		  <a href="#home">Home</a>
+		  <a href="#news">News</a>
+		  <div class="dropdown">
+		    <button class="dropbtn">Dropdown
+		      <i class="fa fa-caret-down"></i>
+		    </button>
+		    <div class="dropdown-content">
+		      <a href="#">Link 1</a>
+		      <a href="#">Link 2</a>
+		      <a href="#">Link 3</a>
+		    </div>
+		  </div>
+		</div>
+	*/
+	return app.Div().
+		Class("navbar").
+		Body(
+			app.A().
+				Href("#home").
+				Body(
+					app.Text("Home"),
+				),
+			app.A().
+				Href("#news").
+				Body(
+					app.Text("News"),
+				),
+			app.Div().
+				Class("dropdown").
+				Body(
+					app.Button().
+						Class("dropbtn").
+						Body(
+							app.Text("Dropdown"), app.I().
+								Class("fa fa-caret-down"),
+						),
+					app.Div().
+						Class("dropdown-content").
+						Body(
+							app.A().
+								Href("#").
+								Body(
+									app.Text("Link 1"),
+								),
+							app.A().
+								Href("#").
+								Body(
+									app.Text("Link 2"),
+								),
+							app.A().
+								Href("#").
+								Body(
+									app.Text("Link 3"),
+								),
+						),
+				),
+		)
+	return app.Div().
+		Class("row").
+		Class("navbar").
+		Body(
+			app.A().Href("#home").Body(app.Text("Home")),
+			app.A().Href("#news").Body(app.Text("News")),
+			app.Div().Class("dropdown").Body(
+				app.Button().Class("dropbtn").Body(
+					app.Text("Dropdown"),
+					app.I().Class("fa", "fa-caret-down"),
+				),
+				app.Div().Class("sdropdown-content").Body(
+					app.A().Href("#").Body(app.Text("Link 1")),
+					app.A().Href("#").Body(app.Text("Link 2")),
+					app.A().Href("#").Body(app.Text("Link 3")),
+				),
+			),
+		)
+	// return app.If(h.isDev,
+	// 	app.Div().
+	// 		ID("signup").
+	// 		Class("col-sm-1").
+	// 		Body(
+	// 			h.renderAccount(),
+	// 		))
+}
+
+func (h *short) newNav() app.UI {
+	return app.Div().
+		ID("container").
+		Body(
+			app.Nav().
+				Body(
+					app.Div().
+						ID("logo").
+						Body(
+							app.Text("Company"),
+						),
+					app.Ul().
+						Body(
+							app.Li().
+								Body(
+									app.A().
+										Href("#").
+										Body(
+											app.Text("Home"),
+										),
+								),
+							app.Li().
+								Body(
+									app.A().
+										Href("#").
+										Body(
+											app.Text("About"),
+										),
+								),
+							app.Li().
+								Class("dropdown").
+								OnMouseOver(func(ctx app.Context, e app.Event) {
+									// app.Window().Call("hover", "this")
+									// ctx.JSSrc()
+								}).
+								OnMouseOut(func(ctx app.Context, e app.Event) {
+									// app.Window().Call("unhover", "this")
+								}).
+								// OnMouseOver("hover(this);").
+								// OnMouseOut("out(this);").
+								Body(
+									app.A().
+										ID("gallerid").
+										Href("#").
+										Body(
+											app.Text("Gallery"), app.I().
+												Class("fa fa-caret-down"),
+										),
+									app.Div().
+										Class("dd").
+										Body(
+											app.Div().
+												ID("up_arrow"),
+											app.Ul().
+												Body(
+													app.Li().
+														Body(
+															app.A().
+																Href("#").
+																Body(
+																	app.Text("2019"),
+																),
+														),
+													app.Li().
+														Body(
+															app.A().
+																Href("#").
+																Body(
+																	app.Text("2018"),
+																),
+														),
+													app.Li().
+														Body(
+															app.A().
+																Href("#").
+																Body(
+																	app.Text("2017"),
+																),
+														),
+												),
+										),
+								),
+							app.Li().
+								Body(
+									app.A().
+										Href("#").
+										Body(
+											app.Text("Contact"),
+										),
+								),
+							app.Li().
+								Class("dropdown").
+								Body(
+									app.A().
+										Href("#").
+										Body(
+											app.Text("Others"), app.I().
+												Class("fa fa-caret-down"),
+										),
+									app.Div().
+										Class("dd").
+										Body(
+											app.Div().
+												ID("u_a_c").
+												Body(
+													app.Div().
+														ID("up_arrow"),
+												),
+											app.Ul().
+												Body(
+													app.Li().
+														Body(
+															app.A().
+																Href("#").
+																Body(
+																	app.Text("DOCS"),
+																),
+														),
+													app.Li().
+														Body(
+															app.A().
+																Href("#").
+																Body(
+																	app.Text("API"),
+																),
+														),
+													app.Li().
+														Body(
+															app.A().
+																Href("#").
+																Body(
+																	app.Text("PROJECTS"),
+																),
+														),
+												),
+										),
+								),
+						),
+				),
+		)
+}

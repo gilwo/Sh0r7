@@ -83,23 +83,27 @@ func storageInit() error {
 	envLocal := os.Getenv("SH0R7_STORE_LOCAL")
 	envRedis := os.Getenv("SH0R7_STORE_REDIS")
 	envFallback := os.Getenv("SH0R7_STORE_FALLBACK")
+	log.Printf("env Local<%s>, Redis<%s>, fallback<%s>\n", envLocal, envRedis, envFallback)
 	if redisUrl := envRedis; redisUrl != "" && !*useLocal {
 		fmt.Printf("redisURL: %s\n", redisUrl)
 		if store.NewStoreRedis == nil {
 			return errors.New("missing redis storage support")
 		}
 		store.StoreCtx = store.NewStoreRedis(redisUrl)
+		log.Printf("redis storage initialized")
 	} else if envLocal != "" {
 		if store.NewStoreLocal == nil {
 			return errors.New("missing local storage support")
 
 		}
 		store.StoreCtx = store.NewStoreLocal()
+		log.Printf("local storage initialized")
 	}
 	if store.StoreCtx == nil {
 		if strings.TrimSpace(strings.ToLower(envFallback)) == "true" || *useLocal {
 			fmt.Println("no specific store defined - fallback to local storage")
 			store.StoreCtx = store.NewStoreLocal()
+			log.Printf("local fallback storage initialized")
 		} else {
 			return errors.New("missing storage support")
 		}
@@ -109,6 +113,7 @@ func storageInit() error {
 		return errors.Wrap(err, "store init failed, exiting...\n")
 	}
 	handler.StoreFavicon()
+	log.Printf("storage sucessfully initialized")
 	return nil
 }
 
@@ -129,6 +134,7 @@ func adTokenSet() {
 	if err != nil {
 		panic(err)
 	}
+	log.Printf("admin key: [%s], token: [%s]\n", adminKey, adTok)
 }
 
 func startServer() {
@@ -212,8 +218,19 @@ func GinInit() *gin.Engine {
 	genericHandleShort := func(c *gin.Context) {
 		paramShort := c.Param("short")
 		paramExt := strings.Trim(c.Param("ext"), "/")
+		log.Printf("original: %+#v\n", c.Request.URL)
 		log.Printf("generic handler: short <%s>, ext <%s>\n", paramShort, paramExt)
 
+		// if paramShort == "hc" {
+		// 	if time.Now().Unix()%60 == 0 {
+		// 		defer QueueMaintWork()
+		// 	}
+		// 	if paramExt == "dump" {
+		// 		handler.HandleDumpMaint(c, DumpMaintList)
+		// 		return
+		// 	}
+		// 	c.Status(200)
+		// } else
 		if paramShort == "favicon.ico" {
 			c.FileFromFS(".", handler.HandleGetFavIcon())
 		} else if paramExt == "info" {
@@ -224,6 +241,13 @@ func GinInit() *gin.Engine {
 			handler.HandleDumpKeys(c)
 		} else if common.WebappGenFunc != nil && common.WebappGenFunc("SERVE", c).(bool) {
 			return
+			// } else if store.StoreCtx.CheckExistShortDataMapping(c.Request.URL.Path) {
+			// 	data, err := store.StoreCtx.LoadDataMapping(c.Request.URL.Path)
+			// 	if err == nil {
+			// 		c.Data(200, "image/jpg", data)
+			// 		return
+			// 	}
+			// 	c.JSON(http.StatusInternalServerError, "error")
 		} else {
 			handler.HandleShort(c)
 		}
@@ -233,6 +257,10 @@ func GinInit() *gin.Engine {
 	r.GET("/:short/*ext", genericHandleShort)
 
 	handleHealthCheck := func(c *gin.Context) {
+		log.Println("handleHC")
+		t := time.Now().Unix()
+		t10 := t % 10
+		log.Printf("time %%10: %v (%v)\n", t, t10)
 		if time.Now().Unix()%10 >= 5 {
 			defer QueueMaintWork()
 		}
@@ -300,6 +328,11 @@ var (
 )
 
 func initUptrace() {
+	// isLive := true
+	// serviceName := os.Getenv("RENDER_SERVICE_NAME")
+	// serviceID := os.Getenv("RENDER_SERVICE_ID")
+	// instanceID := os.Getenv("RENDER_INSTANCE_ID")
+	// serviceVersion := "dev"
 	// the system service name that will be shown in uptrace will be in the following form:
 	// [<service name>|<development host>].<deploy type>.sh0r7.me[.debug|.test]
 	// where
@@ -356,4 +389,15 @@ func initUptrace() {
 		log.Printf("** using uptrace OTEL service using [%s]\n", OpenTelemetryServiceName)
 	}
 	metrics.GlobalMeter = metrics.InitGlobalMeter(OpenTelemetryServiceName)
+	// fmt.Printf("host: %+#v\n", os.Getenv("SH0R7_DEV_HOST"))
+	// fmt.Printf("allenv: %+#v\n", os.Environ())
+
+	// metrics.GlobalMeter.IncMeterCounter(metrics.CreationFailure)
+	// metrics.GlobalMeter.IncMeterCounter(metrics.VisitPublic)
+	// metrics.GlobalMeter.IncMeterCounter(metrics.VisitPublic)
+	// metrics.GlobalMeter.IncMeterCounter(metrics.VisitPublic)
+	// fmt.Printf("global:\n%s\n", metrics.GlobalMeter.Dump())
+	// <-time.After(60 * time.Second)
+
+	// panic("123")
 }

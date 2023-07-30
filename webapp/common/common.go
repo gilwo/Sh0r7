@@ -12,9 +12,12 @@ var (
 	DevPublicPath  = DevShortPath + "/public"
 	DevRemovePath  = DevShortPath + "/remove"
 	devBuild       bool
+
+	ClockPath = "/clock"
 )
 
 func init() {
+	// if false && devBuild {
 	if devBuild {
 		ShortPath = DevShortPath
 		PrivatePath = DevPrivatePath

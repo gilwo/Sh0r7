@@ -13,6 +13,8 @@ type Store interface {
 	//  ttl == 0 - use default
 	//  ttl < 0 dont use ttl
 	SaveDataMapping(data []byte, short string, ttl time.Duration) error
+	// Kinda obvious, is this short exists, lock the short so no one can use it if its not exist
+	CheckExistShortDataMappingAndLock(short string) bool
 	// Kinda obvious, is this short exists
 	CheckExistShortDataMapping(short string) bool
 	// Retrieve only the data associated with the short
